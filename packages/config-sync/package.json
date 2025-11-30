@@ -1,0 +1,26 @@
+{
+  "name": "@veeble/config-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Configuration sync worker",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@veeble/shared": "workspace:*",
+    "pg": "^8.11.3",
+    "dotenv": "^16.4.1",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/pg": "^8.10.9",
+    "nodemon": "^3.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

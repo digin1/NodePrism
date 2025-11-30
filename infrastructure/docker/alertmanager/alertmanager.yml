@@ -1,0 +1,42 @@
+global:
+  resolve_timeout: 5m
+
+# Default route
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  routes:
+    # Critical alerts
+    - match:
+        severity: critical
+      receiver: 'critical'
+      continue: true
+
+    # Warning alerts
+    - match:
+        severity: warning
+      receiver: 'warning'
+      continue: true
+
+# Receivers (notification channels)
+receivers:
+  - name: 'default'
+    # Default receiver (no-op for now)
+
+  - name: 'critical'
+    # TODO: Configure actual notification channels in Phase 6
+    # Example: email, slack, pagerduty, webhook
+
+  - name: 'warning'
+    # TODO: Configure actual notification channels in Phase 6
+
+# Inhibition rules
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']

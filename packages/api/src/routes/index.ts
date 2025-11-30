@@ -1,4 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
+import { serverRoutes } from './servers';
+import { alertRoutes } from './alerts';
+import { metricRoutes } from './metrics';
 
 const router: ExpressRouter = Router();
 
@@ -7,15 +10,9 @@ router.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'API routes are working' });
 });
 
-// TODO: Add route modules
-// import { serverRoutes } from './servers';
-// import { metricRoutes } from './metrics';
-// import { alertRoutes } from './alerts';
-// import { authRoutes } from './auth';
-//
-// router.use('/servers', serverRoutes);
-// router.use('/metrics', metricRoutes);
-// router.use('/alerts', alertRoutes);
-// router.use('/auth', authRoutes);
+// Mount route modules
+router.use('/servers', serverRoutes);
+router.use('/alerts', alertRoutes);
+router.use('/metrics', metricRoutes);
 
 export { router as routes };

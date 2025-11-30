@@ -1,0 +1,177 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - Configuration Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: veeble-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: veeble_vitals
+      POSTGRES_USER: veeble
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeMe}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - veeble-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veeble"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Cache & Session Storage
+  redis:
+    image: redis:7-alpine
+    container_name: veeble-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - veeble-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # RabbitMQ - Message Queue
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: veeble-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: veeble
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-changeMe}
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - veeble-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Prometheus - Metrics Storage
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: veeble-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - ./prometheus/targets:/etc/prometheus/targets
+      - prometheus-data:/prometheus
+    networks:
+      - veeble-network
+    depends_on:
+      - alertmanager
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: veeble-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    networks:
+      - veeble-network
+    depends_on:
+      - prometheus
+      - loki
+      - postgres
+
+  # Loki - Log Aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: veeble-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml
+      - loki-data:/loki
+    networks:
+      - veeble-network
+
+  # Promtail - Log Shipper (for manager node)
+  promtail:
+    image: grafana/promtail:latest
+    container_name: veeble-promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
+      - /var/log:/var/log:ro
+    networks:
+      - veeble-network
+    depends_on:
+      - loki
+
+  # AlertManager - Alert Routing
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: veeble-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
+    networks:
+      - veeble-network
+
+  # Pushgateway - For Batch Jobs
+  pushgateway:
+    image: prom/pushgateway:latest
+    container_name: veeble-pushgateway
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    networks:
+      - veeble-network
+
+networks:
+  veeble-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  alertmanager-data:

@@ -1,0 +1,35 @@
+{
+  "name": "veeble-node-vitals",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Advanced monitoring system for 50+ servers with automated deployment and comprehensive metrics",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/digin1/veeble-node-vitals.git"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "docker:up": "docker-compose -f infrastructure/docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f infrastructure/docker/docker-compose.yml down",
+    "docker:logs": "docker-compose -f infrastructure/docker/docker-compose.yml logs -f"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "prettier": "^3.2.4",
+    "turbo": "^1.12.4",
+    "typescript": "^5.3.3"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}

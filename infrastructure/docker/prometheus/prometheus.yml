@@ -1,0 +1,97 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'veeble-vitals'
+    environment: 'production'
+
+# AlertManager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load alert rules
+rule_files:
+  - '/etc/prometheus/alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Grafana
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+
+  # AlertManager
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+
+  # Pushgateway
+  - job_name: 'pushgateway'
+    honor_labels: true
+    static_configs:
+      - targets: ['pushgateway:9091']
+
+  # Node Exporter - File-based service discovery
+  - job_name: 'node-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/node-exporter/*.json'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__meta_server_id]
+        target_label: server_id
+      - source_labels: [__meta_hostname]
+        target_label: hostname
+      - source_labels: [__meta_environment]
+        target_label: environment
+      - source_labels: [__meta_region]
+        target_label: region
+
+  # Application Agent - File-based service discovery
+  - job_name: 'app-agent'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/app-agent/*.json'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__meta_server_id]
+        target_label: server_id
+      - source_labels: [__meta_hostname]
+        target_label: hostname
+
+  # Database Exporters - File-based service discovery
+  - job_name: 'mysql-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/mysql-exporter/*.json'
+
+  - job_name: 'postgres-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/postgres-exporter/*.json'
+
+  - job_name: 'mongodb-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/mongodb-exporter/*.json'
+
+  # Web Server Exporters - File-based service discovery
+  - job_name: 'nginx-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/nginx-exporter/*.json'
+
+  - job_name: 'apache-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/apache-exporter/*.json'

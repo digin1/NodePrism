@@ -1,0 +1,76 @@
+groups:
+  - name: instance_alerts
+    interval: 30s
+    rules:
+      # Instance down alert
+      - alert: InstanceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% (current value: {{ $value }}%)"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 80% (current value: {{ $value }}%)"
+
+      # Low disk space
+      - alert: LowDiskSpace
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk {{ $labels.mountpoint }} usage is above 80% (current value: {{ $value }}%)"
+
+      # Critical disk space
+      - alert: CriticalDiskSpace
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"})) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk space on {{ $labels.instance }}"
+          description: "Disk {{ $labels.mountpoint }} usage is above 95% (current value: {{ $value }}%)"
+
+  - name: monitoring_alerts
+    interval: 30s
+    rules:
+      # Too many scrape errors
+      - alert: TooManyScrapeErrors
+        expr: increase(prometheus_target_scrapes_exceeded_sample_limit_total[1m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many scrape errors"
+          description: "Prometheus is experiencing high scrape error rate"
+
+      # Prometheus target missing
+      - alert: PrometheusTargetMissing
+        expr: up{job!~"prometheus|pushgateway"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus target missing"
+          description: "Target {{ $labels.instance }} is down"

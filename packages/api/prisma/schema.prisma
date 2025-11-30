@@ -1,0 +1,271 @@
+// Veeble Node Vitals - Database Schema
+// This schema defines all tables for the monitoring system
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== SERVER MANAGEMENT ====================
+
+model Server {
+  id          String       @id @default(uuid())
+  hostname    String
+  ipAddress   String       @map("ip_address")
+  sshPort     Int          @default(22) @map("ssh_port")
+  sshUsername String?      @map("ssh_username")
+  status      ServerStatus @default(OFFLINE)
+  environment Environment  @default(PRODUCTION)
+  region      String?
+  tags        String[]     @default([])
+  metadata    Json?
+  lastSeen    DateTime?    @map("last_seen")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  agents      Agent[]
+  deployments Deployment[]
+  alerts      Alert[]
+
+  @@map("servers")
+}
+
+enum ServerStatus {
+  ONLINE
+  OFFLINE
+  WARNING
+  CRITICAL
+  DEPLOYING
+  MAINTENANCE
+}
+
+enum Environment {
+  DEVELOPMENT
+  STAGING
+  PRODUCTION
+}
+
+// ==================== AGENT MANAGEMENT ====================
+
+model Agent {
+  id              String      @id @default(uuid())
+  serverId        String      @map("server_id")
+  type            AgentType
+  status          AgentStatus @default(NOT_INSTALLED)
+  version         String?
+  port            Int
+  config          Json?
+  lastHealthCheck DateTime?   @map("last_health_check")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, type])
+  @@map("agents")
+}
+
+enum AgentType {
+  NODE_EXPORTER
+  APP_AGENT
+  MYSQL_EXPORTER
+  POSTGRES_EXPORTER
+  MONGODB_EXPORTER
+  NGINX_EXPORTER
+  APACHE_EXPORTER
+  PROMTAIL
+}
+
+enum AgentStatus {
+  NOT_INSTALLED
+  INSTALLING
+  RUNNING
+  STOPPED
+  FAILED
+  UPDATING
+}
+
+// ==================== DEPLOYMENT HISTORY ====================
+
+model Deployment {
+  id         String           @id @default(uuid())
+  serverId   String           @map("server_id")
+  agentType  AgentType        @map("agent_type")
+  status     DeploymentStatus @default(PENDING)
+  logs       String?          @db.Text
+  startedAt  DateTime?        @map("started_at")
+  finishedAt DateTime?        @map("finished_at")
+  error      String?
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@map("deployments")
+}
+
+enum DeploymentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ==================== ALERT MANAGEMENT ====================
+
+model AlertRule {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  query       String        // PromQL query
+  duration    String        @default("5m")
+  severity    AlertSeverity
+  labels      Json?
+  annotations Json?
+  enabled     Boolean       @default(true)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  alerts Alert[]
+
+  @@map("alert_rules")
+}
+
+model Alert {
+  id          String        @id @default(uuid())
+  ruleId      String?       @map("rule_id")
+  serverId    String?       @map("server_id")
+  status      AlertStatus   @default(FIRING)
+  severity    AlertSeverity
+  message     String
+  labels      Json?
+  annotations Json?
+  fingerprint String        @unique
+  startsAt    DateTime      @map("starts_at")
+  endsAt      DateTime?     @map("ends_at")
+  acknowledgedAt DateTime?  @map("acknowledged_at")
+  acknowledgedBy String?    @map("acknowledged_by")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  rule   AlertRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  server Server?    @relation(fields: [serverId], references: [id], onDelete: SetNull)
+
+  @@map("alerts")
+}
+
+enum AlertSeverity {
+  CRITICAL
+  WARNING
+  INFO
+  DEBUG
+}
+
+enum AlertStatus {
+  FIRING
+  RESOLVED
+  SILENCED
+  ACKNOWLEDGED
+}
+
+// ==================== NOTIFICATION CHANNELS ====================
+
+model NotificationChannel {
+  id        String                  @id @default(uuid())
+  name      String
+  type      NotificationChannelType
+  config    Json
+  enabled   Boolean                 @default(true)
+  createdAt DateTime                @default(now()) @map("created_at")
+  updatedAt DateTime                @updatedAt @map("updated_at")
+
+  @@map("notification_channels")
+}
+
+enum NotificationChannelType {
+  EMAIL
+  SLACK
+  DISCORD
+  WEBHOOK
+  PAGERDUTY
+  TELEGRAM
+}
+
+// ==================== USER MANAGEMENT ====================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String    @map("password_hash")
+  role         UserRole  @default(VIEWER)
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+// ==================== AUDIT LOG ====================
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ==================== DASHBOARD CONFIGURATION ====================
+
+model Dashboard {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  config      Json     // Dashboard JSON configuration
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("dashboards")
+}
+
+// ==================== SSH CREDENTIALS (encrypted in Vault) ====================
+
+model SshCredential {
+  id         String   @id @default(uuid())
+  serverId   String   @unique @map("server_id")
+  vaultPath  String   @map("vault_path") // Path to encrypted credential in Vault
+  keyType    String   @default("password") @map("key_type") // password, key
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("ssh_credentials")
+}

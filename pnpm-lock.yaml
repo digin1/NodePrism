@@ -179,6 +179,9 @@ importers:
       amqplib:
         specifier: ^0.10.3
         version: 0.10.9
+      axios:
+        specifier: ^1.6.5
+        version: 1.13.2
       dotenv:
         specifier: ^16.4.1
         version: 16.6.1

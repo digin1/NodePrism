@@ -1,14 +1,34 @@
 import dotenv from 'dotenv';
+import { DeploymentWorker } from './worker';
+import { logger } from './utils/logger';
 
 dotenv.config();
 
-console.log('Deployment Worker - Coming soon in Phase 4');
-console.log('This service will handle SSH-based agent deployment to remote servers');
+async function main() {
+  logger.info('Starting Deployment Worker...');
 
-// TODO: Phase 4 implementation
-// - RabbitMQ consumer for deployment jobs
-// - SSH connection management
-// - Agent binary upload
-// - Configuration generation
-// - Service installation
-// - Health check verification
+  const worker = new DeploymentWorker();
+
+  // Handle graceful shutdown
+  process.on('SIGTERM', async () => {
+    logger.info('Received SIGTERM, shutting down gracefully...');
+    await worker.stop();
+    process.exit(0);
+  });
+
+  process.on('SIGINT', async () => {
+    logger.info('Received SIGINT, shutting down gracefully...');
+    await worker.stop();
+    process.exit(0);
+  });
+
+  try {
+    await worker.start();
+    logger.info('Deployment Worker started successfully');
+  } catch (error) {
+    logger.error('Failed to start Deployment Worker', { error });
+    process.exit(1);
+  }
+}
+
+main();

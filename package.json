@@ -19,9 +19,9 @@
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "docker:up": "docker-compose -f infrastructure/docker/docker-compose.yml up -d",
-    "docker:down": "docker-compose -f infrastructure/docker/docker-compose.yml down",
-    "docker:logs": "docker-compose -f infrastructure/docker/docker-compose.yml logs -f"
+    "docker:up": "docker compose -f infrastructure/docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infrastructure/docker/docker-compose.yml down",
+    "docker:logs": "docker compose -f infrastructure/docker/docker-compose.yml logs -f"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",

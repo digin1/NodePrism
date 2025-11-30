@@ -15,8 +15,14 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-    echo "❌ Docker Compose is not installed. Please install Docker Compose first."
+# Check for docker compose (new syntax) or docker-compose (old syntax)
+if docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+else
+    echo "❌ Docker Compose is not available."
+    echo "If you're using WSL2, please enable WSL integration in Docker Desktop settings."
     exit 1
 fi
 
@@ -66,7 +72,7 @@ echo ""
 # Start Docker services
 echo "🐳 Starting Docker services..."
 cd infrastructure/docker
-docker-compose up -d
+$DOCKER_COMPOSE up -d
 cd ../..
 echo ""
 

@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { settingsApi, SystemSettings } from '@/lib/api';
 
 const navigation = [
   {
@@ -71,14 +73,42 @@ const externalLinks = [
 export function Sidebar() {
   const pathname = usePathname();
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Logo URL - local paths are proxied via Next.js rewrites
+  const logoUrl = settings?.logoUrl || null;
+  const systemName = settings?.systemName || 'NodePrism';
+  const primaryColor = settings?.primaryColor || '#3B82F6';
+
   return (
     <div className="flex h-full w-64 flex-col bg-gray-900">
-      <div className="flex h-16 items-center px-6">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">V</span>
+      <div className="flex h-16 items-center px-4">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <div
+            className="flex-shrink-0 flex items-center justify-center overflow-hidden bg-white rounded-lg py-1 px-3"
+            style={{ minWidth: '44px', minHeight: '44px' }}
+          >
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={systemName}
+                style={{ height: '40px', width: 'auto', maxWidth: '160px' }}
+              />
+            ) : (
+              <span className="font-bold text-2xl" style={{ color: primaryColor }}>
+                {systemName.charAt(0).toUpperCase()}
+              </span>
+            )}
           </div>
-          <span className="text-white font-semibold text-lg">Node Vitals</span>
+          {!logoUrl && (
+            <span className="text-white font-semibold text-lg truncate">
+              {systemName}
+            </span>
+          )}
         </Link>
       </div>
 
@@ -125,6 +155,27 @@ export function Sidebar() {
           ))}
         </div>
       </div>
+
+      {/* Manager System Info - subtle display at bottom */}
+      {(settings?.managerHostname || settings?.managerIp) && (
+        <div className="border-t border-gray-800 px-4 py-3">
+          <div className="text-xs text-gray-600">
+            <div className="flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
+              </svg>
+              <span className="truncate" title={settings.managerHostname || ''}>
+                {settings.managerHostname}
+              </span>
+            </div>
+            {settings.managerIp && (
+              <div className="font-mono text-gray-600 mt-0.5 pl-4">
+                {settings.managerIp}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

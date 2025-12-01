@@ -108,6 +108,10 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api', routes);
 
+// Static file serving for uploads (logos, etc.)
+const uploadsPath = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsPath));
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   logger.info(`Socket connected: ${socket.id}`);

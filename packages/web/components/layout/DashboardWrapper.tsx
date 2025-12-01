@@ -1,8 +1,24 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
+
+// Dynamically import Sidebar to avoid SSR issues with useQuery
+const Sidebar = dynamic(
+  () => import('@/components/layout/sidebar').then((mod) => mod.Sidebar),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-64 bg-gray-900 animate-pulse">
+        <div className="h-16 px-6 flex items-center">
+          <div className="h-8 w-8 bg-gray-700 rounded-lg"></div>
+          <div className="ml-2 h-6 w-24 bg-gray-700 rounded"></div>
+        </div>
+      </div>
+    ),
+  }
+);
 
 export function DashboardWrapper({ children }: { children: React.ReactNode }) {
   return (

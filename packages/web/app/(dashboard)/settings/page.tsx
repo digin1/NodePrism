@@ -2,10 +2,13 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useQuery } from '@tanstack/react-query';
+import { useState, useRef, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { healthApi, metricsApi } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { healthApi, metricsApi, settingsApi, SystemSettings } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Health {
   status: string;
@@ -13,6 +16,16 @@ interface Health {
 }
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isAdmin = user?.role === 'ADMIN';
+
+  const [systemName, setSystemName] = useState('');
+  const [primaryColor, setPrimaryColor] = useState('#3B82F6');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: () => healthApi.check(),
@@ -22,6 +35,71 @@ export default function SettingsPage() {
     queryKey: ['targets'],
     queryFn: () => metricsApi.targets(),
   });
+
+  const { data: settings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+  });
+
+  // Update state when settings data changes
+  useEffect(() => {
+    if (settings) {
+      setSystemName(settings.systemName || 'NodePrism');
+      setPrimaryColor(settings.primaryColor || '#3B82F6');
+    }
+  }, [settings]);
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: (data: Partial<SystemSettings>) => settingsApi.update(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      setMessage({ type: 'success', text: 'Settings saved successfully' });
+      setTimeout(() => setMessage(null), 3000);
+    },
+    onError: () => {
+      setMessage({ type: 'error', text: 'Failed to save settings' });
+      setTimeout(() => setMessage(null), 3000);
+    },
+  });
+
+  const uploadLogoMutation = useMutation({
+    mutationFn: (file: File) => settingsApi.uploadLogo(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      setMessage({ type: 'success', text: 'Logo uploaded successfully' });
+      setTimeout(() => setMessage(null), 3000);
+    },
+    onError: () => {
+      setMessage({ type: 'error', text: 'Failed to upload logo' });
+      setTimeout(() => setMessage(null), 3000);
+    },
+  });
+
+  const deleteLogoMutation = useMutation({
+    mutationFn: () => settingsApi.deleteLogo(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      setMessage({ type: 'success', text: 'Logo deleted successfully' });
+      setTimeout(() => setMessage(null), 3000);
+    },
+    onError: () => {
+      setMessage({ type: 'error', text: 'Failed to delete logo' });
+      setTimeout(() => setMessage(null), 3000);
+    },
+  });
+
+  const handleSaveSettings = async () => {
+    setSaving(true);
+    await updateSettingsMutation.mutateAsync({ systemName, primaryColor });
+    setSaving(false);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await uploadLogoMutation.mutateAsync(file);
+    }
+  };
 
   const healthData = health as Health | undefined;
 
@@ -37,12 +115,148 @@ export default function SettingsPage() {
     { name: 'RabbitMQ', port: 5672, status: 'running' },
   ];
 
+  // Get logo URL - local paths are proxied via Next.js rewrites
+  const logoUrl = settings?.logoUrl || null;
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
-        <p className="text-muted-foreground">System configuration and status</p>
+        <p className="text-muted-foreground">System configuration and branding</p>
       </div>
+
+      {message && (
+        <div
+          className={`p-4 rounded-lg ${
+            message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {/* System Branding - Admin Only */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>System Branding</CardTitle>
+            <CardDescription>Customize the look and feel of your NodePrism instance</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Logo Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Logo</label>
+              <div className="flex items-center gap-4">
+                <div className="rounded-lg flex items-center justify-center bg-white overflow-hidden py-2 px-4" style={{ minHeight: '80px' }}>
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt="Logo"
+                      style={{ height: '70px', width: 'auto', maxWidth: '200px' }}
+                    />
+                  ) : (
+                    <span className="text-4xl font-bold" style={{ color: primaryColor }}>
+                      {systemName?.charAt(0) || 'N'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadLogoMutation.isPending}
+                  >
+                    {uploadLogoMutation.isPending ? 'Uploading...' : 'Upload Logo'}
+                  </Button>
+                  {logoUrl && (
+                    <Button
+                      variant="outline"
+                      onClick={() => deleteLogoMutation.mutate()}
+                      disabled={deleteLogoMutation.isPending}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      {deleteLogoMutation.isPending ? 'Deleting...' : 'Remove'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Recommended: Square image, PNG or SVG, max 5MB
+              </p>
+            </div>
+
+            {/* System Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">System Name</label>
+              <input
+                type="text"
+                value={systemName}
+                onChange={(e) => setSystemName(e.target.value)}
+                className="w-full max-w-md px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="NodePrism"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                This name will be displayed in the navbar and login page
+              </p>
+            </div>
+
+            {/* Primary Color */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="w-12 h-10 rounded border cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="w-32 px-3 py-2 border rounded-lg font-mono text-sm"
+                  placeholder="#3B82F6"
+                />
+              </div>
+            </div>
+
+            <Button onClick={handleSaveSettings} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Branding Settings'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Manager System Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Manager System</CardTitle>
+          <CardDescription>Information about the NodePrism manager server</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <dl className="space-y-4">
+            <div className="flex justify-between py-2 border-b">
+              <dt className="text-muted-foreground">Hostname</dt>
+              <dd className="font-mono text-sm">{settings?.managerHostname || 'Loading...'}</dd>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <dt className="text-muted-foreground">IP Address</dt>
+              <dd className="font-mono text-sm">{settings?.managerIp || 'Loading...'}</dd>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <dt className="text-muted-foreground">Timezone</dt>
+              <dd className="font-mono text-sm">{settings?.timezone || 'UTC'}</dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
 
       {/* System Status */}
       <Card>

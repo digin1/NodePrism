@@ -6,6 +6,7 @@ import { agentRoutes } from './agents';
 import { authRoutes } from './auth';
 import { anomalyRoutes } from './anomalies';
 import { logRoutes } from './logs';
+import { settingsRoutes } from './settings';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -20,6 +21,9 @@ router.use('/auth', authRoutes);
 
 // Agent routes (public - agents need to register without auth)
 router.use('/agents', agentRoutes);
+
+// Settings routes (partially public - for login page branding)
+router.use('/settings', settingsRoutes);
 
 // Protected routes (require authentication)
 router.use('/servers', optionalAuth, serverRoutes);

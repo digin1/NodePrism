@@ -10,6 +10,17 @@ export const api = axios.create({
   },
 });
 
+// Add auth token interceptor
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('nodeprism_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // Common response types
 interface ApiResponse<T> {
   success: boolean;
@@ -135,4 +146,35 @@ export const agentApi = {
     version?: string;
   }) => api.post('/api/agents/register', data),
   unregister: (agentId: string) => api.post('/api/agents/unregister', { agentId }),
+};
+
+// Settings types
+export interface SystemSettings {
+  systemName: string;
+  logoUrl?: string | null;
+  primaryColor: string;
+  managerHostname?: string | null;
+  managerIp?: string | null;
+  timezone: string;
+  dateFormat: string;
+}
+
+// Settings API
+export const settingsApi = {
+  get: () => getData<SystemSettings>(api.get('/api/settings')),
+  getAll: () => getData(api.get('/api/settings/all')),
+  update: (data: Partial<SystemSettings>) => getData(api.put('/api/settings', data)),
+  uploadLogo: async (file: File) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    // Must explicitly remove Content-Type so browser can set multipart/form-data with boundary
+    const res = await api.post('/api/settings/logo', formData, {
+      headers: {
+        'Content-Type': undefined,
+      },
+    });
+    return res.data;
+  },
+  deleteLogo: () => api.delete('/api/settings/logo'),
+  getSystemInfo: () => getData(api.get('/api/settings/system-info')),
 };

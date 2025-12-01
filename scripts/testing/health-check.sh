@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Veeble Node Vitals - Quick Health Check
+# NodePrism - Quick Health Check
 # A fast way to verify all services are running
 #
 # Usage: ./health-check.sh
@@ -28,7 +28,7 @@ declare -A SERVICES=(
 
 echo ""
 echo "========================================"
-echo "  Veeble Node Vitals - Health Check"
+echo "  NodePrism - Health Check"
 echo "========================================"
 echo ""
 

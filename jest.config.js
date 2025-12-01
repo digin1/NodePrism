@@ -18,7 +18,7 @@ module.exports = {
     }],
   },
   moduleNameMapper: {
-    '^@veeble/(.*)$': '<rootDir>/packages/$1/src',
+    '^@nodeprism/(.*)$': '<rootDir>/packages/$1/src',
   },
   setupFilesAfterEnv: ['<rootDir>/scripts/testing/jest.setup.ts'],
   testTimeout: 30000,

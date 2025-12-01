@@ -1,6 +1,7 @@
 import axios, { AxiosResponse } from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+// Use relative URLs to go through Next.js proxy (avoids CORS issues)
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -86,4 +87,19 @@ export const metricsApi = {
 // Health API
 export const healthApi = {
   check: () => getRaw(api.get('/health')),
+};
+
+// Agent API
+export const agentApi = {
+  list: (params?: { serverId?: string; type?: string; status?: string }) =>
+    getData(api.get('/api/agents', { params })),
+  register: (data: {
+    hostname: string;
+    ipAddress: string;
+    agentType: string;
+    port: number;
+    version?: string;
+  }) => api.post('/api/agents/register', data),
+  unregister: (agentId: string) =>
+    api.post('/api/agents/unregister', { agentId }),
 };

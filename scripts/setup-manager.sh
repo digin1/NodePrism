@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Veeble Node Vitals - Manager Node Setup Script
+# NodePrism - Manager Node Setup Script
 # This script sets up the manager node with all required services
 
 set -e
 
-echo "🚀 Veeble Node Vitals - Manager Node Setup"
+echo "🚀 NodePrism - Manager Node Setup"
 echo "==========================================="
 echo ""
 
@@ -83,13 +83,13 @@ echo ""
 
 # Check service health
 echo "🏥 Checking service health..."
-echo "- PostgreSQL: $(docker inspect --format='{{.State.Health.Status}}' veeble-postgres 2>/dev/null || echo 'not running')"
-echo "- Redis: $(docker inspect --format='{{.State.Health.Status}}' veeble-redis 2>/dev/null || echo 'not running')"
-echo "- RabbitMQ: $(docker inspect --format='{{.State.Health.Status}}' veeble-rabbitmq 2>/dev/null || echo 'not running')"
-echo "- Prometheus: $(docker inspect --format='{{.State.Status}}' veeble-prometheus 2>/dev/null || echo 'not running')"
-echo "- Grafana: $(docker inspect --format='{{.State.Status}}' veeble-grafana 2>/dev/null || echo 'not running')"
-echo "- Loki: $(docker inspect --format='{{.State.Status}}' veeble-loki 2>/dev/null || echo 'not running')"
-echo "- AlertManager: $(docker inspect --format='{{.State.Status}}' veeble-alertmanager 2>/dev/null || echo 'not running')"
+echo "- PostgreSQL: $(docker inspect --format='{{.State.Health.Status}}' nodeprism-postgres 2>/dev/null || echo 'not running')"
+echo "- Redis: $(docker inspect --format='{{.State.Health.Status}}' nodeprism-redis 2>/dev/null || echo 'not running')"
+echo "- RabbitMQ: $(docker inspect --format='{{.State.Health.Status}}' nodeprism-rabbitmq 2>/dev/null || echo 'not running')"
+echo "- Prometheus: $(docker inspect --format='{{.State.Status}}' nodeprism-prometheus 2>/dev/null || echo 'not running')"
+echo "- Grafana: $(docker inspect --format='{{.State.Status}}' nodeprism-grafana 2>/dev/null || echo 'not running')"
+echo "- Loki: $(docker inspect --format='{{.State.Status}}' nodeprism-loki 2>/dev/null || echo 'not running')"
+echo "- AlertManager: $(docker inspect --format='{{.State.Status}}' nodeprism-alertmanager 2>/dev/null || echo 'not running')"
 echo ""
 
 echo "✅ Setup complete!"
@@ -100,7 +100,7 @@ echo "- API Gateway: http://localhost:4000 (run 'pnpm dev' to start)"
 echo "- Grafana: http://localhost:3001 (admin/admin)"
 echo "- Prometheus: http://localhost:9090"
 echo "- AlertManager: http://localhost:9093"
-echo "- RabbitMQ Management: http://localhost:15672 (veeble/${RABBITMQ_PASSWORD})"
+echo "- RabbitMQ Management: http://localhost:15672 (nodeprism/nodeprism123)"
 echo ""
 echo "🚀 Next steps:"
 echo "1. Run 'pnpm dev' to start development servers"

@@ -17,8 +17,8 @@ COPY packages/deployment-worker ./packages/deployment-worker
 RUN pnpm install --frozen-lockfile
 
 # Build shared package first, then deployment-worker
-RUN pnpm --filter @veeble/shared build
-RUN pnpm --filter @veeble/deployment-worker build
+RUN pnpm --filter @nodeprism/shared build
+RUN pnpm --filter @nodeprism/deployment-worker build
 
 # Production stage
 FROM node:20-alpine AS runner

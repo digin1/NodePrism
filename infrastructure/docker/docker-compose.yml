@@ -4,11 +4,11 @@ services:
   # PostgreSQL - Configuration Database
   postgres:
     image: postgres:15-alpine
-    container_name: veeble-postgres
+    container_name: nodeprism-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: veeble_vitals
-      POSTGRES_USER: veeble
+      POSTGRES_DB: nodeprism
+      POSTGRES_USER: nodeprism
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeMe}
     ports:
       - "5432:5432"
@@ -16,9 +16,9 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - veeble-network
+      - nodeprism-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U veeble"]
+      test: ["CMD-SHELL", "pg_isready -U nodeprism"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,14 +26,14 @@ services:
   # Redis - Cache & Session Storage
   redis:
     image: redis:7-alpine
-    container_name: veeble-redis
+    container_name: nodeprism-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis-data:/data
     networks:
-      - veeble-network
+      - nodeprism-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -43,10 +43,10 @@ services:
   # RabbitMQ - Message Queue
   rabbitmq:
     image: rabbitmq:3.12-management-alpine
-    container_name: veeble-rabbitmq
+    container_name: nodeprism-rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: veeble
+      RABBITMQ_DEFAULT_USER: nodeprism
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-changeMe}
     ports:
       - "5672:5672"   # AMQP
@@ -54,7 +54,7 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
-      - veeble-network
+      - nodeprism-network
     healthcheck:
       test: rabbitmq-diagnostics -q ping
       interval: 30s
@@ -64,7 +64,7 @@ services:
   # Prometheus - Metrics Storage
   prometheus:
     image: prom/prometheus:latest
-    container_name: veeble-prometheus
+    container_name: nodeprism-prometheus
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -81,14 +81,14 @@ services:
       - ./prometheus/targets:/etc/prometheus/targets
       - prometheus-data:/prometheus
     networks:
-      - veeble-network
+      - nodeprism-network
     depends_on:
       - alertmanager
 
   # Grafana - Visualization
   grafana:
     image: grafana/grafana:latest
-    container_name: veeble-grafana
+    container_name: nodeprism-grafana
     restart: unless-stopped
     environment:
       - GF_SECURITY_ADMIN_USER=admin
@@ -103,7 +103,7 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards
       - grafana-data:/var/lib/grafana
     networks:
-      - veeble-network
+      - nodeprism-network
     depends_on:
       - prometheus
       - loki
@@ -112,7 +112,7 @@ services:
   # Loki - Log Aggregation
   loki:
     image: grafana/loki:latest
-    container_name: veeble-loki
+    container_name: nodeprism-loki
     restart: unless-stopped
     ports:
       - "3100:3100"
@@ -121,26 +121,26 @@ services:
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml
       - loki-data:/loki
     networks:
-      - veeble-network
+      - nodeprism-network
 
   # Promtail - Log Shipper (for manager node)
   promtail:
     image: grafana/promtail:latest
-    container_name: veeble-promtail
+    container_name: nodeprism-promtail
     restart: unless-stopped
     command: -config.file=/etc/promtail/promtail-config.yml
     volumes:
       - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
       - /var/log:/var/log:ro
     networks:
-      - veeble-network
+      - nodeprism-network
     depends_on:
       - loki
 
   # AlertManager - Alert Routing
   alertmanager:
     image: prom/alertmanager:latest
-    container_name: veeble-alertmanager
+    container_name: nodeprism-alertmanager
     restart: unless-stopped
     ports:
       - "9093:9093"
@@ -151,28 +151,28 @@ services:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
       - alertmanager-data:/alertmanager
     networks:
-      - veeble-network
+      - nodeprism-network
 
   # Pushgateway - For Batch Jobs
   pushgateway:
     image: prom/pushgateway:latest
-    container_name: veeble-pushgateway
+    container_name: nodeprism-pushgateway
     restart: unless-stopped
     ports:
       - "9091:9091"
     networks:
-      - veeble-network
+      - nodeprism-network
 
   # Deployment Worker - Agent Installation Service
   deployment-worker:
     build:
       context: ../..
       dockerfile: packages/deployment-worker/Dockerfile
-    container_name: veeble-deployment-worker
+    container_name: nodeprism-deployment-worker
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - RABBITMQ_URL=amqp://veeble:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      - RABBITMQ_URL=amqp://nodeprism:${RABBITMQ_PASSWORD}@rabbitmq:5672
       - API_URL=http://api:3002
       - SSH_PRIVATE_KEY_PATH=/app/ssh/id_rsa
       - LOG_LEVEL=info
@@ -180,13 +180,13 @@ services:
       - ./ssh:/app/ssh:ro
       - ../../scripts/agents:/app/scripts:ro
     networks:
-      - veeble-network
+      - nodeprism-network
     depends_on:
       rabbitmq:
         condition: service_healthy
 
 networks:
-  veeble-network:
+  nodeprism-network:
     driver: bridge
 
 volumes:

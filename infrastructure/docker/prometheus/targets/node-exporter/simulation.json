@@ -1,0 +1,47 @@
+[
+  {
+    "targets": ["172.19.0.11:9100"],
+    "labels": {
+      "hostname": "web-server-01",
+      "environment": "production",
+      "server_type": "web",
+      "simulation": "true"
+    }
+  },
+  {
+    "targets": ["172.19.0.14:9100"],
+    "labels": {
+      "hostname": "web-server-02",
+      "environment": "production",
+      "server_type": "web",
+      "simulation": "true"
+    }
+  },
+  {
+    "targets": ["172.19.0.15:9100"],
+    "labels": {
+      "hostname": "db-server-01",
+      "environment": "production",
+      "server_type": "database",
+      "simulation": "true"
+    }
+  },
+  {
+    "targets": ["172.19.0.13:9100"],
+    "labels": {
+      "hostname": "cache-server-01",
+      "environment": "production",
+      "server_type": "cache",
+      "simulation": "true"
+    }
+  },
+  {
+    "targets": ["172.19.0.12:9100"],
+    "labels": {
+      "hostname": "staging-server-01",
+      "environment": "staging",
+      "server_type": "web",
+      "simulation": "true"
+    }
+  }
+]

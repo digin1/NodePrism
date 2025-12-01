@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Veeble Node Vitals - Integration Test Suite
+# NodePrism - Integration Test Suite
 # This script tests all components of the monitoring system
 #
 # Usage: ./integration-test.sh [--quick|--full]
@@ -163,21 +163,21 @@ test_docker_services() {
   fi
 
   # PostgreSQL
-  if docker ps | grep -q veeble-postgres; then
+  if docker ps | grep -q nodeprism-postgres; then
     log_success "PostgreSQL container is running"
   else
     log_fail "PostgreSQL container is not running"
   fi
 
   # Redis
-  if docker ps | grep -q veeble-redis; then
+  if docker ps | grep -q nodeprism-redis; then
     log_success "Redis container is running"
   else
     log_fail "Redis container is not running"
   fi
 
   # RabbitMQ
-  if docker ps | grep -q veeble-rabbitmq; then
+  if docker ps | grep -q nodeprism-rabbitmq; then
     log_success "RabbitMQ container is running"
     check_service "RabbitMQ Management" "$RABBITMQ_URL" "/api/overview" || true
   else
@@ -185,7 +185,7 @@ test_docker_services() {
   fi
 
   # Prometheus
-  if docker ps | grep -q veeble-prometheus; then
+  if docker ps | grep -q nodeprism-prometheus; then
     log_success "Prometheus container is running"
     check_service "Prometheus" "$PROMETHEUS_URL" "/-/healthy" || true
   else
@@ -193,7 +193,7 @@ test_docker_services() {
   fi
 
   # Grafana
-  if docker ps | grep -q veeble-grafana; then
+  if docker ps | grep -q nodeprism-grafana; then
     log_success "Grafana container is running"
     check_service "Grafana" "$GRAFANA_URL" "/api/health" || true
   else
@@ -201,14 +201,14 @@ test_docker_services() {
   fi
 
   # Loki
-  if docker ps | grep -q veeble-loki; then
+  if docker ps | grep -q nodeprism-loki; then
     log_success "Loki container is running"
   else
     log_fail "Loki container is not running"
   fi
 
   # AlertManager
-  if docker ps | grep -q veeble-alertmanager; then
+  if docker ps | grep -q nodeprism-alertmanager; then
     log_success "AlertManager container is running"
   else
     log_fail "AlertManager container is not running"
@@ -225,14 +225,14 @@ test_database() {
   fi
 
   # Test PostgreSQL connection
-  if docker exec veeble-postgres pg_isready -U veeble > /dev/null 2>&1; then
+  if docker exec nodeprism-postgres pg_isready -U nodeprism > /dev/null 2>&1; then
     log_success "PostgreSQL is accepting connections"
   else
     log_fail "PostgreSQL is not accepting connections"
   fi
 
   # Test Redis connection
-  if docker exec veeble-redis redis-cli ping | grep -q PONG; then
+  if docker exec nodeprism-redis redis-cli ping | grep -q PONG; then
     log_success "Redis is responding to PING"
   else
     log_fail "Redis is not responding"
@@ -360,7 +360,7 @@ print_summary() {
 main() {
   echo ""
   echo -e "${BLUE}========================================${NC}"
-  echo -e "${BLUE}  Veeble Node Vitals - Integration Tests${NC}"
+  echo -e "${BLUE}  NodePrism - Integration Tests${NC}"
   echo -e "${BLUE}  Mode: $TEST_MODE${NC}"
   echo -e "${BLUE}========================================${NC}"
   echo ""

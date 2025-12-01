@@ -1,4 +1,4 @@
-// Veeble Node Vitals - Database Schema
+// NodePrism - Database Schema
 // This schema defines all tables for the monitoring system
 
 generator client {

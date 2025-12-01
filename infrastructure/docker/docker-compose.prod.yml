@@ -1,0 +1,95 @@
+version: '3.8'
+
+# Production Docker Compose with HTTPS/TLS support via Nginx reverse proxy
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  # Nginx Reverse Proxy with SSL termination
+  nginx:
+    image: nginx:alpine
+    container_name: nodeprism-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - ./certbot/www:/var/www/certbot:ro
+    networks:
+      - nodeprism-network
+    depends_on:
+      - api
+      - web
+
+  # Certbot for Let's Encrypt certificates
+  certbot:
+    image: certbot/certbot
+    container_name: nodeprism-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+  # API service (internal only when using nginx)
+  api:
+    build:
+      context: ../..
+      dockerfile: packages/api/Dockerfile
+    container_name: nodeprism-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=postgresql://nodeprism:${DB_PASSWORD}@postgres:5432/nodeprism
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://nodeprism:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      - PROMETHEUS_URL=http://prometheus:9090
+      - LOKI_URL=http://loki:3100
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - CORS_ORIGIN=https://${DOMAIN:-localhost}
+    expose:
+      - "4000"
+    networks:
+      - nodeprism-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Web service (internal only when using nginx)
+  web:
+    build:
+      context: ../..
+      dockerfile: packages/web/Dockerfile
+    container_name: nodeprism-web
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://${DOMAIN:-localhost}/api
+    expose:
+      - "3000"
+    networks:
+      - nodeprism-network
+
+  # Override Grafana to not expose ports directly
+  grafana:
+    ports: []
+    expose:
+      - "3000"
+    environment:
+      - GF_SERVER_ROOT_URL=https://${DOMAIN:-localhost}/grafana
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+
+  # Override Prometheus to not expose ports directly
+  prometheus:
+    ports: []
+    expose:
+      - "9090"
+
+  # Override AlertManager to not expose ports directly
+  alertmanager:
+    ports: []
+    expose:
+      - "9093"

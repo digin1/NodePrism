@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { alertApi, healthApi } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AlertStats {
   firing?: number;
@@ -13,6 +14,8 @@ interface Health {
 }
 
 export function Header() {
+  const { user, logout } = useAuth();
+
   const { data: alertStats } = useQuery({
     queryKey: ['alertStats'],
     queryFn: () => alertApi.stats(),
@@ -31,7 +34,7 @@ export function Header() {
   return (
     <header className="flex h-16 items-center justify-between border-b bg-white px-6">
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-semibold text-gray-900">Veeble Node Vitals</h1>
+        <h1 className="text-lg font-semibold text-gray-900">NodePrism</h1>
       </div>
 
       <div className="flex items-center gap-4">
@@ -53,6 +56,20 @@ export function Header() {
           <span className="text-sm text-gray-600">
             {healthData?.status === 'ok' ? 'System Healthy' : 'System Error'}
           </span>
+        </div>
+
+        {/* User Menu */}
+        <div className="flex items-center gap-3 ml-4 pl-4 border-l">
+          <div className="text-right">
+            <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+            <p className="text-xs text-gray-500">{user?.role}</p>
+          </div>
+          <button
+            onClick={logout}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+          >
+            Logout
+          </button>
         </div>
       </div>
     </header>

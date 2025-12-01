@@ -3,7 +3,7 @@ import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { logger } from '../utils/logger';
 
-const TARGETS_BASE_PATH = process.env.PROMETHEUS_TARGETS_PATH || '/home/digin/veeble-node-vitals/infrastructure/docker/prometheus/targets';
+const TARGETS_BASE_PATH = process.env.PROMETHEUS_TARGETS_PATH || '/home/digin/nodeprism-node-vitals/infrastructure/docker/prometheus/targets';
 
 interface PrometheusTarget {
   targets: string[];

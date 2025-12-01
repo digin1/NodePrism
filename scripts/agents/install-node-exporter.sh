@@ -1,10 +1,11 @@
 #!/bin/bash
 #
-# Node Exporter Installation Script for Veeble Node Vitals
+# Node Exporter Installation Script for NodePrism
 # This script installs and configures Prometheus Node Exporter
+# and automatically registers with the NodePrism API
 #
 # Usage:
-#   curl -sL https://your-manager-host/scripts/install-node-exporter.sh | bash
+#   curl -sL https://your-manager-host/scripts/install-node-exporter.sh | bash -s -- --api-url https://your-manager-host
 #   OR
 #   ./install-node-exporter.sh [OPTIONS]
 #
@@ -13,6 +14,9 @@
 #   --port PORT          Listen port (default: 9100)
 #   --server-id ID       Server ID for identification
 #   --hostname NAME      Hostname for labels
+#   --api-url URL        NodePrism API URL for auto-registration (e.g., http://manager:4000)
+#   --api-token TOKEN    Authentication token for API (optional)
+#   --skip-register      Skip API registration
 #
 
 set -e
@@ -25,10 +29,16 @@ HOSTNAME_LABEL="${HOSTNAME_LABEL:-$(hostname)}"
 INSTALL_DIR="/usr/local/bin"
 SERVICE_USER="node_exporter"
 
+# API configuration for auto-registration
+API_URL="${API_URL:-}"
+API_TOKEN="${API_TOKEN:-}"
+SKIP_REGISTER="${SKIP_REGISTER:-false}"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Parse command line arguments
@@ -50,8 +60,36 @@ while [[ $# -gt 0 ]]; do
       HOSTNAME_LABEL="$2"
       shift 2
       ;;
+    --api-url)
+      API_URL="$2"
+      shift 2
+      ;;
+    --api-token)
+      API_TOKEN="$2"
+      shift 2
+      ;;
+    --skip-register)
+      SKIP_REGISTER="true"
+      shift
+      ;;
+    --help|-h)
+      echo "Usage: $0 [OPTIONS]"
+      echo ""
+      echo "Options:"
+      echo "  --version VERSION    Node Exporter version (default: 1.7.0)"
+      echo "  --port PORT          Listen port (default: 9100)"
+      echo "  --hostname NAME      Hostname for labels"
+      echo "  --api-url URL        NodePrism API URL for auto-registration"
+      echo "  --api-token TOKEN    Authentication token for API"
+      echo "  --skip-register      Skip API registration"
+      echo ""
+      echo "Example:"
+      echo "  $0 --api-url http://manager.example.com:4000"
+      exit 0
+      ;;
     *)
       echo -e "${RED}Unknown option: $1${NC}"
+      echo "Use --help for usage information"
       exit 1
       ;;
   esac
@@ -215,25 +253,144 @@ verify_installation() {
       log_warn "Could not fetch metrics from localhost:${LISTEN_PORT}"
     fi
   fi
+}
 
+get_ip_address() {
+  # Try various methods to get the primary IP address
+  local ip=""
+
+  # Method 1: hostname -I (Linux)
+  if command -v hostname &>/dev/null; then
+    ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+  fi
+
+  # Method 2: ip route
+  if [[ -z "$ip" ]] && command -v ip &>/dev/null; then
+    ip=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+')
+  fi
+
+  # Method 3: ifconfig
+  if [[ -z "$ip" ]] && command -v ifconfig &>/dev/null; then
+    ip=$(ifconfig 2>/dev/null | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n1)
+  fi
+
+  # Fallback
+  if [[ -z "$ip" ]]; then
+    ip="127.0.0.1"
+  fi
+
+  echo "$ip"
+}
+
+register_with_api() {
+  if [[ "$SKIP_REGISTER" == "true" ]]; then
+    log_info "Skipping API registration (--skip-register flag set)"
+    return 0
+  fi
+
+  if [[ -z "$API_URL" ]]; then
+    log_warn "No API URL provided. Skipping auto-registration."
+    log_info "To enable auto-registration, run with: --api-url http://your-manager:4000"
+    return 0
+  fi
+
+  log_info "Registering agent with NodePrism API..."
+
+  local ip_address
+  ip_address=$(get_ip_address)
+
+  local hostname
+  hostname="${HOSTNAME_LABEL:-$(hostname)}"
+
+  # Prepare JSON payload
+  local payload
+  payload=$(cat <<EOF
+{
+  "hostname": "${hostname}",
+  "ipAddress": "${ip_address}",
+  "agentType": "NODE_EXPORTER",
+  "port": ${LISTEN_PORT},
+  "version": "${NODE_EXPORTER_VERSION}"
+}
+EOF
+)
+
+  log_info "Registration details:"
+  log_info "  Hostname: ${hostname}"
+  log_info "  IP Address: ${ip_address}"
+  log_info "  Port: ${LISTEN_PORT}"
+  log_info "  Version: ${NODE_EXPORTER_VERSION}"
+
+  # Build curl command with optional auth header
+  local auth_header=""
+  if [[ -n "$API_TOKEN" ]]; then
+    auth_header="-H \"Authorization: Bearer ${API_TOKEN}\""
+  fi
+
+  local response
+  local http_code
+
+  # Make the API call
+  if [[ -n "$API_TOKEN" ]]; then
+    response=$(curl -s -w "\n%{http_code}" -X POST \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer ${API_TOKEN}" \
+      -d "$payload" \
+      "${API_URL}/api/agents/register" 2>&1) || true
+  else
+    response=$(curl -s -w "\n%{http_code}" -X POST \
+      -H "Content-Type: application/json" \
+      -d "$payload" \
+      "${API_URL}/api/agents/register" 2>&1) || true
+  fi
+
+  # Extract HTTP code from response
+  http_code=$(echo "$response" | tail -n1)
+  local body
+  body=$(echo "$response" | sed '$d')
+
+  if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
+    log_info "Successfully registered with NodePrism!"
+    echo -e "${BLUE}API Response:${NC} $body"
+  elif [[ "$http_code" == "409" ]]; then
+    log_warn "Agent already registered (HTTP 409). This is OK if updating."
+    echo -e "${BLUE}API Response:${NC} $body"
+  else
+    log_error "Failed to register with API (HTTP $http_code)"
+    log_error "Response: $body"
+    log_warn "You can manually register the agent in the web UI"
+    return 1
+  fi
+
+  return 0
+}
+
+print_summary() {
   echo ""
   log_info "============================================"
   log_info "Node Exporter Installation Complete!"
   log_info "============================================"
   log_info "Version: ${NODE_EXPORTER_VERSION}"
-  log_info "Metrics URL: http://$(hostname -I | awk '{print $1}'):${LISTEN_PORT}/metrics"
+  log_info "Metrics URL: http://$(get_ip_address):${LISTEN_PORT}/metrics"
   log_info ""
   log_info "Useful commands:"
   log_info "  Check status:  systemctl status node_exporter"
   log_info "  View logs:     journalctl -u node_exporter -f"
   log_info "  Restart:       systemctl restart node_exporter"
+
+  if [[ -n "$API_URL" ]] && [[ "$SKIP_REGISTER" != "true" ]]; then
+    log_info ""
+    log_info "API Registration: Enabled"
+    log_info "Manager URL: ${API_URL}"
+  fi
+
   log_info "============================================"
 }
 
 main() {
   echo ""
   log_info "============================================"
-  log_info "Veeble Node Vitals - Node Exporter Installer"
+  log_info "NodePrism - Node Exporter Installer"
   log_info "============================================"
   echo ""
 
@@ -245,6 +402,8 @@ main() {
   create_systemd_service
   start_service
   verify_installation
+  register_with_api
+  print_summary
 }
 
 main "$@"

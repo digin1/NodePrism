@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { generateTargetFiles, reloadPrometheus } from './targetGenerator';
+import { logServerStatusChange, logAgentStatusChange, logHeartbeatMissed } from './eventLogger';
 
 // Configuration
 const HEARTBEAT_TIMEOUT_MINUTES = parseInt(process.env.HEARTBEAT_TIMEOUT_MINUTES || '5', 10);
@@ -58,6 +59,7 @@ export async function cleanupStaleAgents(): Promise<{
       // Mark agent as STOPPED (stale) or FAILED (offline too long)
       const newStatus = isOffline ? 'FAILED' : 'STOPPED';
 
+      const oldStatus = agent.status;
       await prisma.agent.update({
         where: { id: agent.id },
         data: { status: newStatus },
@@ -70,6 +72,20 @@ export async function cleanupStaleAgents(): Promise<{
         lastHealthCheck: lastHealthCheck?.toISOString(),
         serverId: agent.serverId,
       });
+
+      // Log event for agent status change
+      await logAgentStatusChange(
+        agent.serverId,
+        agent.type,
+        oldStatus,
+        newStatus,
+        agent.server.hostname
+      );
+
+      // Log heartbeat missed event
+      if (isOffline) {
+        await logHeartbeatMissed(agent.serverId, agent.server.hostname, lastHealthCheck);
+      }
     }
 
     // Update server statuses based on their agents
@@ -103,13 +119,25 @@ export async function cleanupStaleAgents(): Promise<{
         offlineServers++;
       }
 
+      const serverBefore = await prisma.server.findUnique({ where: { id: serverId } });
+      const oldServerStatus = serverBefore?.status || 'UNKNOWN';
+
       await prisma.server.update({
         where: { id: serverId },
         data: { status: serverStatus as any },
       });
 
-      const server = await prisma.server.findUnique({ where: { id: serverId } });
-      logger.info(`Server ${server?.hostname} status updated to ${serverStatus}`);
+      logger.info(`Server ${serverBefore?.hostname} status updated to ${serverStatus}`);
+
+      // Log event for server status change (only if status actually changed)
+      if (oldServerStatus !== serverStatus && serverBefore) {
+        await logServerStatusChange(
+          serverId,
+          oldServerStatus,
+          serverStatus,
+          serverBefore.hostname
+        );
+      }
     }
 
     // Regenerate Prometheus targets if any agents went offline

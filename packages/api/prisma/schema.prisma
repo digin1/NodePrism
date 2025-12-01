@@ -34,6 +34,7 @@ model Server {
   anomalyEvents  AnomalyEvent[]
   anomalyModels  AnomalyModel[]
   metricHistory  MetricHistory[]
+  eventLogs      EventLog[]
 
   @@map("servers")
 }
@@ -343,6 +344,77 @@ model MetricHistory {
   @@index([serverId, metricName, timestamp])
   @@index([timestamp])
   @@map("metric_history")
+}
+
+// ==================== MONITORING EVENTS ====================
+
+model EventLog {
+  id         String        @id @default(uuid())
+  serverId   String?       @map("server_id")
+  type       EventType
+  severity   EventSeverity @default(INFO)
+  title      String
+  message    String
+  metadata   Json?         // Additional context (metrics, thresholds, etc.)
+  source     String?       // Where the event originated (heartbeat, alert, deployment, etc.)
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  server Server? @relation(fields: [serverId], references: [id], onDelete: SetNull)
+
+  @@index([serverId, createdAt])
+  @@index([type, createdAt])
+  @@index([severity, createdAt])
+  @@index([createdAt])
+  @@map("event_logs")
+}
+
+enum EventType {
+  // Availability events
+  SERVER_ONLINE
+  SERVER_OFFLINE
+  SERVER_WARNING
+  SERVER_CRITICAL
+
+  // Agent events
+  AGENT_INSTALLED
+  AGENT_STARTED
+  AGENT_STOPPED
+  AGENT_FAILED
+  AGENT_UPDATED
+
+  // Deployment events
+  DEPLOYMENT_STARTED
+  DEPLOYMENT_COMPLETED
+  DEPLOYMENT_FAILED
+
+  // Alert events
+  ALERT_TRIGGERED
+  ALERT_RESOLVED
+  ALERT_ACKNOWLEDGED
+
+  // Threshold events
+  THRESHOLD_WARNING
+  THRESHOLD_CRITICAL
+  THRESHOLD_CLEARED
+
+  // Anomaly events
+  ANOMALY_DETECTED
+  ANOMALY_RESOLVED
+
+  // System events
+  SYSTEM_STARTUP
+  SYSTEM_SHUTDOWN
+  HEARTBEAT_MISSED
+  CONNECTION_LOST
+  CONNECTION_RESTORED
+}
+
+enum EventSeverity {
+  DEBUG
+  INFO
+  WARNING
+  CRITICAL
 }
 
 // ==================== ANOMALY DETECTION ====================

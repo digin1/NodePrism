@@ -54,7 +54,7 @@ const navigation = [
 ];
 
 const externalLinks = [
-  { name: 'Grafana', href: 'http://localhost:3001', icon: 'G' },
+  { name: 'Grafana', href: 'http://localhost:3030', icon: 'G' },
   { name: 'Prometheus', href: 'http://localhost:9090', icon: 'P' },
   { name: 'AlertManager', href: 'http://localhost:9093', icon: 'A' },
 ];

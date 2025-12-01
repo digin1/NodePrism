@@ -11,14 +11,57 @@ services:
       POSTGRES_USER: nodeprism
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeMe}
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - nodeprism-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nodeprism"]
+      test: ['CMD-SHELL', 'pg_isready -U nodeprism']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MySQL - Sample Database for Monitoring
+  mysql:
+    image: mysql:8.0
+    container_name: nodeprism-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: nodeprism
+      MYSQL_USER: nodeprism
+      MYSQL_PASSWORD: nodeprism123
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - nodeprism-network
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB - Sample Database for Monitoring
+  mongodb:
+    image: mongo:7.0
+    container_name: nodeprism-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:-changeMe}
+      MONGO_INITDB_DATABASE: admin
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - nodeprism-network
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,13 +72,13 @@ services:
     container_name: nodeprism-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis-data:/data
     networks:
       - nodeprism-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 3s
       retries: 5
@@ -49,8 +92,8 @@ services:
       RABBITMQ_DEFAULT_USER: nodeprism
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-changeMe}
     ports:
-      - "5672:5672"   # AMQP
-      - "15672:15672" # Management UI
+      - '5672:5672' # AMQP
+      - '15672:15672' # Management UI
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
@@ -74,7 +117,7 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
     ports:
-      - "9090:9090"
+      - '9090:9090'
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
@@ -85,22 +128,63 @@ services:
     depends_on:
       - alertmanager
 
+  # Nginx - Sample Web Server for Monitoring
+  nginx:
+    image: nginx:alpine
+    container_name: nodeprism-nginx
+    restart: unless-stopped
+    ports:
+      - '8080:80'
+    volumes:
+      - ./sample-nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx-data:/var/log/nginx
+    networks:
+      - nodeprism-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:80']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Apache - Sample Web Server for Monitoring
+  apache:
+    image: httpd:alpine
+    container_name: nodeprism-apache
+    restart: unless-stopped
+    ports:
+      - '8081:80'
+    volumes:
+      - ./apache/httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+      - apache-data:/usr/local/apache2/logs
+    networks:
+      - nodeprism-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:80']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Grafana - Visualization
   grafana:
     image: grafana/grafana:latest
     container_name: nodeprism-grafana
     restart: unless-stopped
+    user: '0'  # Run as root to fix permission issues
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3030
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
     ports:
-      - "3030:3000"
+      - '3030:3000'
     volumes:
       - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
       - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     networks:
       - nodeprism-network
@@ -109,13 +193,32 @@ services:
       - loki
       - postgres
 
+  # Node Exporter for Manager/Host machine
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: nodeprism-node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run|snap|var/lib/docker)($$|/)'
+    ports:
+      - '9100:9100'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro
+    networks:
+      - nodeprism-network
+
   # Loki - Log Aggregation
   loki:
     image: grafana/loki:latest
     container_name: nodeprism-loki
     restart: unless-stopped
     ports:
-      - "3100:3100"
+      - '3100:3100'
     command: -config.file=/etc/loki/loki-config.yml
     volumes:
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml
@@ -143,7 +246,7 @@ services:
     container_name: nodeprism-alertmanager
     restart: unless-stopped
     ports:
-      - "9093:9093"
+      - '9093:9093'
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
@@ -159,9 +262,84 @@ services:
     container_name: nodeprism-pushgateway
     restart: unless-stopped
     ports:
-      - "9091:9091"
+      - '9091:9091'
     networks:
       - nodeprism-network
+
+  # Database Exporters
+  mysql-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: nodeprism-mysql-exporter
+    restart: unless-stopped
+    environment:
+      - DATA_SOURCE_NAME=root:${MYSQL_ROOT_PASSWORD}@tcp(mysql:3306)/
+    ports:
+      - '9104:9104'
+    networks:
+      - nodeprism-network
+    depends_on:
+      - mysql
+    command:
+      - --collect.info_schema.innodb_metrics
+      - --collect.info_schema.processlist
+      - --collect.info_schema.query_response_time
+      - --collect.info_schema.userstats
+      - --collect.engine_innodb_status
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: nodeprism-postgres-exporter
+    restart: unless-stopped
+    environment:
+      - DATA_SOURCE_NAME=postgresql://nodeprism:${DB_PASSWORD}@postgres:5432/nodeprism?sslmode=disable
+    ports:
+      - '9187:9187'
+    networks:
+      - nodeprism-network
+    depends_on:
+      - postgres
+    command:
+      - --extend.query-path=/etc/postgres_exporter/queries.yaml
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:latest
+    container_name: nodeprism-mongodb-exporter
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://root:${MONGODB_ROOT_PASSWORD}@mongodb:27017/admin
+    ports:
+      - '9216:9216'
+    networks:
+      - nodeprism-network
+    depends_on:
+      - mongodb
+
+  # Web Server Exporters
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nodeprism-nginx-exporter
+    restart: unless-stopped
+    environment:
+      - NGINX_STATUS_URL=http://nginx:8080/status
+    ports:
+      - '9113:9113'
+    networks:
+      - nodeprism-network
+    depends_on:
+      - nginx
+
+  apache-exporter:
+    image: lusotycoon/apache-exporter:latest
+    container_name: nodeprism-apache-exporter
+    restart: unless-stopped
+    environment:
+      - APACHE_STATUS_URL=http://apache:80/server-status?auto
+    ports:
+      - '9117:9117'
+    networks:
+      - nodeprism-network
+    depends_on:
+      - apache
 
   # Deployment Worker - Agent Installation Service
   deployment-worker:
@@ -197,3 +375,7 @@ volumes:
   grafana-data:
   loki-data:
   alertmanager-data:
+  mysql-data:
+  mongodb-data:
+  nginx-data:
+  apache-data:

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +30,7 @@ export default function SettingsPage() {
     { name: 'PostgreSQL', port: 5432, status: 'running' },
     { name: 'Redis', port: 6379, status: 'running' },
     { name: 'Prometheus', port: 9090, status: targets ? 'running' : 'unknown' },
-    { name: 'Grafana', port: 3001, status: 'running' },
+    { name: 'Grafana', port: 3030, status: 'running' },
     { name: 'AlertManager', port: 9093, status: 'running' },
     { name: 'Loki', port: 3100, status: 'running' },
     { name: 'Pushgateway', port: 9091, status: 'running' },
@@ -105,7 +107,7 @@ export default function SettingsPage() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
             <a
-              href="http://localhost:3001"
+              href="http://localhost:3030"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
@@ -115,7 +117,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="font-medium">Grafana</p>
-                <p className="text-sm text-muted-foreground">http://localhost:3001</p>
+                <p className="text-sm text-muted-foreground">http://localhost:3030</p>
                 <p className="text-xs text-muted-foreground mt-1">admin / admin</p>
               </div>
             </a>

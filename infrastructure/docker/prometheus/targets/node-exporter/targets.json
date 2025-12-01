@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "targets": ["node-exporter:9100"],
+    "labels": {
+      "hostname": "nodeprism-manager",
+      "environment": "production",
+      "server_type": "manager",
+      "role": "manager"
+    }
+  }
+]

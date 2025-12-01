@@ -59,7 +59,7 @@ pnpm dev
 5. **Access the applications**
 - Next.js UI: http://localhost:3000
 - API Gateway: http://localhost:4000
-- Grafana: http://localhost:3001 (admin/admin)
+- Grafana: http://localhost:3030 (admin/admin)
 - Prometheus: http://localhost:9090
 
 ## Project Structure

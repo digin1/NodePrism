@@ -227,7 +227,7 @@ print_summary() {
   echo -e "  ${CYAN}Servers List:${NC}     http://localhost:3000/servers"
   echo -e "  ${CYAN}API:${NC}              http://localhost:4000/api/servers"
   echo -e "  ${CYAN}Prometheus:${NC}       http://localhost:9090"
-  echo -e "  ${CYAN}Grafana:${NC}          http://localhost:3001 (admin/admin)"
+  echo -e "  ${CYAN}Grafana:${NC}          http://localhost:3030 (admin/admin)"
   echo ""
   echo "Simulated Servers:"
   echo "  • web-server-01    (localhost:9101)"

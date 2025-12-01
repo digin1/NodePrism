@@ -391,6 +391,32 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
       const fingerprint = alert.fingerprint;
       const status = alert.status === 'firing' ? 'FIRING' : 'RESOLVED';
 
+      // Try to find the server from the instance label
+      let serverId: string | null = null;
+      const instance = alert.labels?.instance;
+      const hostname = alert.labels?.hostname;
+
+      if (instance || hostname) {
+        // Extract IP from instance (format: "ip:port" or just "ip")
+        const ip = instance ? instance.split(':')[0] : null;
+
+        // Try to find server by IP address, hostname label, or instance hostname
+        const server = await prisma.server.findFirst({
+          where: {
+            OR: [
+              ...(ip ? [{ ipAddress: ip }] : []),
+              ...(hostname ? [{ hostname: hostname }] : []),
+              ...(instance ? [{ hostname: instance.split(':')[0] }] : []),
+            ],
+          },
+        });
+
+        if (server) {
+          serverId = server.id;
+          logger.debug(`Matched alert to server: ${server.hostname} (${server.ipAddress})`);
+        }
+      }
+
       // Upsert the alert
       await prisma.alert.upsert({
         where: { fingerprint },
@@ -404,10 +430,12 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
           annotations: alert.annotations,
           startsAt: new Date(alert.startsAt),
           endsAt: alert.endsAt ? new Date(alert.endsAt) : null,
+          ...(serverId && { serverId }),
         },
         update: {
           status,
           endsAt: alert.endsAt ? new Date(alert.endsAt) : null,
+          ...(serverId && { serverId }),
         },
       });
     }

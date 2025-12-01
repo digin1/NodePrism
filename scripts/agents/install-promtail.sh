@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Promtail Installation Script for Veeble Node Vitals
+# Promtail Installation Script for NodePrism
 # This script installs and configures Grafana Promtail for log collection
 #
 # Usage:
@@ -338,7 +338,7 @@ verify_installation() {
 main() {
   echo ""
   log_info "============================================"
-  log_info "Veeble Node Vitals - Promtail Installer"
+  log_info "NodePrism - Promtail Installer"
   log_info "============================================"
   echo ""
 

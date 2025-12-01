@@ -443,7 +443,7 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["system", "overview", "veeble"],
+  "tags": ["system", "overview", "nodeprism"],
   "templating": {
     "list": []
   },
@@ -454,7 +454,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "System Overview",
-  "uid": "veeble-system-overview",
+  "uid": "nodeprism-system-overview",
   "version": 1,
   "weekStart": ""
 }

@@ -1,6 +1,6 @@
-# Veeble Node Vitals
+# NodePrism
 
-Advanced monitoring system for 50+ servers with automated deployment and comprehensive metrics.
+Advanced server monitoring system with automated deployment and comprehensive metrics.
 
 ## Features
 
@@ -37,8 +37,8 @@ Advanced monitoring system for 50+ servers with automated deployment and compreh
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/digin1/veeble-node-vitals.git
-cd veeble-node-vitals
+git clone https://github.com/digin1/NodePrism.git
+cd NodePrism
 ```
 
 2. **Install dependencies**
@@ -65,7 +65,7 @@ pnpm dev
 ## Project Structure
 
 ```
-veeble-node-vitals/
+NodePrism/
 ├── packages/
 │   ├── web/                    # Next.js Management UI
 │   ├── api/                    # API Gateway (Express)

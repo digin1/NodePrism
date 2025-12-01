@@ -176,7 +176,7 @@ export default function SettingsPage() {
           <div className="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
             <pre>{`# API Configuration
 NEXT_PUBLIC_API_URL=http://localhost:4000
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/veeble
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nodeprism
 REDIS_URL=redis://localhost:6379
 
 # Prometheus

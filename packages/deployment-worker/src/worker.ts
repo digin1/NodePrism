@@ -4,7 +4,7 @@ import { SSHDeployer } from './deployer';
 import { StatusReporter } from './status-reporter';
 import { logger } from './utils/logger';
 
-const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672';
+const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://nodeprism:${DB_PASSWORD}@localhost:5672';
 const QUEUE_NAME = 'deployment_jobs';
 
 export interface DeploymentJob {

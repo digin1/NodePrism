@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Agent Uninstall Script for Veeble Node Vitals
+# Agent Uninstall Script for NodePrism
 # This script removes monitoring agents from the system
 #
 # Usage:
@@ -132,7 +132,7 @@ uninstall_promtail() {
 main() {
   echo ""
   log_info "============================================"
-  log_info "Veeble Node Vitals - Agent Uninstaller"
+  log_info "NodePrism - Agent Uninstaller"
   log_info "============================================"
   echo ""
 

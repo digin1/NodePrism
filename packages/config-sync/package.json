@@ -1,5 +1,5 @@
 {
-  "name": "@veeble/config-sync",
+  "name": "@nodeprism/config-sync",
   "version": "1.0.0",
   "private": true,
   "description": "Configuration sync worker",
@@ -8,10 +8,13 @@
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prisma:generate": "prisma generate --schema=../api/prisma/schema.prisma"
   },
   "dependencies": {
-    "@veeble/shared": "workspace:*",
+    "@nodeprism/shared": "workspace:*",
+    "@prisma/client": "^5.8.1",
+    "axios": "^1.6.5",
     "pg": "^8.11.3",
     "dotenv": "^16.4.1",
     "winston": "^3.11.0"
@@ -20,6 +23,7 @@
     "@types/node": "^20.11.5",
     "@types/pg": "^8.10.9",
     "nodemon": "^3.0.3",
+    "prisma": "^5.8.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }

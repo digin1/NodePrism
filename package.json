@@ -1,11 +1,11 @@
 {
-  "name": "veeble-node-vitals",
+  "name": "nodeprism",
   "version": "1.0.0",
   "private": true,
-  "description": "Advanced monitoring system for 50+ servers with automated deployment and comprehensive metrics",
+  "description": "Advanced server monitoring system with automated deployment and comprehensive metrics",
   "repository": {
     "type": "git",
-    "url": "https://github.com/digin1/veeble-node-vitals.git"
+    "url": "https://github.com/digin1/NodePrism.git"
   },
   "engines": {
     "node": ">=20.0.0",

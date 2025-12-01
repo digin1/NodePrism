@@ -1,0 +1,95 @@
+version: '3.8'
+
+# Simulation environment - creates fake monitored servers
+# Each server runs node_exporter to simulate real server metrics
+
+services:
+  # Simulated Web Server 1
+  web-server-01:
+    image: prom/node-exporter:latest
+    container_name: sim-web-server-01
+    hostname: web-server-01
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--web.listen-address=:9100'
+    ports:
+      - "9101:9100"
+    networks:
+      - nodeprism-network
+    labels:
+      - "nodeprism.server.type=web"
+      - "nodeprism.environment=production"
+
+  # Simulated Web Server 2
+  web-server-02:
+    image: prom/node-exporter:latest
+    container_name: sim-web-server-02
+    hostname: web-server-02
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--web.listen-address=:9100'
+    ports:
+      - "9102:9100"
+    networks:
+      - nodeprism-network
+    labels:
+      - "nodeprism.server.type=web"
+      - "nodeprism.environment=production"
+
+  # Simulated Database Server
+  db-server-01:
+    image: prom/node-exporter:latest
+    container_name: sim-db-server-01
+    hostname: db-server-01
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--web.listen-address=:9100'
+    ports:
+      - "9103:9100"
+    networks:
+      - nodeprism-network
+    labels:
+      - "nodeprism.server.type=database"
+      - "nodeprism.environment=production"
+
+  # Simulated Cache Server
+  cache-server-01:
+    image: prom/node-exporter:latest
+    container_name: sim-cache-server-01
+    hostname: cache-server-01
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--web.listen-address=:9100'
+    ports:
+      - "9104:9100"
+    networks:
+      - nodeprism-network
+    labels:
+      - "nodeprism.server.type=cache"
+      - "nodeprism.environment=production"
+
+  # Simulated Staging Server
+  staging-server-01:
+    image: prom/node-exporter:latest
+    container_name: sim-staging-server-01
+    hostname: staging-server-01
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--web.listen-address=:9100'
+    ports:
+      - "9105:9100"
+    networks:
+      - nodeprism-network
+    labels:
+      - "nodeprism.server.type=web"
+      - "nodeprism.environment=staging"
+
+networks:
+  nodeprism-network:
+    name: docker_nodeprism-network
+    external: true

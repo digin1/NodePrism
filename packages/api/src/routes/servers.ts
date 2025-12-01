@@ -1,7 +1,9 @@
 import { Router, Request, Response, NextFunction, type Router as ExpressRouter } from 'express';
+import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
+import { rabbitmq } from '../services/rabbitmq';
 
 const router: ExpressRouter = Router();
 
@@ -240,8 +242,28 @@ router.post('/:id/deploy', async (req: Request, res: Response, next: NextFunctio
       data: { status: 'DEPLOYING' },
     });
 
-    // TODO: Queue deployment jobs to RabbitMQ
-    // For now, just mark as pending
+    // Queue deployment jobs to RabbitMQ
+    for (const deployment of deployments) {
+      try {
+        await rabbitmq.publishDeploymentJob({
+          id: randomUUID(),
+          serverId: server.id,
+          hostname: server.hostname,
+          ipAddress: server.ipAddress,
+          sshPort: server.sshPort,
+          sshUsername: server.sshUsername || 'root',
+          agentType: deployment.agentType,
+          deploymentId: deployment.id,
+        });
+      } catch (error) {
+        logger.error(`Failed to queue deployment job for ${deployment.agentType}`, { error });
+        // Mark deployment as failed if we can't queue it
+        await prisma.deployment.update({
+          where: { id: deployment.id },
+          data: { status: 'FAILED', error: 'Failed to queue deployment job' },
+        });
+      }
+    }
 
     logger.info(`Deployment initiated for server ${server.hostname}`, { deployments });
 

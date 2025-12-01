@@ -90,6 +90,26 @@ function emitMetricsUpdate(serverId: string, metrics: Record<string, number | nu
 }
 
 /**
+ * Update NODE_EXPORTER agent's last health check when metrics are successfully collected
+ * This prevents the heartbeat cleanup from marking passive agents as STOPPED
+ */
+async function updateNodeExporterHealthCheck(serverId: string): Promise<void> {
+  try {
+    await prisma.agent.updateMany({
+      where: {
+        serverId,
+        type: 'NODE_EXPORTER',
+      },
+      data: {
+        lastHealthCheck: new Date(),
+      },
+    });
+  } catch (error) {
+    logger.warn('Failed to update NODE_EXPORTER health check', { serverId, error });
+  }
+}
+
+/**
  * Collect and store metrics for all servers
  */
 export async function collectAllMetrics(): Promise<{
@@ -99,14 +119,13 @@ export async function collectAllMetrics(): Promise<{
   logger.debug('Collecting metrics for all servers...');
 
   try {
-    // Get all online servers with node_exporter agent
+    // Get all online servers with node_exporter agent (include any status since we'll verify by collecting)
     const servers = await prisma.server.findMany({
       where: {
         status: { in: ['ONLINE', 'WARNING'] },
         agents: {
           some: {
             type: 'NODE_EXPORTER',
-            status: 'RUNNING',
           },
         },
       },
@@ -124,13 +143,31 @@ export async function collectAllMetrics(): Promise<{
       servers.map(async (server) => {
         try {
           const metrics = await collectServerMetrics(server.id);
-          await storeMetrics(server.id, metrics);
-          emitMetricsUpdate(server.id, metrics);
-
           const storedCount = Object.values(metrics).filter(v => v !== null).length;
-          totalMetricsStored += storedCount;
 
-          logger.debug(`Collected ${storedCount} metrics for ${server.hostname}`);
+          if (storedCount > 0) {
+            await storeMetrics(server.id, metrics);
+            emitMetricsUpdate(server.id, metrics);
+            totalMetricsStored += storedCount;
+
+            // Update NODE_EXPORTER health check since we successfully collected metrics
+            // This prevents heartbeat cleanup from marking passive agents as STOPPED
+            await updateNodeExporterHealthCheck(server.id);
+
+            // Also ensure NODE_EXPORTER is marked as RUNNING if it was previously stopped
+            await prisma.agent.updateMany({
+              where: {
+                serverId: server.id,
+                type: 'NODE_EXPORTER',
+                status: { in: ['STOPPED', 'FAILED'] },
+              },
+              data: {
+                status: 'RUNNING',
+              },
+            });
+
+            logger.debug(`Collected ${storedCount} metrics for ${server.hostname}`);
+          }
         } catch (error) {
           logger.warn(`Failed to collect metrics for server ${server.hostname}`, { error });
         }

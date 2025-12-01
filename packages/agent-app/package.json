@@ -5,7 +5,7 @@
   "description": "Custom application monitoring agent",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
+    "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "pkg": "pkg dist/index.js -t node20-linux-x64 -o ../../agents/app-agent/nodeprism-agent",
@@ -25,7 +25,7 @@
     "@types/express": "^4.17.21",
     "@types/js-yaml": "^4.0.9",
     "nodemon": "^3.0.3",
-    "ts-node": "^10.9.2",
+    "tsx": "^10.9.2",
     "typescript": "^5.3.3",
     "pkg": "^5.8.1"
   }

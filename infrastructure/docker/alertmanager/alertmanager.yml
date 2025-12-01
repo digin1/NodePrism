@@ -25,7 +25,7 @@ route:
 receivers:
   - name: 'nodeprism-webhook'
     webhook_configs:
-      - url: 'http://172.20.0.1:4000/api/alerts/webhook'
+      - url: 'http://172.18.0.1:4000/api/alerts/webhook'
         send_resolved: true
         http_config:
           follow_redirects: true
@@ -33,19 +33,19 @@ receivers:
   - name: 'default'
     # Fallback receiver
     webhook_configs:
-      - url: 'http://172.20.0.1:4000/api/alerts/webhook'
+      - url: 'http://172.18.0.1:4000/api/alerts/webhook'
         send_resolved: true
 
   - name: 'critical'
     # Critical alerts - webhook + future email/pagerduty
     webhook_configs:
-      - url: 'http://172.20.0.1:4000/api/alerts/webhook'
+      - url: 'http://172.18.0.1:4000/api/alerts/webhook'
         send_resolved: true
 
   - name: 'warning'
     # Warning alerts
     webhook_configs:
-      - url: 'http://172.20.0.1:4000/api/alerts/webhook'
+      - url: 'http://172.18.0.1:4000/api/alerts/webhook'
         send_resolved: true
 
 # Inhibition rules

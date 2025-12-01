@@ -4,6 +4,7 @@ import { alertRoutes } from './alerts';
 import { metricRoutes } from './metrics';
 import { agentRoutes } from './agents';
 import { authRoutes } from './auth';
+import { anomalyRoutes } from './anomalies';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -23,5 +24,6 @@ router.use('/agents', agentRoutes);
 router.use('/servers', optionalAuth, serverRoutes);
 router.use('/alerts', optionalAuth, alertRoutes);
 router.use('/metrics', optionalAuth, metricRoutes);
+router.use('/anomalies', optionalAuth, anomalyRoutes);
 
 export { router as routes };

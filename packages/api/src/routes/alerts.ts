@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction, type Router as ExpressRouter }
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
+import { AlertTemplateService } from '../services/alertTemplateService';
 
 const router: ExpressRouter = Router();
 
@@ -14,6 +15,32 @@ const createAlertRuleSchema = z.object({
   severity: z.enum(['CRITICAL', 'WARNING', 'INFO', 'DEBUG']),
   labels: z.record(z.string(), z.string()).optional(),
   annotations: z.record(z.string(), z.string()).optional(),
+  enabled: z.boolean().default(true),
+});
+
+const alertConditionSchema = z.object({
+  condition: z.string().min(1),
+  hysteresis: z
+    .object({
+      trigger: z.number(),
+      clear: z.number(),
+    })
+    .optional(),
+});
+
+const createAlertTemplateSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  matchLabels: z.record(z.string(), z.string()).optional(),
+  matchHostLabels: z.record(z.string(), z.string()).optional(),
+  query: z.string().min(1), // PromQL query
+  calc: z.string().optional(), // Additional calculation expression
+  units: z.string().optional(),
+  warnCondition: alertConditionSchema,
+  critCondition: alertConditionSchema,
+  every: z.string().default('1m'), // Evaluation interval
+  for: z.string().default('5m'), // Duration before firing
+  actions: z.array(z.any()).optional(),
   enabled: z.boolean().default(true),
 });
 
@@ -64,6 +91,154 @@ router.get('/rules', async (req: Request, res: Response, next: NextFunction) => 
     res.json({
       success: true,
       data: rules,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/alerts/templates - Get all alert templates
+router.get('/templates', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const templateService = new AlertTemplateService();
+    const templates = await templateService.getAllTemplates();
+
+    res.json({
+      success: true,
+      data: templates,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/alerts/templates - Create alert template
+router.post('/templates', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = createAlertTemplateSchema.parse(req.body);
+    const templateService = new AlertTemplateService();
+
+    const template = await templateService.createTemplate(data);
+
+    if (!template) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create template',
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: template,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: error.errors,
+      });
+    }
+    next(error);
+  }
+});
+
+// GET /api/alerts/templates/:id - Get specific template
+router.get('/templates/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const template = await prisma.alertTemplate.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { alerts: { where: { status: 'FIRING' } } },
+        },
+      },
+    });
+
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: template,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/alerts/templates/:id - Update alert template
+router.put('/templates/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const data = createAlertTemplateSchema.partial().parse(req.body);
+
+    const template = await prisma.alertTemplate.update({
+      where: { id },
+      data,
+    });
+
+    logger.info(`Alert template updated: ${template.name}`);
+
+    res.json({
+      success: true,
+      data: template,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: error.errors,
+      });
+    }
+    next(error);
+  }
+});
+
+// DELETE /api/alerts/templates/:id - Delete alert template
+router.delete('/templates/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.alertTemplate.delete({
+      where: { id },
+    });
+
+    logger.info(`Alert template deleted: ${id}`);
+
+    res.json({
+      success: true,
+      message: 'Alert template deleted',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/alerts/templates/:id/test - Test template against historical data
+router.post('/templates/:id/test', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { serverId, startTime, endTime } = req.body;
+
+    // This would implement historical testing logic
+    // For now, return a placeholder response
+
+    res.json({
+      success: true,
+      data: {
+        templateId: id,
+        serverId,
+        testResults: [],
+        message: 'Template testing not yet implemented',
+      },
     });
   } catch (error) {
     next(error);
@@ -170,6 +345,40 @@ router.post('/:id/acknowledge', async (req: Request, res: Response, next: NextFu
   }
 });
 
+// POST /api/alerts/:id/silence - Silence an alert
+router.post('/:id/silence', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { silencedBy, duration } = req.body; // duration in minutes
+
+    const silencedUntil = duration ? new Date(Date.now() + duration * 60 * 1000) : null;
+
+    const alert = await prisma.alert.update({
+      where: { id },
+      data: {
+        status: 'SILENCED',
+        acknowledgedAt: new Date(),
+        acknowledgedBy: silencedBy,
+        // Note: In a full implementation, you'd store silence metadata separately
+      },
+    });
+
+    logger.info(`Alert silenced: ${id}`, { duration, silencedUntil });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('alert:silenced', alert);
+    }
+
+    res.json({
+      success: true,
+      data: alert,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/alerts/webhook - Receive alerts from AlertManager
 router.post('/webhook', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -189,7 +398,8 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
           fingerprint,
           status,
           severity: (alert.labels?.severity?.toUpperCase() || 'WARNING') as any,
-          message: alert.annotations?.summary || alert.annotations?.description || 'Alert triggered',
+          message:
+            alert.annotations?.summary || alert.annotations?.description || 'Alert triggered',
           labels: alert.labels,
           annotations: alert.annotations,
           startsAt: new Date(alert.startsAt),
@@ -217,11 +427,13 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
 // GET /api/alerts/stats - Get alert statistics
 router.get('/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const [firing, resolved, critical, warning] = await Promise.all([
+    const [firing, resolved, critical, warning, silenced, acknowledged] = await Promise.all([
       prisma.alert.count({ where: { status: 'FIRING' } }),
       prisma.alert.count({ where: { status: 'RESOLVED' } }),
       prisma.alert.count({ where: { status: 'FIRING', severity: 'CRITICAL' } }),
       prisma.alert.count({ where: { status: 'FIRING', severity: 'WARNING' } }),
+      prisma.alert.count({ where: { status: 'SILENCED' } }),
+      prisma.alert.count({ where: { status: 'ACKNOWLEDGED' } }),
     ]);
 
     res.json({
@@ -231,7 +443,44 @@ router.get('/stats', async (req: Request, res: Response, next: NextFunction) => 
         resolved,
         critical,
         warning,
+        silenced,
+        acknowledged,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/alerts/history - Get alert state transition history
+router.get('/history', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId, limit, offset } = req.query;
+
+    const alerts = await prisma.alert.findMany({
+      where: {
+        ...(serverId && { serverId: serverId as string }),
+      },
+      include: {
+        server: {
+          select: { id: true, hostname: true, ipAddress: true },
+        },
+        template: {
+          select: { id: true, name: true },
+        },
+        rule: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string) || 100,
+      skip: parseInt(offset as string) || 0,
+    });
+
+    res.json({
+      success: true,
+      data: alerts,
+      count: alerts.length,
     });
   } catch (error) {
     next(error);

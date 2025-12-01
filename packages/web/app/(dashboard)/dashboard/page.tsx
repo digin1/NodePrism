@@ -1,5 +1,8 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -59,10 +62,10 @@ export default function DashboardPage() {
   const isLoading = serversLoading || alertsLoading || targetsLoading;
 
   // Type assertions for the data
-  const stats = serverStats as { total?: number; online?: number } | undefined;
-  const alerts = alertStats as { firing?: number; critical?: number } | undefined;
-  const targetsData = targets as { summary?: { up?: number; total?: number; down?: number }; targets?: Array<{ scrapeUrl: string; labels?: { job?: string; instance?: string }; health: string }> } | undefined;
-  const serverList = servers as Array<{ id: string; hostname: string; ipAddress: string; status: string }> | undefined;
+  const stats = serverStats as any;
+  const alerts = alertStats as any;
+  const targetsData = targets as any;
+  const serverList = servers as any;
 
   return (
     <div className="space-y-6">
@@ -92,7 +95,12 @@ export default function DashboardPage() {
               subtitle={`${stats?.online || 0} online`}
               icon={
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"
+                  />
                 </svg>
               }
             />
@@ -102,7 +110,12 @@ export default function DashboardPage() {
               subtitle={`${alerts?.critical || 0} critical`}
               icon={
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
                 </svg>
               }
             />
@@ -112,7 +125,12 @@ export default function DashboardPage() {
               subtitle={`of ${targetsData?.summary?.total || 0} total`}
               icon={
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               }
             />
@@ -122,7 +140,12 @@ export default function DashboardPage() {
               subtitle="Require attention"
               icon={
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               }
             />
@@ -145,7 +168,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {targetsData?.targets?.map((target) => (
+                {targetsData?.targets?.map((target: any) => (
                   <div
                     key={target.scrapeUrl}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
@@ -182,7 +205,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {serverList?.slice(0, 5).map((server) => (
+                {serverList?.slice(0, 5).map((server: any) => (
                   <div
                     key={server.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
@@ -196,8 +219,8 @@ export default function DashboardPage() {
                         server.status === 'ONLINE'
                           ? 'success'
                           : server.status === 'WARNING'
-                          ? 'warning'
-                          : 'danger'
+                            ? 'warning'
+                            : 'danger'
                       }
                     >
                       {server.status}
@@ -228,7 +251,12 @@ export default function DashboardPage() {
             >
               <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
                 </svg>
               </div>
               <div>
@@ -237,7 +265,7 @@ export default function DashboardPage() {
               </div>
             </a>
             <a
-              href="http://localhost:3001"
+              href="http://localhost:3030"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
@@ -256,7 +284,12 @@ export default function DashboardPage() {
             >
               <div className="h-10 w-10 rounded-full bg-red-600 flex items-center justify-center text-white">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
                 </svg>
               </div>
               <div>

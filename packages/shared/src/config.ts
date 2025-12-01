@@ -109,10 +109,10 @@ export const config = {
   // Grafana
   grafana: {
     host: process.env.GRAFANA_HOST || 'localhost',
-    port: parseInt(process.env.GRAFANA_PORT || '3001', 10),
+    port: parseInt(process.env.GRAFANA_PORT || '3030', 10),
     user: process.env.GRAFANA_USER || 'admin',
     password: process.env.GRAFANA_PASSWORD || 'admin',
-    url: buildHttpUrl(process.env.GRAFANA_URL, 'GRAFANA_HOST', 'GRAFANA_PORT', 'localhost', '3001'),
+    url: buildHttpUrl(process.env.GRAFANA_URL, 'GRAFANA_HOST', 'GRAFANA_PORT', 'localhost', '3030'),
   },
 
   // AlertManager

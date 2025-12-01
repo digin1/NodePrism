@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import express from 'express';
-import { collectDefaultMetrics, Registry, Counter, Gauge } from 'prom-client';
+import { collectDefaultMetrics, Registry, Counter, Gauge, Histogram } from 'prom-client';
 import { loadConfig, getLocalIpAddress } from './config';
 import { AgentRegistration } from './registration';
 import { logger } from './logger';
@@ -35,8 +35,28 @@ const registrationStatus = new Gauge({
   registers: [register],
 });
 
+// Custom metrics registry for user-defined metrics
+const customMetrics = new Map<string, any>();
+
+// HTTP request metrics
+const httpRequestsTotal = new Counter({
+  name: 'nodeprism_agent_http_requests_total',
+  help: 'Total number of HTTP requests to custom endpoints',
+  labelNames: ['method', 'endpoint', 'status'],
+  registers: [register],
+});
+
+const httpRequestDuration = new Histogram({
+  name: 'nodeprism_agent_http_request_duration_seconds',
+  help: 'Duration of HTTP requests to custom endpoints',
+  labelNames: ['method', 'endpoint'],
+  registers: [register],
+});
+
 // Set agent info
-agentInfo.labels(config.agent.version, config.agent.type, config.agent.hostname || 'unknown').set(1);
+agentInfo
+  .labels(config.agent.version, config.agent.type, config.agent.hostname || 'unknown')
+  .set(1);
 
 // Metrics endpoint
 app.get('/metrics', async (req, res) => {
@@ -69,6 +89,97 @@ app.get('/', (req, res) => {
     agentId: registration?.getAgentId(),
     uptime: process.uptime(),
   });
+});
+
+// Custom metrics endpoints
+app.post('/metrics/counter/:name', express.json(), (req, res) => {
+  const { name } = req.params;
+  const { value = 1, labels = {}, help } = req.body;
+
+  try {
+    const metricName = `custom_${name}`;
+    let counter = customMetrics.get(metricName);
+
+    if (!counter) {
+      counter = new Counter({
+        name: metricName,
+        help: help || `Custom counter: ${name}`,
+        labelNames: Object.keys(labels),
+        registers: [register],
+      });
+      customMetrics.set(metricName, counter);
+    }
+
+    counter.labels(...Object.values(labels)).inc(value);
+    res.json({ success: true, metric: metricName });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+app.post('/metrics/gauge/:name', express.json(), (req, res) => {
+  const { name } = req.params;
+  const { value, labels = {}, help } = req.body;
+
+  try {
+    const metricName = `custom_${name}`;
+    let gauge = customMetrics.get(metricName);
+
+    if (!gauge) {
+      gauge = new Gauge({
+        name: metricName,
+        help: help || `Custom gauge: ${name}`,
+        labelNames: Object.keys(labels),
+        registers: [register],
+      });
+      customMetrics.set(metricName, gauge);
+    }
+
+    gauge.labels(...Object.values(labels)).set(value);
+    res.json({ success: true, metric: metricName });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+app.post('/metrics/histogram/:name', express.json(), (req, res) => {
+  const { name } = req.params;
+  const { value, labels = {}, help } = req.body;
+
+  try {
+    const metricName = `custom_${name}`;
+    let histogram = customMetrics.get(metricName);
+
+    if (!histogram) {
+      histogram = new Histogram({
+        name: metricName,
+        help: help || `Custom histogram: ${name}`,
+        labelNames: Object.keys(labels),
+        registers: [register],
+      });
+      customMetrics.set(metricName, histogram);
+    }
+
+    histogram.labels(...Object.values(labels)).observe(value);
+    res.json({ success: true, metric: metricName });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Middleware to track HTTP requests
+app.use('/metrics', (req, res, next) => {
+  const start = Date.now();
+  const { method } = req;
+  const endpoint = req.path;
+
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    httpRequestsTotal.labels(method, endpoint, res.statusCode.toString()).inc();
+    httpRequestDuration.labels(method, endpoint).observe(duration);
+  });
+
+  next();
 });
 
 let registration: AgentRegistration;

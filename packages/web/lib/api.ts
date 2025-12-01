@@ -44,8 +44,7 @@ export const serverApi = {
     region?: string;
     tags?: string[];
   }) => api.post('/api/servers', data),
-  update: (id: string, data: Record<string, unknown>) =>
-    api.put(`/api/servers/${id}`, data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/api/servers/${id}`, data),
   delete: (id: string) => api.delete(`/api/servers/${id}`),
   deploy: (id: string, agentTypes?: string[]) =>
     api.post(`/api/servers/${id}/deploy`, { agentTypes }),
@@ -57,6 +56,7 @@ export const alertApi = {
   list: (params?: { status?: string; severity?: string; serverId?: string }) =>
     getData(api.get('/api/alerts', { params })),
   rules: () => getData(api.get('/api/alerts/rules')),
+  templates: () => getData(api.get('/api/alerts/templates')),
   createRule: (data: {
     name: string;
     description?: string;
@@ -65,11 +65,32 @@ export const alertApi = {
     severity: 'CRITICAL' | 'WARNING' | 'INFO' | 'DEBUG';
     enabled?: boolean;
   }) => api.post('/api/alerts/rules', data),
+  createTemplate: (data: {
+    name: string;
+    description?: string;
+    matchLabels?: Record<string, string>;
+    matchHostLabels?: Record<string, string>;
+    query: string;
+    calc?: string;
+    units?: string;
+    warnCondition: { condition: string; hysteresis?: { trigger: number; clear: number } };
+    critCondition: { condition: string; hysteresis?: { trigger: number; clear: number } };
+    every?: string;
+    for?: string;
+    actions?: any[];
+  }) => api.post('/api/alerts/templates', data),
   updateRule: (id: string, data: Record<string, unknown>) =>
     api.put(`/api/alerts/rules/${id}`, data),
+  updateTemplate: (id: string, data: Record<string, unknown>) =>
+    api.put(`/api/alerts/templates/${id}`, data),
   deleteRule: (id: string) => api.delete(`/api/alerts/rules/${id}`),
+  deleteTemplate: (id: string) => api.delete(`/api/alerts/templates/${id}`),
   acknowledge: (id: string, acknowledgedBy?: string) =>
     api.post(`/api/alerts/${id}/acknowledge`, { acknowledgedBy }),
+  silence: (id: string, silencedBy?: string, duration?: number) =>
+    api.post(`/api/alerts/${id}/silence`, { silencedBy, duration }),
+  history: (params?: { serverId?: string; limit?: number; offset?: number }) =>
+    getData(api.get('/api/alerts/history', { params })),
   stats: () => getData(api.get('/api/alerts/stats')),
 };
 
@@ -89,6 +110,19 @@ export const healthApi = {
   check: () => getRaw(api.get('/health')),
 };
 
+// Anomaly API
+export const anomalyApi = {
+  list: () => getData(api.get('/api/anomalies')),
+  serverAnomalies: (serverId: string) => getData(api.get(`/api/anomalies/server/${serverId}`)),
+  rates: () => getData(api.get('/api/anomalies/rates')),
+  serverRate: (serverId: string) => getData(api.get(`/api/anomalies/rate/${serverId}`)),
+  events: (params?: { serverId?: string; limit?: number; offset?: number }) =>
+    getData(api.get('/api/anomalies/events', { params })),
+  models: (params?: { serverId?: string; limit?: number; offset?: number }) =>
+    getData(api.get('/api/anomalies/models', { params })),
+  stats: () => getData(api.get('/api/anomalies/stats')),
+};
+
 // Agent API
 export const agentApi = {
   list: (params?: { serverId?: string; type?: string; status?: string }) =>
@@ -100,6 +134,5 @@ export const agentApi = {
     port: number;
     version?: string;
   }) => api.post('/api/agents/register', data),
-  unregister: (agentId: string) =>
-    api.post('/api/agents/unregister', { agentId }),
+  unregister: (agentId: string) => api.post('/api/agents/unregister', { agentId }),
 };

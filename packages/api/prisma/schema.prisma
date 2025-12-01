@@ -28,9 +28,11 @@ model Server {
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
   // Relations
-  agents      Agent[]
-  deployments Deployment[]
-  alerts      Alert[]
+  agents         Agent[]
+  deployments    Deployment[]
+  alerts         Alert[]
+  anomalyEvents  AnomalyEvent[]
+  anomalyModels  AnomalyModel[]
 
   @@map("servers")
 }
@@ -142,6 +144,7 @@ model AlertRule {
 model Alert {
   id          String        @id @default(uuid())
   ruleId      String?       @map("rule_id")
+  templateId  String?       @map("template_id")
   serverId    String?       @map("server_id")
   status      AlertStatus   @default(FIRING)
   severity    AlertSeverity
@@ -156,10 +159,40 @@ model Alert {
   createdAt   DateTime      @default(now()) @map("created_at")
 
   // Relations
-  rule   AlertRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
-  server Server?    @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  rule     AlertRule?     @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  template AlertTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  server   Server?        @relation(fields: [serverId], references: [id], onDelete: SetNull)
 
   @@map("alerts")
+}
+
+model AlertTemplate {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  description     String?
+  // Matching criteria
+  matchLabels     Json? // Record<string, string>
+  matchHostLabels Json? // Record<string, string>
+  // Alert configuration
+  query           String // PromQL query
+  calc            String? // Additional calculation expression
+  units           String?
+  // Thresholds with hysteresis
+  warnCondition   Json? // { condition: string, hysteresis?: { trigger: number, clear: number } }
+  critCondition   Json? // { condition: string, hysteresis?: { trigger: number, clear: number } }
+  // Timing
+  every           String   @default("1m") // Evaluation interval
+  for             String   @default("5m") // Duration before firing
+  // Actions
+  actions         Json? // AlertAction[]
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  alerts Alert[]
+
+  @@map("alert_templates")
 }
 
 enum AlertSeverity {
@@ -170,6 +203,11 @@ enum AlertSeverity {
 }
 
 enum AlertStatus {
+  CLEAR
+  WARNING
+  CRITICAL
+  UNDEFINED
+  PENDING
   FIRING
   RESOLVED
   SILENCED
@@ -268,4 +306,44 @@ model SshCredential {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("ssh_credentials")
+}
+
+// ==================== ANOMALY DETECTION ====================
+
+model AnomalyEvent {
+  id         String    @id @default(uuid())
+  serverId   String    @map("server_id")
+  metricName String    @map("metric_name")
+  score      Float
+  severity   Float     // Percentage of metrics anomalous (NAR)
+  startedAt  DateTime  @map("started_at")
+  endedAt    DateTime? @map("ended_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId, startedAt])
+  @@index([metricName])
+  @@map("anomaly_events")
+}
+
+model AnomalyModel {
+  id             String   @id @default(uuid())
+  serverId       String   @map("server_id")
+  metricName     String   @map("metric_name")
+  clusterCenters Json     @map("cluster_centers")
+  threshold      Float
+  trainedAt      DateTime @map("trained_at")
+  expiresAt      DateTime @map("expires_at")
+  dataPoints     Int      @map("data_points")
+  modelVersion   Int      @default(1) @map("model_version")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, metricName])
+  @@index([serverId, metricName])
+  @@map("anomaly_models")
 }

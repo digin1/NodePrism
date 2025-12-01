@@ -1,11 +1,14 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { metricsApi } from '@/lib/api';
+import { EnhancedMetricsChart } from '@/components/dashboard/EnhancedMetricsChart';
 
 interface QueryResult {
   data?: {
@@ -21,7 +24,11 @@ export default function MetricsPage() {
   const [query, setQuery] = useState('up');
   const [submittedQuery, setSubmittedQuery] = useState('up');
 
-  const { data: result, isLoading, error } = useQuery({
+  const {
+    data: result,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['prometheusQuery', submittedQuery],
     queryFn: () => metricsApi.query(submittedQuery),
     enabled: !!submittedQuery,
@@ -34,9 +41,18 @@ export default function MetricsPage() {
 
   const exampleQueries = [
     { label: 'Targets Up', query: 'up' },
-    { label: 'CPU Usage', query: '100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)' },
-    { label: 'Memory Usage', query: '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100' },
-    { label: 'Disk Usage', query: '(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100' },
+    {
+      label: 'CPU Usage',
+      query: '100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
+    },
+    {
+      label: 'Memory Usage',
+      query: '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100',
+    },
+    {
+      label: 'Disk Usage',
+      query: '(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100',
+    },
     { label: 'Network RX', query: 'irate(node_network_receive_bytes_total[5m])' },
     { label: 'Network TX', query: 'irate(node_network_transmit_bytes_total[5m])' },
   ];
@@ -141,6 +157,15 @@ export default function MetricsPage() {
         </CardContent>
       </Card>
 
+      {/* Enhanced Chart */}
+      {submittedQuery && (
+        <EnhancedMetricsChart
+          metricName={submittedQuery}
+          title={`Chart: ${submittedQuery}`}
+          height={400}
+        />
+      )}
+
       {/* Quick Links */}
       <Card>
         <CardHeader>
@@ -149,7 +174,7 @@ export default function MetricsPage() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
             <a
-              href="http://localhost:3001"
+              href="http://localhost:3030"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"

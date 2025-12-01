@@ -32,7 +32,8 @@ interface Alert {
   status: string;
   startsAt: string;
   rule?: { name: string };
-  server?: { hostname: string };
+  server?: { hostname: string; ipAddress?: string };
+  labels?: { instance?: string; hostname?: string; alertname?: string; [key: string]: string | undefined };
 }
 
 interface AlertStats {
@@ -179,7 +180,16 @@ export default function AlertsPage() {
                     </TableCell>
                     <TableCell>
                       {alert.server ? (
-                        <span className="font-mono text-sm">{alert.server.hostname}</span>
+                        <div>
+                          <span className="font-mono text-sm">{alert.server.hostname}</span>
+                          {alert.server.ipAddress && (
+                            <p className="text-xs text-muted-foreground">{alert.server.ipAddress}</p>
+                          )}
+                        </div>
+                      ) : alert.labels?.instance || alert.labels?.hostname ? (
+                        <span className="font-mono text-sm text-muted-foreground">
+                          {alert.labels.hostname || alert.labels.instance}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}

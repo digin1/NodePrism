@@ -43,12 +43,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUser = async (authToken: string) => {
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
     try {
       const response = await fetch(`${API_URL}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       if (response.ok) {
         const data = await response.json();
@@ -58,8 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('nodeprism_token');
         setToken(null);
       }
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
+    } catch (error: any) {
+      clearTimeout(timeout);
+      if (error.name === 'AbortError') {
+        console.error('Auth check timed out');
+      } else {
+        console.error('Failed to fetch user:', error);
+      }
       localStorage.removeItem('nodeprism_token');
       setToken(null);
     } finally {

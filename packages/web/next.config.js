@@ -2,20 +2,22 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@nodeprism/shared'],
-  // Disable static exports since app requires authentication
-  output: 'standalone',
   env: {
     API_URL: process.env.API_URL || 'http://localhost:4000',
   },
-  // Disable static generation for all pages (requires dynamic data)
-  experimental: {
-    // This ensures pages are not statically generated during build
+  // Skip linting during build (handled separately)
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   async rewrites() {
     return [
       {
         source: '/api/:path*',
         destination: 'http://localhost:4000/api/:path*',
+      },
+      {
+        source: '/uploads/:path*',
+        destination: 'http://localhost:4000/uploads/:path*',
       },
       {
         source: '/health',

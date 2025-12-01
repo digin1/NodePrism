@@ -3,9 +3,17 @@
 // Force dynamic rendering to avoid static generation issues with auth context
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+
+interface SystemSettings {
+  systemName: string;
+  logoUrl?: string | null;
+  primaryColor: string;
+  managerHostname?: string | null;
+  managerIp?: string | null;
+}
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -15,6 +23,23 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
+
+  // Fetch settings on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success) {
+          setSettings(data.data);
+        }
+      } catch (e) {
+        // Silently fail - use defaults
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,14 +66,40 @@ export default function RegisterPage() {
     }
   };
 
+  // Logo URL - local paths are proxied via Next.js rewrites
+  const logoUrl = settings?.logoUrl || null;
+  const systemName = settings?.systemName || 'NodePrism';
+  const primaryColor = settings?.primaryColor || '#3B82F6';
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
       <div className="max-w-md w-full space-y-8 p-8 bg-gray-800 rounded-lg shadow-xl">
-        <div>
-          <h1 className="text-3xl font-bold text-center text-white">
-            NodePrism
-          </h1>
-          <h2 className="mt-2 text-center text-gray-400">
+        <div className="text-center">
+          {/* Logo and System Name */}
+          <div className="flex justify-center mb-4">
+            <div
+              className="rounded-lg flex items-center justify-center overflow-hidden bg-white py-1 px-3"
+              style={{ minWidth: '44px', minHeight: '44px' }}
+            >
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={systemName}
+                  style={{ height: '40px', width: 'auto', maxWidth: '160px' }}
+                />
+              ) : (
+                <span className="font-bold text-2xl" style={{ color: primaryColor }}>
+                  {systemName.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+          </div>
+          {!logoUrl && (
+            <h1 className="text-3xl font-bold text-white">
+              {systemName}
+            </h1>
+          )}
+          <h2 className="mt-2 text-gray-400">
             Create your account
           </h2>
         </div>
@@ -133,18 +184,33 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            style={{ backgroundColor: primaryColor }}
           >
             {isLoading ? 'Creating account...' : 'Create account'}
           </button>
 
           <p className="mt-4 text-center text-sm text-gray-400">
             Already have an account?{' '}
-            <Link href="/login" className="text-blue-500 hover:text-blue-400">
+            <Link
+              href="/login"
+              className="hover:underline"
+              style={{ color: primaryColor }}
+            >
               Sign in here
             </Link>
           </p>
         </form>
+
+        {/* Subtle system info at bottom */}
+        {(settings?.managerHostname || settings?.managerIp) && (
+          <div className="mt-6 pt-4 border-t border-gray-700 text-center">
+            <p className="text-xs text-gray-600">
+              {settings.managerHostname}
+              {settings.managerIp && ` • ${settings.managerIp}`}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

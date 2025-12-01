@@ -308,6 +308,24 @@ model SshCredential {
   @@map("ssh_credentials")
 }
 
+// ==================== SYSTEM SETTINGS ====================
+
+model SystemSettings {
+  id            String   @id @default("default")
+  systemName    String   @default("NodePrism") @map("system_name")
+  logoPath      String?  @map("logo_path") // Path to uploaded logo
+  logoUrl       String?  @map("logo_url") // URL for logo (if external)
+  primaryColor  String   @default("#3B82F6") @map("primary_color")
+  managerHostname String? @map("manager_hostname")
+  managerIp     String?  @map("manager_ip")
+  timezone      String   @default("UTC")
+  dateFormat    String   @default("YYYY-MM-DD") @map("date_format")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
 // ==================== ANOMALY DETECTION ====================
 
 model AnomalyEvent {

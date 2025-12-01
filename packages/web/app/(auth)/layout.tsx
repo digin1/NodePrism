@@ -1,6 +1,26 @@
 'use client';
 
-// Auth pages don't need additional providers, they use the root AuthProvider
+import { useState, useEffect } from 'react';
+import { AuthProvider } from '@/contexts/AuthContext';
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Don't render anything on the server - wait for client mount
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <AuthProvider>{children}</AuthProvider>;
 }

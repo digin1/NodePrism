@@ -6,6 +6,7 @@ import { agentRoutes } from './agents';
 import { authRoutes } from './auth';
 import { anomalyRoutes } from './anomalies';
 import { logRoutes } from './logs';
+import { eventRoutes } from './events';
 import { settingsRoutes } from './settings';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 
@@ -31,5 +32,6 @@ router.use('/alerts', optionalAuth, alertRoutes);
 router.use('/metrics', optionalAuth, metricRoutes);
 router.use('/anomalies', optionalAuth, anomalyRoutes);
 router.use('/logs', optionalAuth, logRoutes);
+router.use('/events', optionalAuth, eventRoutes);
 
 export { router as routes };

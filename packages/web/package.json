@@ -4,7 +4,8 @@
   "private": true,
   "description": "Next.js Management UI",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
+    "dev:fast": "next start",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

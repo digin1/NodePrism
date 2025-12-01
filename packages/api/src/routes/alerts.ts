@@ -391,12 +391,25 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
       const fingerprint = alert.fingerprint;
       const status = alert.status === 'firing' ? 'FIRING' : 'RESOLVED';
 
-      // Try to find the server from the instance label
+      // Try to find the server from labels
       let serverId: string | null = null;
       const instance = alert.labels?.instance;
       const hostname = alert.labels?.hostname;
+      const labelServerId = alert.labels?.server_id;
 
-      if (instance || hostname) {
+      // First check if server_id is directly in the labels (from Prometheus relabeling)
+      if (labelServerId) {
+        const server = await prisma.server.findUnique({
+          where: { id: labelServerId },
+        });
+        if (server) {
+          serverId = server.id;
+          logger.debug(`Matched alert to server by server_id label: ${server.hostname}`);
+        }
+      }
+
+      // If no match by server_id, try instance/hostname
+      if (!serverId && (instance || hostname)) {
         // Extract IP from instance (format: "ip:port" or just "ip")
         const ip = instance ? instance.split(':')[0] : null;
 

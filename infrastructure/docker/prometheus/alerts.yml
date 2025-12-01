@@ -12,30 +12,50 @@ groups:
           summary: "Instance {{ $labels.instance }} down"
           description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
 
-      # High CPU usage
+      # High CPU usage - preserve server_id in aggregation
       - alert: HighCPUUsage
-        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
-        for: 5m
+        expr: 100 - (avg by(instance, server_id) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 2m
         labels:
           severity: warning
         annotations:
           summary: "High CPU usage on {{ $labels.instance }}"
           description: "CPU usage is above 80% (current value: {{ $value }}%)"
 
-      # High memory usage
+      # High Load Average - server_id already present in node_load1
+      - alert: HighLoadAverage
+        expr: node_load1 > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High load average on {{ $labels.instance }}"
+          description: "1-minute load average is above 10 (current value: {{ $value }})"
+
+      # Critical Load Average
+      - alert: CriticalLoadAverage
+        expr: node_load1 > 50
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical load average on {{ $labels.instance }}"
+          description: "1-minute load average is critically high at {{ $value }}"
+
+      # High memory usage - server_id already present
       - alert: HighMemoryUsage
         expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
-        for: 5m
+        for: 2m
         labels:
           severity: warning
         annotations:
           summary: "High memory usage on {{ $labels.instance }}"
           description: "Memory usage is above 80% (current value: {{ $value }}%)"
 
-      # Low disk space
+      # Low disk space - server_id already present
       - alert: LowDiskSpace
         expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"})) * 100 > 80
-        for: 5m
+        for: 2m
         labels:
           severity: warning
         annotations:
@@ -45,7 +65,7 @@ groups:
       # Critical disk space
       - alert: CriticalDiskSpace
         expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"})) * 100 > 95
-        for: 5m
+        for: 2m
         labels:
           severity: critical
         annotations:

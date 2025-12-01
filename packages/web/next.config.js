@@ -3,8 +3,10 @@ require('dotenv').config({ path: '../../.env' });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Disabled for dev performance (causes double renders)
   transpilePackages: ['@nodeprism/shared'],
+  // Disable static page generation for client-heavy pages
+  output: 'standalone',
   env: {
     API_URL: process.env.API_URL || 'http://localhost:4000',
     NEXT_PUBLIC_GRAFANA_URL: process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030',

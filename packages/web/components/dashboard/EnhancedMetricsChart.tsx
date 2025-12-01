@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { metricsApi, anomalyApi } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MetricPoint {
   timestamp: number;
@@ -65,17 +66,20 @@ export function EnhancedMetricsChart({
     enabled: showBaseline,
   });
 
-  const metricData = metrics as { result?: Array<{ values: [number, string][] }> } | undefined;
+  // Prometheus query_range returns { status: string, data: { resultType: string, result: [...] } }
+  const metricData = metrics as { data?: { result?: Array<{ values: [number, string][] }> } } | undefined;
   const anomalyData = anomalies as
     | Array<{ startedAt: string; endedAt?: string; score: number; metricName: string }>
     | undefined;
   const baselineData = baselineMetrics as
-    | { result?: Array<{ values: [number, string][] }> }
+    | { data?: { result?: Array<{ values: [number, string][] }> } }
     | undefined;
 
   // Convert data for chart rendering
-  const chartData = convertToChartData(metricData?.result?.[0]?.values);
-  const baselineChartData = convertToChartData(baselineData?.result?.[0]?.values);
+  // API returns { status, data: { result: [...] } } after getData extracts res.data.data
+  const result = metricData?.data?.result;
+  const chartData = convertToChartData(result?.[0]?.values);
+  const baselineChartData = convertToChartData(baselineData?.data?.result?.[0]?.values);
   const anomalyOverlays = convertToAnomalyOverlays(anomalyData, metricName);
 
   return (
@@ -126,13 +130,40 @@ export function EnhancedMetricsChart({
             </div>
           ) : (
             <div className="relative h-full">
-              {/* Simple chart visualization - in a real app, use a charting library */}
-              <SimpleChart
-                data={chartData}
-                baselineData={showBaseline ? baselineChartData : undefined}
-                anomalies={showAnomalies ? anomalyOverlays : []}
-                height={height}
-              />
+              <ResponsiveContainer width="100%" height={height - 20}>
+                <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="timestamp"
+                    tickFormatter={(ts) => new Date(ts * 1000).toLocaleTimeString()}
+                    stroke="#6b7280"
+                    fontSize={12}
+                  />
+                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <Tooltip
+                    labelFormatter={(ts) => new Date(ts * 1000).toLocaleString()}
+                    formatter={(value: number) => [value.toFixed(4), 'Value']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  {showBaseline && baselineChartData.length > 0 && (
+                    <Line
+                      type="monotone"
+                      data={baselineChartData}
+                      dataKey="value"
+                      stroke="#94a3b8"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
 
               {/* Chart controls */}
               <div className="absolute top-2 right-2 flex gap-1">
@@ -150,107 +181,6 @@ export function EnhancedMetricsChart({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-// Simple chart component - replace with a real charting library like Chart.js or Recharts
-function SimpleChart({
-  data,
-  baselineData,
-  anomalies,
-  height,
-}: {
-  data: MetricPoint[];
-  baselineData?: MetricPoint[];
-  anomalies: AnomalyOverlay[];
-  height: number;
-}) {
-  if (data.length === 0) return null;
-
-  const values = data.map((d) => d.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-
-  const width = 800; // Fixed width for simplicity
-  const padding = 40;
-
-  return (
-    <svg width={width} height={height} className="w-full h-full" viewBox={`0 0 ${width} ${height}`}>
-      {/* Grid lines */}
-      <defs>
-        <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 20" fill="none" stroke="#e5e7eb" strokeWidth="0.5" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#grid)" />
-
-      {/* Anomaly overlays */}
-      {anomalies.map((anomaly, i) => {
-        const startX =
-          ((anomaly.start - data[0].timestamp) /
-            (data[data.length - 1].timestamp - data[0].timestamp)) *
-            (width - 2 * padding) +
-          padding;
-        const endX =
-          ((anomaly.end - data[0].timestamp) /
-            (data[data.length - 1].timestamp - data[0].timestamp)) *
-            (width - 2 * padding) +
-          padding;
-
-        return (
-          <rect
-            key={i}
-            x={startX}
-            y={padding}
-            width={Math.max(endX - startX, 2)}
-            height={height - 2 * padding}
-            fill="rgba(239, 68, 68, 0.1)"
-            stroke="rgb(239, 68, 68)"
-            strokeWidth="1"
-          />
-        );
-      })}
-
-      {/* Baseline line */}
-      {baselineData && baselineData.length > 0 && (
-        <polyline
-          fill="none"
-          stroke="#94a3b8"
-          strokeWidth="2"
-          strokeDasharray="5,5"
-          points={baselineData
-            .map((point, i) => {
-              const x = (i / (baselineData.length - 1)) * (width - 2 * padding) + padding;
-              const y = height - padding - ((point.value - min) / range) * (height - 2 * padding);
-              return `${x},${y}`;
-            })
-            .join(' ')}
-        />
-      )}
-
-      {/* Main data line */}
-      <polyline
-        fill="none"
-        stroke="#3b82f6"
-        strokeWidth="2"
-        points={data
-          .map((point, i) => {
-            const x = (i / (data.length - 1)) * (width - 2 * padding) + padding;
-            const y = height - padding - ((point.value - min) / range) * (height - 2 * padding);
-            return `${x},${y}`;
-          })
-          .join(' ')}
-      />
-
-      {/* Y-axis labels */}
-      <text x="10" y={padding} className="text-xs fill-gray-600" textAnchor="middle">
-        {max.toFixed(2)}
-      </text>
-      <text x="10" y={height - padding} className="text-xs fill-gray-600" textAnchor="middle">
-        {min.toFixed(2)}
-      </text>
-    </svg>
   );
 }
 

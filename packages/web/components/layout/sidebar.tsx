@@ -64,10 +64,10 @@ const navigation = [
   },
 ];
 
-const externalLinks = [
-  { name: 'Grafana', href: 'http://localhost:3030', icon: 'G' },
-  { name: 'Prometheus', href: 'http://localhost:9090', icon: 'P' },
-  { name: 'AlertManager', href: 'http://localhost:9093', icon: 'A' },
+const getExternalLinks = () => [
+  { name: 'Grafana', href: process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030', icon: 'G' },
+  { name: 'Prometheus', href: process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090', icon: 'P' },
+  { name: 'AlertManager', href: process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093', icon: 'A' },
 ];
 
 export function Sidebar() {
@@ -136,7 +136,7 @@ export function Sidebar() {
       <div className="border-t border-gray-800 px-3 py-4">
         <p className="px-3 text-xs font-semibold uppercase text-gray-500 mb-2">External</p>
         <div className="space-y-1">
-          {externalLinks.map((item) => (
+          {getExternalLinks().map((item) => (
             <a
               key={item.name}
               href={item.href}

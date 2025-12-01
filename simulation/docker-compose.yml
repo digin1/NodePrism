@@ -1,10 +1,23 @@
-version: '3.8'
-
-# Simulation environment - creates fake monitored servers
-# Each server runs node_exporter to simulate real server metrics
+# ============================================
+# NodePrism - Simulation Environment
+# ============================================
+# Creates simulated monitored servers for testing
+# Each server runs node_exporter to provide metrics
+#
+# Port Mapping (9200-9208 reserved for simulation):
+#   - web-server-01:     9200
+#   - web-server-02:     9201
+#   - db-server-01:      9202
+#   - db-server-02:      9203
+#   - cache-server-01:   9204
+#   - api-server-01:     9205
+#   - worker-server-01:  9206
+#   - staging-server-01: 9207
+#   - dev-server-01:     9208
+# ============================================
 
 services:
-  # Simulated Web Server 1
+  # ==================== Production Web Servers ====================
   web-server-01:
     image: prom/node-exporter:latest
     container_name: sim-web-server-01
@@ -14,14 +27,18 @@ services:
       - '--path.rootfs=/host'
       - '--web.listen-address=:9100'
     ports:
-      - "9101:9100"
+      - "9200:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
     networks:
       - nodeprism-network
     labels:
+      - "nodeprism.simulation=true"
       - "nodeprism.server.type=web"
       - "nodeprism.environment=production"
+      - "nodeprism.region=us-east-1"
 
-  # Simulated Web Server 2
   web-server-02:
     image: prom/node-exporter:latest
     container_name: sim-web-server-02
@@ -31,14 +48,19 @@ services:
       - '--path.rootfs=/host'
       - '--web.listen-address=:9100'
     ports:
-      - "9102:9100"
+      - "9201:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
     networks:
       - nodeprism-network
     labels:
+      - "nodeprism.simulation=true"
       - "nodeprism.server.type=web"
       - "nodeprism.environment=production"
+      - "nodeprism.region=us-east-1"
 
-  # Simulated Database Server
+  # ==================== Production Database Servers ====================
   db-server-01:
     image: prom/node-exporter:latest
     container_name: sim-db-server-01
@@ -48,14 +70,40 @@ services:
       - '--path.rootfs=/host'
       - '--web.listen-address=:9100'
     ports:
-      - "9103:9100"
+      - "9202:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
     networks:
       - nodeprism-network
     labels:
+      - "nodeprism.simulation=true"
       - "nodeprism.server.type=database"
       - "nodeprism.environment=production"
+      - "nodeprism.region=us-east-1"
 
-  # Simulated Cache Server
+  db-server-02:
+    image: prom/node-exporter:latest
+    container_name: sim-db-server-02
+    hostname: db-server-02
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--web.listen-address=:9100'
+    ports:
+      - "9203:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    networks:
+      - nodeprism-network
+    labels:
+      - "nodeprism.simulation=true"
+      - "nodeprism.server.type=database"
+      - "nodeprism.environment=production"
+      - "nodeprism.region=us-west-2"
+
+  # ==================== Cache Server ====================
   cache-server-01:
     image: prom/node-exporter:latest
     container_name: sim-cache-server-01
@@ -65,14 +113,63 @@ services:
       - '--path.rootfs=/host'
       - '--web.listen-address=:9100'
     ports:
-      - "9104:9100"
+      - "9204:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
     networks:
       - nodeprism-network
     labels:
+      - "nodeprism.simulation=true"
       - "nodeprism.server.type=cache"
       - "nodeprism.environment=production"
+      - "nodeprism.region=us-east-1"
 
-  # Simulated Staging Server
+  # ==================== API Server ====================
+  api-server-01:
+    image: prom/node-exporter:latest
+    container_name: sim-api-server-01
+    hostname: api-server-01
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--web.listen-address=:9100'
+    ports:
+      - "9205:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    networks:
+      - nodeprism-network
+    labels:
+      - "nodeprism.simulation=true"
+      - "nodeprism.server.type=api"
+      - "nodeprism.environment=production"
+      - "nodeprism.region=us-east-1"
+
+  # ==================== Worker Server ====================
+  worker-server-01:
+    image: prom/node-exporter:latest
+    container_name: sim-worker-server-01
+    hostname: worker-server-01
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--web.listen-address=:9100'
+    ports:
+      - "9206:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    networks:
+      - nodeprism-network
+    labels:
+      - "nodeprism.simulation=true"
+      - "nodeprism.server.type=worker"
+      - "nodeprism.environment=production"
+      - "nodeprism.region=us-west-2"
+
+  # ==================== Staging Server ====================
   staging-server-01:
     image: prom/node-exporter:latest
     container_name: sim-staging-server-01
@@ -82,12 +179,39 @@ services:
       - '--path.rootfs=/host'
       - '--web.listen-address=:9100'
     ports:
-      - "9105:9100"
+      - "9207:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
     networks:
       - nodeprism-network
     labels:
+      - "nodeprism.simulation=true"
       - "nodeprism.server.type=web"
       - "nodeprism.environment=staging"
+      - "nodeprism.region=us-east-1"
+
+  # ==================== Development Server ====================
+  dev-server-01:
+    image: prom/node-exporter:latest
+    container_name: sim-dev-server-01
+    hostname: dev-server-01
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--web.listen-address=:9100'
+    ports:
+      - "9208:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    networks:
+      - nodeprism-network
+    labels:
+      - "nodeprism.simulation=true"
+      - "nodeprism.server.type=web"
+      - "nodeprism.environment=development"
+      - "nodeprism.region=us-east-1"
 
 networks:
   nodeprism-network:

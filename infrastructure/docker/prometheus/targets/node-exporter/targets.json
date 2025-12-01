@@ -1,7 +1,8 @@
 [
   {
-    "targets": ["node-exporter:9100"],
+    "targets": ["172.17.0.1:9100"],
     "labels": {
+      "server_id": "c9b50c97-ee91-4037-b5a3-7992876ad554",
       "hostname": "nodeprism-manager",
       "environment": "production",
       "server_type": "manager",

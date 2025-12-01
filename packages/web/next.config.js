@@ -1,9 +1,16 @@
+// Load root .env file
+require('dotenv').config({ path: '../../.env' });
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@nodeprism/shared'],
   env: {
     API_URL: process.env.API_URL || 'http://localhost:4000',
+    NEXT_PUBLIC_GRAFANA_URL: process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030',
+    NEXT_PUBLIC_PROMETHEUS_URL: process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090',
+    NEXT_PUBLIC_ALERTMANAGER_URL: process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093',
+    NEXT_PUBLIC_RABBITMQ_URL: process.env.NEXT_PUBLIC_RABBITMQ_URL || 'http://localhost:15672',
   },
   // Skip linting during build (handled separately)
   eslint: {

@@ -265,7 +265,7 @@ export default function DashboardPage() {
               </div>
             </a>
             <a
-              href="http://localhost:3030"
+              href={process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"

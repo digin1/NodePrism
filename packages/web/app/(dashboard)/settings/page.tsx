@@ -293,7 +293,7 @@ export default function SettingsPage() {
           <dl className="space-y-4">
             <div className="flex justify-between py-2 border-b">
               <dt className="text-muted-foreground">API URL</dt>
-              <dd className="font-mono text-sm">http://localhost:4000</dd>
+              <dd className="font-mono text-sm">{process.env.NEXT_PUBLIC_API_URL || '/api (proxied)'}</dd>
             </div>
             <div className="flex justify-between py-2 border-b">
               <dt className="text-muted-foreground">Status</dt>
@@ -321,7 +321,7 @@ export default function SettingsPage() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
             <a
-              href="http://localhost:3030"
+              href={process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
@@ -331,12 +331,12 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="font-medium">Grafana</p>
-                <p className="text-sm text-muted-foreground">http://localhost:3030</p>
-                <p className="text-xs text-muted-foreground mt-1">admin / admin</p>
+                <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}</p>
+                <p className="text-xs text-muted-foreground mt-1">admin / admin123</p>
               </div>
             </a>
             <a
-              href="http://localhost:9090"
+              href={process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
@@ -346,11 +346,11 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="font-medium">Prometheus</p>
-                <p className="text-sm text-muted-foreground">http://localhost:9090</p>
+                <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}</p>
               </div>
             </a>
             <a
-              href="http://localhost:9093"
+              href={process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
@@ -360,11 +360,11 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="font-medium">AlertManager</p>
-                <p className="text-sm text-muted-foreground">http://localhost:9093</p>
+                <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}</p>
               </div>
             </a>
             <a
-              href="http://localhost:15672"
+              href={process.env.NEXT_PUBLIC_RABBITMQ_URL || 'http://localhost:15672'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
@@ -374,8 +374,8 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="font-medium">RabbitMQ</p>
-                <p className="text-sm text-muted-foreground">http://localhost:15672</p>
-                <p className="text-xs text-muted-foreground mt-1">guest / guest</p>
+                <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_RABBITMQ_URL || 'http://localhost:15672'}</p>
+                <p className="text-xs text-muted-foreground mt-1">nodeprism / nodeprism123</p>
               </div>
             </a>
           </div>
@@ -390,16 +390,11 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
-            <pre>{`# API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:4000
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nodeprism
-REDIS_URL=redis://localhost:6379
-
-# Prometheus
-PROMETHEUS_URL=http://localhost:9090
-
-# RabbitMQ
-RABBITMQ_URL=amqp://guest:guest@localhost:5672`}</pre>
+            <pre>{`# External Service URLs (configured in .env)
+NEXT_PUBLIC_GRAFANA_URL=${process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}
+NEXT_PUBLIC_PROMETHEUS_URL=${process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}
+NEXT_PUBLIC_ALERTMANAGER_URL=${process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}
+NEXT_PUBLIC_RABBITMQ_URL=${process.env.NEXT_PUBLIC_RABBITMQ_URL || 'http://localhost:15672'}`}</pre>
           </div>
         </CardContent>
       </Card>

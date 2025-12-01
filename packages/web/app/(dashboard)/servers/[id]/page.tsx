@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { serverApi, metricsApi, agentApi } from '@/lib/api';
+import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
 
 const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary'> = {
   ONLINE: 'success',
@@ -45,17 +46,57 @@ interface Server {
 interface Metrics {
   cpu: number | null;
   memory: number | null;
+  memoryTotal: number | null;
+  memoryAvailable: number | null;
   disk: number | null;
-  load: number | null;
+  diskTotal: number | null;
+  diskAvailable: number | null;
+  load1: number | null;
+  load5: number | null;
+  load15: number | null;
+  networkIn: number | null;
+  networkOut: number | null;
 }
 
-function MetricCard({ label, value, unit }: { label: string; value: number | null; unit?: string }) {
+function formatBytes(bytes: number | null): string {
+  if (bytes === null) return 'N/A';
+  const gb = bytes / (1024 * 1024 * 1024);
+  if (gb >= 1) return `${gb.toFixed(1)} GB`;
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(0)} MB`;
+}
+
+function formatNetworkSpeed(bytesPerSec: number | null): string {
+  if (bytesPerSec === null) return 'N/A';
+  const kbps = bytesPerSec / 1024;
+  if (kbps < 1) return `${bytesPerSec.toFixed(0)} B/s`;
+  const mbps = kbps / 1024;
+  if (mbps < 1) return `${kbps.toFixed(1)} KB/s`;
+  const gbps = mbps / 1024;
+  if (gbps < 1) return `${mbps.toFixed(2)} MB/s`;
+  return `${gbps.toFixed(2)} GB/s`;
+}
+
+function MetricCard({
+  label,
+  value,
+  unit,
+  subtext,
+  decimals = 1
+}: {
+  label: string;
+  value: number | null;
+  unit?: string;
+  subtext?: string;
+  decimals?: number;
+}) {
   return (
     <div className="p-4 bg-gray-50 rounded-lg">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className="text-2xl font-bold mt-1">
-        {value !== null ? `${value.toFixed(1)}${unit || ''}` : 'N/A'}
+        {value !== null ? `${value.toFixed(decimals)}${unit || ''}` : 'N/A'}
       </p>
+      {subtext && <p className="text-xs text-muted-foreground mt-1">{subtext}</p>}
     </div>
   );
 }
@@ -82,6 +123,7 @@ export default function ServerDetailPage() {
     queryKey: ['serverMetrics', serverId],
     queryFn: () => metricsApi.serverMetrics(serverId),
     enabled: !!server,
+    refetchInterval: 5000, // Refresh every 5 seconds
   });
 
   const deleteMutation = useMutation({
@@ -210,11 +252,36 @@ export default function ServerDetailPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <MetricCard label="CPU Usage" value={metricsData?.cpu ?? null} unit="%" />
-        <MetricCard label="Memory Usage" value={metricsData?.memory ?? null} unit="%" />
-        <MetricCard label="Disk Usage" value={metricsData?.disk ?? null} unit="%" />
-        <MetricCard label="Load (1m)" value={metricsData?.load ?? null} />
+        <MetricCard
+          label="Memory Usage"
+          value={metricsData?.memory ?? null}
+          unit="%"
+          subtext={metricsData?.memoryTotal ? `${formatBytes(metricsData.memoryAvailable)} free of ${formatBytes(metricsData.memoryTotal)}` : undefined}
+        />
+        <MetricCard
+          label="Disk Usage"
+          value={metricsData?.disk ?? null}
+          unit="%"
+          subtext={metricsData?.diskTotal ? `${formatBytes(metricsData.diskAvailable)} free of ${formatBytes(metricsData.diskTotal)}` : undefined}
+        />
+        <MetricCard
+          label="Load Average"
+          value={metricsData?.load1 ?? null}
+          decimals={2}
+          subtext={metricsData?.load5 != null && metricsData?.load15 != null ? `5m: ${metricsData.load5.toFixed(2)} / 15m: ${metricsData.load15.toFixed(2)}` : undefined}
+        />
+        <div className="p-4 bg-gray-50 rounded-lg">
+          <p className="text-sm text-muted-foreground">Network In</p>
+          <p className="text-2xl font-bold mt-1 text-green-600">{formatNetworkSpeed(metricsData?.networkIn ?? null)}</p>
+          <p className="text-xs text-muted-foreground mt-1">Download</p>
+        </div>
+        <div className="p-4 bg-gray-50 rounded-lg">
+          <p className="text-sm text-muted-foreground">Network Out</p>
+          <p className="text-2xl font-bold mt-1 text-blue-600">{formatNetworkSpeed(metricsData?.networkOut ?? null)}</p>
+          <p className="text-xs text-muted-foreground mt-1">Upload</p>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -415,6 +482,12 @@ export default function ServerDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Bandwidth Summary */}
+      <BandwidthSummary serverId={serverId} />
+
+      {/* Real-time Metrics Charts */}
+      <MetricsCharts serverId={serverId} />
     </div>
   );
 }

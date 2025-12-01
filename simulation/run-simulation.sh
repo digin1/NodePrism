@@ -1,10 +1,26 @@
 #!/bin/bash
-#
+# ============================================
 # NodePrism - Simulation Script
+# ============================================
 # Demonstrates the full monitoring workflow with Docker containers
-#
+# Updated for server: 66.85.173.55
+# ============================================
 
 set -e
+
+# Load environment variables from root .env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  export $(grep -v '^#' "$PROJECT_ROOT/.env" | xargs)
+fi
+
+# Configuration
+SERVER_IP="${SERVER_IP:-66.85.173.55}"
+API_URL="${API_URL:-http://localhost:4000}"
+PROMETHEUS_URL="${PROMETHEUS_URL:-http://localhost:9090}"
+TARGETS_DIR="$PROJECT_ROOT/infrastructure/docker/prometheus/targets"
 
 # Colors
 RED='\033[0;31m'
@@ -14,9 +30,6 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-API_URL="${API_URL:-http://localhost:4000}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 log_step() {
   echo ""
   echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -25,7 +38,7 @@ log_step() {
 }
 
 log_info() {
-  echo -e "${GREEN}[✓]${NC} $1"
+  echo -e "${GREEN}[OK]${NC} $1"
 }
 
 log_warn() {
@@ -33,15 +46,17 @@ log_warn() {
 }
 
 log_error() {
-  echo -e "${RED}[✗]${NC} $1"
+  echo -e "${RED}[X]${NC} $1"
 }
 
 # Check if nodeprism-network exists
 check_network() {
-  if ! docker network ls | grep -q nodeprism-network; then
-    log_warn "Creating nodeprism-network..."
-    docker network create --subnet=172.28.0.0/16 nodeprism-network
+  if ! docker network ls | grep -q "docker_nodeprism-network"; then
+    log_error "NodePrism network not found. Start the main infrastructure first:"
+    echo "  cd $PROJECT_ROOT/infrastructure/docker && docker compose up -d"
+    exit 1
   fi
+  log_info "NodePrism network found"
 }
 
 # Start simulation containers
@@ -57,117 +72,139 @@ start_containers() {
   docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 }
 
-# Register servers with API
-register_servers() {
-  log_step "Registering Servers with API"
+# Stop simulation containers
+stop_containers() {
+  log_step "Stopping Simulation Containers"
 
-  # Get host IP for Docker containers
-  HOST_IP=$(hostname -I | awk '{print $1}')
+  cd "$SCRIPT_DIR"
+  docker compose down
 
-  # Server definitions
-  declare -A SERVERS=(
-    ["web-server-01"]="172.28.0.10:9101:PRODUCTION:web,nginx"
-    ["web-server-02"]="172.28.0.11:9102:PRODUCTION:web,nginx"
-    ["db-server-01"]="172.28.0.20:9103:PRODUCTION:database,postgres"
-    ["cache-server-01"]="172.28.0.30:9104:PRODUCTION:cache,redis"
-    ["staging-server-01"]="172.28.0.40:9105:STAGING:web,staging"
-  )
-
-  for hostname in "${!SERVERS[@]}"; do
-    IFS=':' read -r ip port env tags <<< "${SERVERS[$hostname]}"
-
-    # Use localhost with mapped port for API
-    api_ip="127.0.0.1"
-
-    log_info "Registering $hostname ($api_ip:$port)..."
-
-    response=$(curl -s -X POST "${API_URL}/api/servers" \
-      -H "Content-Type: application/json" \
-      -d "{
-        \"hostname\": \"$hostname\",
-        \"ipAddress\": \"$api_ip\",
-        \"sshPort\": $port,
-        \"environment\": \"$env\",
-        \"tags\": [\"$(echo $tags | sed 's/,/","/g')\"],
-        \"metadata\": {\"simulation\": true, \"docker_ip\": \"$ip\"}
-      }" 2>/dev/null)
-
-    if echo "$response" | grep -q '"success":true'; then
-      server_id=$(echo "$response" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-      log_info "  → Created with ID: $server_id"
-    elif echo "$response" | grep -q 'already exists'; then
-      log_warn "  → Already exists, skipping"
-    else
-      log_error "  → Failed: $response"
-    fi
-  done
+  log_info "Simulation containers stopped"
 }
 
-# Create Prometheus targets
+# Create Prometheus targets for simulation servers
 create_prometheus_targets() {
   log_step "Creating Prometheus Targets"
 
-  TARGETS_DIR="/home/digin/nodeprism-node-vitals/infrastructure/docker/prometheus/targets/node-exporter"
-  mkdir -p "$TARGETS_DIR"
+  mkdir -p "$TARGETS_DIR/simulation"
 
-  cat > "$TARGETS_DIR/simulation.json" << 'EOF'
+  cat > "$TARGETS_DIR/simulation/servers.json" << EOF
 [
   {
-    "targets": ["host.docker.internal:9101"],
+    "targets": ["${SERVER_IP}:9200"],
     "labels": {
       "hostname": "web-server-01",
       "environment": "production",
       "server_type": "web",
+      "region": "us-east-1",
       "simulation": "true"
     }
   },
   {
-    "targets": ["host.docker.internal:9102"],
+    "targets": ["${SERVER_IP}:9201"],
     "labels": {
       "hostname": "web-server-02",
       "environment": "production",
       "server_type": "web",
+      "region": "us-east-1",
       "simulation": "true"
     }
   },
   {
-    "targets": ["host.docker.internal:9103"],
+    "targets": ["${SERVER_IP}:9202"],
     "labels": {
       "hostname": "db-server-01",
       "environment": "production",
       "server_type": "database",
+      "region": "us-east-1",
       "simulation": "true"
     }
   },
   {
-    "targets": ["host.docker.internal:9104"],
+    "targets": ["${SERVER_IP}:9203"],
+    "labels": {
+      "hostname": "db-server-02",
+      "environment": "production",
+      "server_type": "database",
+      "region": "us-west-2",
+      "simulation": "true"
+    }
+  },
+  {
+    "targets": ["${SERVER_IP}:9204"],
     "labels": {
       "hostname": "cache-server-01",
       "environment": "production",
       "server_type": "cache",
+      "region": "us-east-1",
       "simulation": "true"
     }
   },
   {
-    "targets": ["host.docker.internal:9105"],
+    "targets": ["${SERVER_IP}:9205"],
+    "labels": {
+      "hostname": "api-server-01",
+      "environment": "production",
+      "server_type": "api",
+      "region": "us-east-1",
+      "simulation": "true"
+    }
+  },
+  {
+    "targets": ["${SERVER_IP}:9206"],
+    "labels": {
+      "hostname": "worker-server-01",
+      "environment": "production",
+      "server_type": "worker",
+      "region": "us-west-2",
+      "simulation": "true"
+    }
+  },
+  {
+    "targets": ["${SERVER_IP}:9207"],
     "labels": {
       "hostname": "staging-server-01",
       "environment": "staging",
       "server_type": "web",
+      "region": "us-east-1",
+      "simulation": "true"
+    }
+  },
+  {
+    "targets": ["${SERVER_IP}:9208"],
+    "labels": {
+      "hostname": "dev-server-01",
+      "environment": "development",
+      "server_type": "web",
+      "region": "us-east-1",
       "simulation": "true"
     }
   }
 ]
 EOF
 
-  log_info "Created Prometheus targets at $TARGETS_DIR/simulation.json"
+  log_info "Created Prometheus targets at $TARGETS_DIR/simulation/servers.json"
 
   # Try to reload Prometheus
-  if curl -s -X POST "http://localhost:9090/-/reload" > /dev/null 2>&1; then
+  if curl -s -X POST "${PROMETHEUS_URL}/-/reload" > /dev/null 2>&1; then
     log_info "Prometheus configuration reloaded"
   else
-    log_warn "Could not reload Prometheus (may need manual restart)"
+    log_warn "Could not reload Prometheus (lifecycle API may be disabled)"
   fi
+}
+
+# Remove Prometheus targets
+remove_prometheus_targets() {
+  log_step "Removing Prometheus Targets"
+
+  rm -rf "$TARGETS_DIR/simulation"
+
+  # Try to reload Prometheus
+  if curl -s -X POST "${PROMETHEUS_URL}/-/reload" > /dev/null 2>&1; then
+    log_info "Prometheus configuration reloaded"
+  fi
+
+  log_info "Simulation targets removed"
 }
 
 # Verify metrics are being collected
@@ -175,24 +212,40 @@ verify_metrics() {
   log_step "Verifying Metrics Collection"
 
   echo ""
-  echo "Testing node_exporter endpoints directly:"
+  echo "Testing node_exporter endpoints:"
 
-  for port in 9101 9102 9103 9104 9105; do
+  declare -A SERVERS=(
+    ["web-server-01"]="9200"
+    ["web-server-02"]="9201"
+    ["db-server-01"]="9202"
+    ["db-server-02"]="9203"
+    ["cache-server-01"]="9204"
+    ["api-server-01"]="9205"
+    ["worker-server-01"]="9206"
+    ["staging-server-01"]="9207"
+    ["dev-server-01"]="9208"
+  )
+
+  for name in "${!SERVERS[@]}"; do
+    port="${SERVERS[$name]}"
     if curl -s "http://localhost:$port/metrics" > /dev/null 2>&1; then
-      log_info "Port $port: ✓ Responding"
+      log_info "$name (port $port): Responding"
     else
-      log_error "Port $port: ✗ Not responding"
+      log_error "$name (port $port): Not responding"
     fi
   done
 
   echo ""
   echo "Checking Prometheus targets:"
 
-  targets=$(curl -s "http://localhost:9090/api/v1/targets" 2>/dev/null)
-  active=$(echo "$targets" | grep -o '"health":"up"' | wc -l)
-  total=$(echo "$targets" | grep -o '"health":' | wc -l)
-
-  log_info "Prometheus targets: $active/$total up"
+  targets=$(curl -s "${PROMETHEUS_URL}/api/v1/targets" 2>/dev/null)
+  if [ -n "$targets" ]; then
+    active=$(echo "$targets" | grep -o '"health":"up"' | wc -l)
+    total=$(echo "$targets" | grep -o '"health":' | wc -l)
+    log_info "Prometheus targets: $active/$total up"
+  else
+    log_warn "Could not query Prometheus"
+  fi
 }
 
 # Show sample metrics
@@ -200,19 +253,14 @@ show_metrics() {
   log_step "Sample Metrics"
 
   echo ""
-  echo -e "${CYAN}CPU Usage (all servers):${NC}"
-  curl -s "http://localhost:9090/api/v1/query?query=100-(avg%20by(hostname)(rate(node_cpu_seconds_total{mode=\"idle\"}[1m]))*100)" 2>/dev/null | \
-    jq -r '.data.result[] | "  \(.metric.hostname): \(.value[1])%"' 2>/dev/null || echo "  (waiting for data...)"
+  echo -e "${CYAN}CPU Usage (simulation servers):${NC}"
+  curl -s "${PROMETHEUS_URL}/api/v1/query?query=100-(avg%20by(hostname)(rate(node_cpu_seconds_total{mode=\"idle\",simulation=\"true\"}[1m]))*100)" 2>/dev/null | \
+    jq -r '.data.result[] | "  \(.metric.hostname): \(.value[1] | tonumber | . * 100 | round / 100)%"' 2>/dev/null || echo "  (waiting for data...)"
 
   echo ""
-  echo -e "${CYAN}Memory Usage (all servers):${NC}"
-  curl -s "http://localhost:9090/api/v1/query?query=(1-node_memory_MemAvailable_bytes/node_memory_MemTotal_bytes)*100" 2>/dev/null | \
-    jq -r '.data.result[] | "  \(.metric.instance): \(.value[1])%"' 2>/dev/null || echo "  (waiting for data...)"
-
-  echo ""
-  echo -e "${CYAN}Disk Usage (all servers):${NC}"
-  curl -s "http://localhost:9090/api/v1/query?query=(1-node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"}/node_filesystem_size_bytes)*100" 2>/dev/null | \
-    jq -r '.data.result[] | "  \(.metric.instance) [\(.metric.mountpoint)]: \(.value[1])%"' 2>/dev/null | head -10 || echo "  (waiting for data...)"
+  echo -e "${CYAN}Memory Usage (simulation servers):${NC}"
+  curl -s "${PROMETHEUS_URL}/api/v1/query?query=(1-node_memory_MemAvailable_bytes{simulation=\"true\"}/node_memory_MemTotal_bytes{simulation=\"true\"})*100" 2>/dev/null | \
+    jq -r '.data.result[] | "  \(.metric.hostname): \(.value[1] | tonumber | . * 100 | round / 100)%"' 2>/dev/null || echo "  (waiting for data...)"
 }
 
 # Print summary
@@ -222,37 +270,34 @@ print_summary() {
   echo ""
   echo -e "${GREEN}Simulation is running!${NC}"
   echo ""
-  echo "Access Points:"
-  echo -e "  ${CYAN}Web Dashboard:${NC}    http://localhost:3000/dashboard"
-  echo -e "  ${CYAN}Servers List:${NC}     http://localhost:3000/servers"
-  echo -e "  ${CYAN}API:${NC}              http://localhost:4000/api/servers"
-  echo -e "  ${CYAN}Prometheus:${NC}       http://localhost:9090"
-  echo -e "  ${CYAN}Grafana:${NC}          http://localhost:3030 (admin/admin)"
+  echo "Server IP: ${SERVER_IP}"
   echo ""
-  echo "Simulated Servers:"
-  echo "  • web-server-01    (localhost:9101)"
-  echo "  • web-server-02    (localhost:9102)"
-  echo "  • db-server-01     (localhost:9103)"
-  echo "  • cache-server-01  (localhost:9104)"
-  echo "  • staging-server-01 (localhost:9105)"
+  echo "Access Points:"
+  echo -e "  ${CYAN}Web Dashboard:${NC}    http://${SERVER_IP}:3000/dashboard"
+  echo -e "  ${CYAN}Servers List:${NC}     http://${SERVER_IP}:3000/servers"
+  echo -e "  ${CYAN}API:${NC}              http://${SERVER_IP}:4000/api/servers"
+  echo -e "  ${CYAN}Prometheus:${NC}       http://${SERVER_IP}:9090"
+  echo -e "  ${CYAN}Grafana:${NC}          http://${SERVER_IP}:3030 (admin/admin123)"
+  echo ""
+  echo "Simulated Servers (ports 9200-9208):"
+  echo "  Production:"
+  echo "    - web-server-01     (${SERVER_IP}:9200) - Web"
+  echo "    - web-server-02     (${SERVER_IP}:9201) - Web"
+  echo "    - db-server-01      (${SERVER_IP}:9202) - Database"
+  echo "    - db-server-02      (${SERVER_IP}:9203) - Database"
+  echo "    - cache-server-01   (${SERVER_IP}:9204) - Cache"
+  echo "    - api-server-01     (${SERVER_IP}:9205) - API"
+  echo "    - worker-server-01  (${SERVER_IP}:9206) - Worker"
+  echo "  Staging:"
+  echo "    - staging-server-01 (${SERVER_IP}:9207) - Web"
+  echo "  Development:"
+  echo "    - dev-server-01     (${SERVER_IP}:9208) - Web"
   echo ""
   echo "Commands:"
-  echo "  Stop simulation:   cd simulation && docker compose down"
-  echo "  View logs:         cd simulation && docker compose logs -f"
+  echo "  Stop simulation:   $0 stop"
+  echo "  View status:       $0 status"
+  echo "  Show metrics:      $0 metrics"
   echo ""
-}
-
-# Cleanup function
-cleanup() {
-  log_step "Cleaning Up Simulation"
-
-  cd "$SCRIPT_DIR"
-  docker compose down
-
-  # Remove simulation targets
-  rm -f /home/digin/nodeprism-node-vitals/infrastructure/docker/prometheus/targets/node-exporter/simulation.json
-
-  log_info "Simulation stopped and cleaned up"
 }
 
 # Main
@@ -260,21 +305,21 @@ main() {
   case "${1:-start}" in
     start)
       echo ""
-      echo -e "${BLUE}╔═══════════════════════════════════════════════════╗${NC}"
-      echo -e "${BLUE}║   ${CYAN}NodePrism - Monitoring Simulation${BLUE}     ║${NC}"
-      echo -e "${BLUE}╚═══════════════════════════════════════════════════╝${NC}"
+      echo -e "${BLUE}================================================${NC}"
+      echo -e "${BLUE}   ${CYAN}NodePrism - Monitoring Simulation${BLUE}          ${NC}"
+      echo -e "${BLUE}================================================${NC}"
 
       check_network
       start_containers
-      register_servers
       create_prometheus_targets
       sleep 5
       verify_metrics
-      show_metrics
       print_summary
       ;;
     stop)
-      cleanup
+      stop_containers
+      remove_prometheus_targets
+      log_info "Simulation stopped and cleaned up"
       ;;
     status)
       log_step "Simulation Status"
@@ -285,8 +330,20 @@ main() {
     metrics)
       show_metrics
       ;;
+    restart)
+      $0 stop
+      sleep 2
+      $0 start
+      ;;
     *)
-      echo "Usage: $0 {start|stop|status|metrics}"
+      echo "Usage: $0 {start|stop|status|metrics|restart}"
+      echo ""
+      echo "Commands:"
+      echo "  start   - Start simulation containers and configure Prometheus"
+      echo "  stop    - Stop simulation and remove Prometheus targets"
+      echo "  status  - Show container status and verify metrics"
+      echo "  metrics - Display sample metrics from Prometheus"
+      echo "  restart - Stop and start simulation"
       exit 1
       ;;
   esac

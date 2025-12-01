@@ -12,6 +12,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { generalLimiter, initRateLimiting } from './middleware/rateLimit';
 import { routes } from './routes';
 import { startHeartbeatCleanup, stopHeartbeatCleanup } from './services/heartbeatCleanup';
+import { startMetricCollector, stopMetricCollector } from './services/metricCollector';
 
 // Load environment variables from root .env
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -152,12 +153,16 @@ server.listen(PORT, async () => {
 
   // Start heartbeat cleanup service
   startHeartbeatCleanup();
+
+  // Start metric collector service with Socket.IO for real-time updates
+  startMetricCollector(io);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   stopHeartbeatCleanup();
+  stopMetricCollector();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);

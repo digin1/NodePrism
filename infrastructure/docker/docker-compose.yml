@@ -7,11 +7,11 @@ services:
     container_name: nodeprism-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: nodeprism
-      POSTGRES_USER: nodeprism
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeMe}
+      POSTGRES_DB: ${DB_NAME:-nodeprism}
+      POSTGRES_USER: ${DB_USER:-nodeprism}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nodeprism123}
     ports:
-      - '5432:5432'
+      - '${DB_PORT:-5432}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -29,12 +29,12 @@ services:
     container_name: nodeprism-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: nodeprism
-      MYSQL_USER: nodeprism
-      MYSQL_PASSWORD: nodeprism123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-nodeprism}
+      MYSQL_USER: ${MYSQL_USER:-nodeprism}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-nodeprism123}
     ports:
-      - '3306:3306'
+      - '${MYSQL_PORT:-3306}:3306'
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
@@ -51,11 +51,11 @@ services:
     container_name: nodeprism-mongodb
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:-changeMe}
-      MONGO_INITDB_DATABASE: admin
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-admin}
     ports:
-      - '27017:27017'
+      - '${MONGODB_PORT:-27017}:27017'
     volumes:
       - mongodb-data:/data/db
     networks:
@@ -72,7 +72,7 @@ services:
     container_name: nodeprism-redis
     restart: unless-stopped
     ports:
-      - '6379:6379'
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis-data:/data
     networks:
@@ -89,10 +89,10 @@ services:
     container_name: nodeprism-rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: nodeprism
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-changeMe}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-nodeprism}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-nodeprism123}
     ports:
-      - '5672:5672' # AMQP
+      - '${RABBITMQ_PORT:-5672}:5672' # AMQP
       - '15672:15672' # Management UI
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
@@ -171,16 +171,16 @@ services:
     restart: unless-stopped
     user: '0'  # Run as root to fix permission issues
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3030
+      - GF_SERVER_ROOT_URL=http://${SERVER_IP:-localhost}:${GRAFANA_PORT:-3030}
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
     ports:
-      - '3030:3000'
+      - '${GRAFANA_PORT:-3030}:3000'
     volumes:
       - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
       - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
@@ -198,19 +198,18 @@ services:
     image: prom/node-exporter:latest
     container_name: nodeprism-node-exporter
     restart: unless-stopped
+    network_mode: host
+    pid: host
     command:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/host'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run|snap|var/lib/docker)($$|/)'
-    ports:
-      - '9100:9100'
+      - '--web.listen-address=:9100'
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/host:ro
-    networks:
-      - nodeprism-network
 
   # Loki - Log Aggregation
   loki:
@@ -272,7 +271,7 @@ services:
     container_name: nodeprism-mysql-exporter
     restart: unless-stopped
     environment:
-      - DATA_SOURCE_NAME=root:${MYSQL_ROOT_PASSWORD}@tcp(mysql:3306)/
+      - DATA_SOURCE_NAME=root:${MYSQL_ROOT_PASSWORD:-password}@tcp(mysql:3306)/
     ports:
       - '9104:9104'
     networks:
@@ -291,7 +290,7 @@ services:
     container_name: nodeprism-postgres-exporter
     restart: unless-stopped
     environment:
-      - DATA_SOURCE_NAME=postgresql://nodeprism:${DB_PASSWORD}@postgres:5432/nodeprism?sslmode=disable
+      - DATA_SOURCE_NAME=postgresql://${DB_USER:-nodeprism}:${DB_PASSWORD:-nodeprism123}@postgres:5432/${DB_NAME:-nodeprism}?sslmode=disable
     ports:
       - '9187:9187'
     networks:
@@ -302,11 +301,11 @@ services:
       - --extend.query-path=/etc/postgres_exporter/queries.yaml
 
   mongodb-exporter:
-    image: percona/mongodb_exporter:latest
+    image: bitnami/mongodb-exporter:latest
     container_name: nodeprism-mongodb-exporter
     restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://root:${MONGODB_ROOT_PASSWORD}@mongodb:27017/admin
+      - MONGODB_URI=mongodb://${MONGODB_ROOT_USERNAME:-root}:${MONGODB_ROOT_PASSWORD:-password}@mongodb:27017/${MONGODB_DATABASE:-admin}
     ports:
       - '9216:9216'
     networks:
@@ -349,11 +348,11 @@ services:
     container_name: nodeprism-deployment-worker
     restart: unless-stopped
     environment:
-      - NODE_ENV=production
-      - RABBITMQ_URL=amqp://nodeprism:${RABBITMQ_PASSWORD}@rabbitmq:5672
-      - API_URL=http://api:3002
+      - NODE_ENV=${NODE_ENV:-production}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-nodeprism}:${RABBITMQ_PASSWORD:-nodeprism123}@rabbitmq:5672
+      - API_URL=http://api:${API_PORT:-4000}
       - SSH_PRIVATE_KEY_PATH=/app/ssh/id_rsa
-      - LOG_LEVEL=info
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./ssh:/app/ssh:ro
       - ../../scripts/agents:/app/scripts:ro

@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction, type Router as ExpressRouter } from 'express';
 import { logger } from '../utils/logger';
 import axios from 'axios';
+import { prisma } from '../lib/prisma';
+import { getBandwidthSummary, getAggregatedMetrics } from '../services/metricCollector';
 
 const router: ExpressRouter = Router();
 
@@ -80,10 +82,16 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
     const queries = {
       cpu: `100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle", server_id="${serverId}"}[5m])) * 100)`,
       memory: `(1 - (node_memory_MemAvailable_bytes{server_id="${serverId}"} / node_memory_MemTotal_bytes{server_id="${serverId}"})) * 100`,
-      disk: `(1 - (node_filesystem_avail_bytes{server_id="${serverId}", fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{server_id="${serverId}", fstype!~"tmpfs|fuse.lxcfs"})) * 100`,
-      networkIn: `irate(node_network_receive_bytes_total{server_id="${serverId}", device!~"lo|veth.*"}[5m])`,
-      networkOut: `irate(node_network_transmit_bytes_total{server_id="${serverId}", device!~"lo|veth.*"}[5m])`,
-      load: `node_load1{server_id="${serverId}"}`,
+      memoryTotal: `node_memory_MemTotal_bytes{server_id="${serverId}"}`,
+      memoryAvailable: `node_memory_MemAvailable_bytes{server_id="${serverId}"}`,
+      disk: `(1 - (node_filesystem_avail_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"})) * 100`,
+      diskTotal: `node_filesystem_size_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"}`,
+      diskAvailable: `node_filesystem_avail_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"}`,
+      networkIn: `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*"}[5m]))`,
+      networkOut: `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*"}[5m]))`,
+      load1: `node_load1{server_id="${serverId}"}`,
+      load5: `node_load5{server_id="${serverId}"}`,
+      load15: `node_load15{server_id="${serverId}"}`,
     };
 
     const results: Record<string, any> = {};
@@ -158,6 +166,238 @@ router.get('/rules', async (req: Request, res: Response, next: NextFunction) => 
     res.status(500).json({
       success: false,
       error: 'Failed to fetch rules',
+    });
+  }
+});
+
+// ==================== HISTORICAL METRICS ENDPOINTS ====================
+
+// Get historical metrics for a server (for charts)
+router.get('/server/:serverId/history', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId } = req.params;
+    const {
+      metric,
+      period = '1h',
+      limit = '100'
+    } = req.query as { metric?: string; period?: string; limit?: string };
+
+    // Calculate time range based on period
+    const periodMs: Record<string, number> = {
+      '15m': 15 * 60 * 1000,
+      '30m': 30 * 60 * 1000,
+      '1h': 60 * 60 * 1000,
+      '6h': 6 * 60 * 60 * 1000,
+      '12h': 12 * 60 * 60 * 1000,
+      '24h': 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+    };
+
+    const ms = periodMs[period] || periodMs['1h'];
+    const startTime = new Date(Date.now() - ms);
+
+    const whereClause: any = {
+      serverId,
+      timestamp: { gte: startTime },
+    };
+
+    if (metric) {
+      whereClause.metricName = metric;
+    }
+
+    const metrics = await prisma.metricHistory.findMany({
+      where: whereClause,
+      orderBy: { timestamp: 'asc' },
+      take: parseInt(limit, 10),
+      select: {
+        metricName: true,
+        value: true,
+        timestamp: true,
+      },
+    });
+
+    // Group by metric name for easier charting
+    const grouped: Record<string, Array<{ value: number; timestamp: string }>> = {};
+    for (const m of metrics) {
+      if (!grouped[m.metricName]) {
+        grouped[m.metricName] = [];
+      }
+      grouped[m.metricName].push({
+        value: m.value,
+        timestamp: m.timestamp.toISOString(),
+      });
+    }
+
+    res.json({
+      success: true,
+      data: grouped,
+    });
+  } catch (error: any) {
+    logger.error('Historical metrics error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch historical metrics',
+    });
+  }
+});
+
+// Get bandwidth summary for a server
+router.get('/server/:serverId/bandwidth', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId } = req.params;
+    const { period = 'day' } = req.query as { period?: 'hour' | 'day' | 'week' | 'month' };
+
+    const summary = await getBandwidthSummary(serverId, period);
+
+    res.json({
+      success: true,
+      data: {
+        period,
+        ...summary,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Bandwidth summary error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch bandwidth summary',
+    });
+  }
+});
+
+// Get all bandwidth summaries (all periods)
+router.get('/server/:serverId/bandwidth/all', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId } = req.params;
+
+    const [hour, day, week, month] = await Promise.all([
+      getBandwidthSummary(serverId, 'hour'),
+      getBandwidthSummary(serverId, 'day'),
+      getBandwidthSummary(serverId, 'week'),
+      getBandwidthSummary(serverId, 'month'),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        hour,
+        day,
+        week,
+        month,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Bandwidth summary all error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch bandwidth summaries',
+    });
+  }
+});
+
+// Get aggregated metric value
+router.get('/server/:serverId/aggregate', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId } = req.params;
+    const {
+      metric,
+      aggregation = 'avg',
+      startTime,
+      endTime
+    } = req.query as {
+      metric: string;
+      aggregation?: 'avg' | 'min' | 'max' | 'sum';
+      startTime?: string;
+      endTime?: string;
+    };
+
+    if (!metric) {
+      return res.status(400).json({
+        success: false,
+        error: 'metric parameter is required',
+      });
+    }
+
+    const start = startTime ? new Date(startTime) : new Date(Date.now() - 60 * 60 * 1000);
+    const end = endTime ? new Date(endTime) : new Date();
+
+    const value = await getAggregatedMetrics(serverId, metric, start, end, aggregation);
+
+    res.json({
+      success: true,
+      data: {
+        metric,
+        aggregation,
+        value,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+      },
+    });
+  } catch (error: any) {
+    logger.error('Aggregated metric error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch aggregated metric',
+    });
+  }
+});
+
+// Get latest metrics for charting (combined endpoint for efficiency)
+router.get('/server/:serverId/chart-data', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId } = req.params;
+    const { period = '1h' } = req.query as { period?: string };
+
+    const periodMs: Record<string, number> = {
+      '15m': 15 * 60 * 1000,
+      '30m': 30 * 60 * 1000,
+      '1h': 60 * 60 * 1000,
+      '6h': 6 * 60 * 60 * 1000,
+      '12h': 12 * 60 * 60 * 1000,
+      '24h': 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+    };
+
+    const ms = periodMs[period] || periodMs['1h'];
+    const startTime = new Date(Date.now() - ms);
+
+    // Get all metrics for the time range
+    const metrics = await prisma.metricHistory.findMany({
+      where: {
+        serverId,
+        timestamp: { gte: startTime },
+      },
+      orderBy: { timestamp: 'asc' },
+      select: {
+        metricName: true,
+        value: true,
+        timestamp: true,
+      },
+    });
+
+    // Transform into chart-friendly format: array of objects with timestamp and all metrics
+    const timeMap = new Map<string, Record<string, number>>();
+
+    for (const m of metrics) {
+      const timeKey = m.timestamp.toISOString();
+      if (!timeMap.has(timeKey)) {
+        timeMap.set(timeKey, { timestamp: m.timestamp.getTime() });
+      }
+      timeMap.get(timeKey)![m.metricName] = m.value;
+    }
+
+    // Convert to array sorted by timestamp
+    const chartData = Array.from(timeMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+
+    res.json({
+      success: true,
+      data: chartData,
+    });
+  } catch (error: any) {
+    logger.error('Chart data error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch chart data',
     });
   }
 });

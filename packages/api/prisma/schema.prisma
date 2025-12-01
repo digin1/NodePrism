@@ -33,6 +33,7 @@ model Server {
   alerts         Alert[]
   anomalyEvents  AnomalyEvent[]
   anomalyModels  AnomalyModel[]
+  metricHistory  MetricHistory[]
 
   @@map("servers")
 }
@@ -324,6 +325,24 @@ model SystemSettings {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
+}
+
+// ==================== METRICS HISTORY ====================
+
+model MetricHistory {
+  id         String   @id @default(uuid())
+  serverId   String   @map("server_id")
+  metricName String   @map("metric_name")
+  value      Float
+  timestamp  DateTime
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId, metricName, timestamp])
+  @@index([timestamp])
+  @@map("metric_history")
 }
 
 // ==================== ANOMALY DETECTION ====================

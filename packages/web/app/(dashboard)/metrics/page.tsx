@@ -174,7 +174,7 @@ export default function MetricsPage() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
             <a
-              href="http://localhost:3030"
+              href={process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
@@ -188,7 +188,7 @@ export default function MetricsPage() {
               </div>
             </a>
             <a
-              href="http://localhost:9090"
+              href={process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
@@ -202,7 +202,7 @@ export default function MetricsPage() {
               </div>
             </a>
             <a
-              href="http://localhost:9093"
+              href={process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"

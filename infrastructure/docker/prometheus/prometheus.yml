@@ -45,15 +45,13 @@ scrape_configs:
       - files:
           - '/etc/prometheus/targets/node-exporter/*.json'
     relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-      - source_labels: [__meta_server_id]
+      - source_labels: [server_id]
         target_label: server_id
-      - source_labels: [__meta_hostname]
+      - source_labels: [hostname]
         target_label: hostname
-      - source_labels: [__meta_environment]
+      - source_labels: [environment]
         target_label: environment
-      - source_labels: [__meta_region]
+      - source_labels: [region]
         target_label: region
 
   # Application Agent - File-based service discovery
@@ -62,11 +60,9 @@ scrape_configs:
       - files:
           - '/etc/prometheus/targets/app-agent/*.json'
     relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-      - source_labels: [__meta_server_id]
+      - source_labels: [server_id]
         target_label: server_id
-      - source_labels: [__meta_hostname]
+      - source_labels: [hostname]
         target_label: hostname
 
   # Database Exporters - File-based service discovery

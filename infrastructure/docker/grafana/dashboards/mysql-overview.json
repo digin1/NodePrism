@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "System overview dashboard for all monitored servers",
+  "description": "MySQL database metrics overview for all monitored servers",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -14,7 +14,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": { "mode": "thresholds" },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -40,12 +40,12 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 - (avg by(hostname) (irate(node_cpu_seconds_total{mode=\"idle\", hostname=~\"$server\"}[5m])) * 100)",
+          "expr": "(mysql_global_status_threads_connected{hostname=~\"$server\"} / mysql_global_variables_max_connections{hostname=~\"$server\"}) * 100",
           "legendFormat": "{{hostname}}",
           "refId": "A"
         }
       ],
-      "title": "CPU Usage",
+      "title": "Connection Usage %",
       "type": "gauge"
     },
     {
@@ -57,34 +57,34 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 70 },
-              { "color": "red", "value": 90 }
+              { "color": "green", "value": null }
             ]
           },
-          "unit": "percent"
+          "unit": "short"
         },
         "overrides": []
       },
       "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
       "id": 2,
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "textMode": "auto"
       },
       "pluginVersion": "10.0.0",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "(1 - (node_memory_MemAvailable_bytes{hostname=~\"$server\"} / node_memory_MemTotal_bytes{hostname=~\"$server\"})) * 100",
+          "expr": "mysql_global_status_threads_connected{hostname=~\"$server\"}",
           "legendFormat": "{{hostname}}",
           "refId": "A"
         }
       ],
-      "title": "Memory Usage",
-      "type": "gauge"
+      "title": "Active Connections",
+      "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -95,51 +95,50 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 70 },
-              { "color": "red", "value": 90 }
+              { "color": "green", "value": null }
             ]
           },
-          "unit": "percent"
+          "unit": "qps"
         },
         "overrides": []
       },
       "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
       "id": 3,
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "textMode": "auto"
       },
       "pluginVersion": "10.0.0",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "(1 - (node_filesystem_avail_bytes{hostname=~\"$server\", mountpoint=\"/\", fstype!~\"tmpfs|fuse.lxcfs\"} / node_filesystem_size_bytes{hostname=~\"$server\", mountpoint=\"/\", fstype!~\"tmpfs|fuse.lxcfs\"})) * 100",
+          "expr": "rate(mysql_global_status_queries{hostname=~\"$server\"}[1m])",
           "legendFormat": "{{hostname}}",
           "refId": "A"
         }
       ],
-      "title": "Disk Usage",
-      "type": "gauge"
+      "title": "Queries per Second",
+      "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
-          "mappings": [
-            { "options": { "0": { "color": "red", "index": 0, "text": "Down" } }, "type": "value" },
-            { "options": { "1": { "color": "green", "index": 1, "text": "Up" } }, "type": "value" }
-          ],
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 100 }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -157,11 +156,12 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "count(up{hostname=~\"$server\"} == 1)",
+          "expr": "mysql_global_status_slow_queries{hostname=~\"$server\"}",
+          "legendFormat": "{{hostname}}",
           "refId": "A"
         }
       ],
-      "title": "Targets Up",
+      "title": "Slow Queries (Total)",
       "type": "stat"
     },
     {
@@ -193,7 +193,7 @@
             "mode": "absolute",
             "steps": [{ "color": "green", "value": null }]
           },
-          "unit": "percent"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -207,12 +207,18 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 - (avg by(hostname) (irate(node_cpu_seconds_total{mode=\"idle\", hostname=~\"$server\"}[5m])) * 100)",
-          "legendFormat": "{{hostname}}",
+          "expr": "mysql_global_status_threads_connected{hostname=~\"$server\"}",
+          "legendFormat": "{{hostname}} - Connected",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "mysql_global_status_threads_running{hostname=~\"$server\"}",
+          "legendFormat": "{{hostname}} - Running",
+          "refId": "B"
         }
       ],
-      "title": "CPU Usage Over Time",
+      "title": "MySQL Connections Over Time",
       "type": "timeseries"
     },
     {
@@ -244,7 +250,7 @@
             "mode": "absolute",
             "steps": [{ "color": "green", "value": null }]
           },
-          "unit": "percent"
+          "unit": "qps"
         },
         "overrides": []
       },
@@ -258,12 +264,75 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "(1 - (node_memory_MemAvailable_bytes{hostname=~\"$server\"} / node_memory_MemTotal_bytes{hostname=~\"$server\"})) * 100",
-          "legendFormat": "{{hostname}}",
+          "expr": "rate(mysql_global_status_queries{hostname=~\"$server\"}[1m])",
+          "legendFormat": "{{hostname}} - All Queries",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(mysql_global_status_questions{hostname=~\"$server\"}[1m])",
+          "legendFormat": "{{hostname}} - Client Queries",
+          "refId": "B"
         }
       ],
-      "title": "Memory Usage Over Time",
+      "title": "Query Rate Over Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "id": 7,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "mysql_global_variables_innodb_buffer_pool_size{hostname=~\"$server\"}",
+          "legendFormat": "{{hostname}} - Total",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "mysql_global_status_innodb_buffer_pool_bytes_data{hostname=~\"$server\"}",
+          "legendFormat": "{{hostname}} - Used",
+          "refId": "B"
+        }
+      ],
+      "title": "InnoDB Buffer Pool",
       "type": "timeseries"
     },
     {
@@ -299,63 +368,6 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
-      "id": 7,
-      "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "desc" }
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(hostname) (irate(node_network_receive_bytes_total{hostname=~\"$server\", device=~\"eth.*|ens.*|enp.*\"}[5m]))",
-          "legendFormat": "{{hostname}} - RX",
-          "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "-sum by(hostname) (irate(node_network_transmit_bytes_total{hostname=~\"$server\", device=~\"eth.*|ens.*|enp.*\"}[5m]))",
-          "legendFormat": "{{hostname}} - TX",
-          "refId": "B"
-        }
-      ],
-      "title": "Network Traffic",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "smooth",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
       "id": 8,
       "options": {
@@ -366,31 +378,142 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "node_load1{hostname=~\"$server\"}",
-          "legendFormat": "{{hostname}} - 1m",
+          "expr": "rate(mysql_global_status_bytes_received{hostname=~\"$server\"}[1m])",
+          "legendFormat": "{{hostname}} - Received",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "node_load5{hostname=~\"$server\"}",
-          "legendFormat": "{{hostname}} - 5m",
+          "expr": "rate(mysql_global_status_bytes_sent{hostname=~\"$server\"}[1m])",
+          "legendFormat": "{{hostname}} - Sent",
           "refId": "B"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "node_load15{hostname=~\"$server\"}",
-          "legendFormat": "{{hostname}} - 15m",
-          "refId": "C"
         }
       ],
-      "title": "System Load",
+      "title": "MySQL Network Traffic",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 22 },
+      "id": 9,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "mysql_global_status_uptime{hostname=~\"$server\"}",
+          "legendFormat": "{{hostname}}",
+          "refId": "A"
+        }
+      ],
+      "title": "MySQL Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 22 },
+      "id": 10,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "mysql_global_variables_max_connections{hostname=~\"$server\"}",
+          "legendFormat": "{{hostname}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Max Connections",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "options": { "0": { "color": "red", "index": 0, "text": "Down" } }, "type": "value" },
+            { "options": { "1": { "color": "green", "index": 1, "text": "Up" } }, "type": "value" }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 22 },
+      "id": 11,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "mysql_up{hostname=~\"$server\"}",
+          "legendFormat": "{{hostname}}",
+          "refId": "A"
+        }
+      ],
+      "title": "MySQL Status",
+      "type": "stat"
     }
   ],
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["system", "overview", "nodeprism"],
+  "tags": ["mysql", "database", "nodeprism"],
   "templating": {
     "list": [
       {
@@ -400,7 +523,7 @@
           "value": ["$__all"]
         },
         "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "definition": "label_values(node_uname_info, hostname)",
+        "definition": "label_values(mysql_up, hostname)",
         "hide": 0,
         "includeAll": true,
         "label": "Server",
@@ -408,7 +531,7 @@
         "name": "server",
         "options": [],
         "query": {
-          "query": "label_values(node_uname_info, hostname)",
+          "query": "label_values(mysql_up, hostname)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -425,8 +548,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "System Overview",
-  "uid": "nodeprism-system-overview",
+  "title": "MySQL Overview",
+  "uid": "nodeprism-mysql-overview",
   "version": 1,
   "weekStart": ""
 }

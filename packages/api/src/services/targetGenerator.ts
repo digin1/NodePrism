@@ -3,7 +3,7 @@ import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { logger } from '../utils/logger';
 
-const TARGETS_BASE_PATH = process.env.PROMETHEUS_TARGETS_PATH || '/home/digin/nodeprism-node-vitals/infrastructure/docker/prometheus/targets';
+const TARGETS_BASE_PATH = process.env.PROMETHEUS_TARGETS_PATH || '/home/ubuntu/NodePrism/infrastructure/docker/prometheus/targets';
 
 interface PrometheusTarget {
   targets: string[];
@@ -14,6 +14,10 @@ interface PrometheusTarget {
  * Generate Prometheus target files for service discovery
  * This creates JSON files that Prometheus will scrape to discover targets
  */
+// Passive exporter types that don't send heartbeats - include them even if not marked RUNNING
+// since their status depends on whether we can scrape them
+const PASSIVE_EXPORTER_TYPES = ['NODE_EXPORTER', 'MYSQL_EXPORTER', 'POSTGRES_EXPORTER', 'MONGODB_EXPORTER', 'NGINX_EXPORTER', 'APACHE_EXPORTER', 'REDIS_EXPORTER'];
+
 export async function generateTargetFiles(): Promise<void> {
   try {
     const servers = await prisma.server.findMany({
@@ -23,7 +27,12 @@ export async function generateTargetFiles(): Promise<void> {
       include: {
         agents: {
           where: {
-            status: 'RUNNING',
+            OR: [
+              // Include all passive exporters regardless of status (they may recover)
+              { type: { in: PASSIVE_EXPORTER_TYPES as any } },
+              // For active agents, only include if RUNNING
+              { status: 'RUNNING' },
+            ],
           },
         },
       },

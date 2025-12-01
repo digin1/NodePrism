@@ -12,8 +12,8 @@ let collectionInterval: NodeJS.Timeout | null = null;
 let cleanupInterval: NodeJS.Timeout | null = null;
 let socketIO: SocketIOServer | null = null;
 
-// Metric names to collect
-const METRIC_QUERIES: Record<string, (serverId: string) => string> = {
+// Node exporter metric queries (always collected)
+const NODE_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
   cpu: (serverId) => `100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle", server_id="${serverId}"}[5m])) * 100)`,
   memory: (serverId) => `(1 - (node_memory_MemAvailable_bytes{server_id="${serverId}"} / node_memory_MemTotal_bytes{server_id="${serverId}"})) * 100`,
   disk: (serverId) => `(1 - (node_filesystem_avail_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"})) * 100`,
@@ -22,6 +22,22 @@ const METRIC_QUERIES: Record<string, (serverId: string) => string> = {
   load15: (serverId) => `node_load15{server_id="${serverId}"}`,
   networkIn: (serverId) => `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*"}[5m]))`,
   networkOut: (serverId) => `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*"}[5m]))`,
+};
+
+// MySQL exporter metric queries (only collected when MYSQL_EXPORTER agent is running)
+const MYSQL_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
+  mysqlConnections: (serverId) => `mysql_global_status_threads_connected{server_id="${serverId}"}`,
+  mysqlMaxConnections: (serverId) => `mysql_global_variables_max_connections{server_id="${serverId}"}`,
+  mysqlQueriesPerSec: (serverId) => `rate(mysql_global_status_queries{server_id="${serverId}"}[1m])`,
+  mysqlSlowQueries: (serverId) => `mysql_global_status_slow_queries{server_id="${serverId}"}`,
+  mysqlUptime: (serverId) => `mysql_global_status_uptime{server_id="${serverId}"}`,
+  mysqlBufferPoolSize: (serverId) => `mysql_global_variables_innodb_buffer_pool_size{server_id="${serverId}"}`,
+  mysqlBufferPoolUsed: (serverId) => `mysql_global_status_innodb_buffer_pool_bytes_data{server_id="${serverId}"}`,
+};
+
+// Combined for backward compatibility
+const METRIC_QUERIES: Record<string, (serverId: string) => string> = {
+  ...NODE_METRIC_QUERIES,
 };
 
 /**
@@ -41,16 +57,42 @@ async function queryMetric(query: string): Promise<number | null> {
 }
 
 /**
+ * Check if a server has a specific agent type registered (regardless of status)
+ * This is used to determine if we should try to collect metrics for that agent type
+ */
+async function hasAgentRegistered(serverId: string, agentType: string): Promise<boolean> {
+  const agent = await prisma.agent.findFirst({
+    where: {
+      serverId,
+      type: agentType,
+    },
+  });
+  return agent !== null;
+}
+
+/**
  * Collect metrics for a single server
  */
 async function collectServerMetrics(serverId: string): Promise<Record<string, number | null>> {
   const results: Record<string, number | null> = {};
 
+  // Always collect node exporter metrics
   await Promise.all(
-    Object.entries(METRIC_QUERIES).map(async ([metricName, queryFn]) => {
+    Object.entries(NODE_METRIC_QUERIES).map(async ([metricName, queryFn]) => {
       results[metricName] = await queryMetric(queryFn(serverId));
     })
   );
+
+  // Collect MySQL metrics if MYSQL_EXPORTER is registered (regardless of current status)
+  // This ensures we can recover agents that were incorrectly marked as stopped
+  const hasMySQLExporter = await hasAgentRegistered(serverId, 'MYSQL_EXPORTER');
+  if (hasMySQLExporter) {
+    await Promise.all(
+      Object.entries(MYSQL_METRIC_QUERIES).map(async ([metricName, queryFn]) => {
+        results[metricName] = await queryMetric(queryFn(serverId));
+      })
+    );
+  }
 
   return results;
 }
@@ -90,22 +132,23 @@ function emitMetricsUpdate(serverId: string, metrics: Record<string, number | nu
 }
 
 /**
- * Update NODE_EXPORTER agent's last health check when metrics are successfully collected
+ * Update passive exporter agent's last health check when metrics are successfully collected
  * This prevents the heartbeat cleanup from marking passive agents as STOPPED
  */
-async function updateNodeExporterHealthCheck(serverId: string): Promise<void> {
+async function updatePassiveAgentHealthCheck(serverId: string, agentType: string): Promise<void> {
   try {
     await prisma.agent.updateMany({
       where: {
         serverId,
-        type: 'NODE_EXPORTER',
+        type: agentType,
       },
       data: {
         lastHealthCheck: new Date(),
+        status: 'RUNNING', // Ensure agent is marked as running if we're collecting metrics
       },
     });
   } catch (error) {
-    logger.warn('Failed to update NODE_EXPORTER health check', { serverId, error });
+    logger.warn(`Failed to update ${agentType} health check`, { serverId, error });
   }
 }
 
@@ -150,21 +193,15 @@ export async function collectAllMetrics(): Promise<{
             emitMetricsUpdate(server.id, metrics);
             totalMetricsStored += storedCount;
 
-            // Update NODE_EXPORTER health check since we successfully collected metrics
+            // Update NODE_EXPORTER health check since we successfully collected node metrics
             // This prevents heartbeat cleanup from marking passive agents as STOPPED
-            await updateNodeExporterHealthCheck(server.id);
+            await updatePassiveAgentHealthCheck(server.id, 'NODE_EXPORTER');
 
-            // Also ensure NODE_EXPORTER is marked as RUNNING if it was previously stopped
-            await prisma.agent.updateMany({
-              where: {
-                serverId: server.id,
-                type: 'NODE_EXPORTER',
-                status: { in: ['STOPPED', 'FAILED'] },
-              },
-              data: {
-                status: 'RUNNING',
-              },
-            });
+            // If we collected MySQL metrics, update MYSQL_EXPORTER health check too
+            const hasMySQLMetrics = metrics.mysqlConnections !== null || metrics.mysqlQueriesPerSec !== null;
+            if (hasMySQLMetrics) {
+              await updatePassiveAgentHealthCheck(server.id, 'MYSQL_EXPORTER');
+            }
 
             logger.debug(`Collected ${storedCount} metrics for ${server.hostname}`);
           }

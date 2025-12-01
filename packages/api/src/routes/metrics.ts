@@ -79,7 +79,7 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
     const { serverId } = req.params;
 
     // Common PromQL queries for server metrics
-    const queries = {
+    const queries: Record<string, string> = {
       cpu: `100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle", server_id="${serverId}"}[5m])) * 100)`,
       memory: `(1 - (node_memory_MemAvailable_bytes{server_id="${serverId}"} / node_memory_MemTotal_bytes{server_id="${serverId}"})) * 100`,
       memoryTotal: `node_memory_MemTotal_bytes{server_id="${serverId}"}`,
@@ -93,6 +93,26 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
       load5: `node_load5{server_id="${serverId}"}`,
       load15: `node_load15{server_id="${serverId}"}`,
     };
+
+    // Check if server has a MySQL exporter registered (regardless of status)
+    // We try to fetch metrics even if agent is marked stopped - it may have recovered
+    const mysqlAgent = await prisma.agent.findFirst({
+      where: {
+        serverId,
+        type: 'MYSQL_EXPORTER',
+      },
+    });
+
+    // Add MySQL metrics if MySQL exporter is running
+    if (mysqlAgent) {
+      queries.mysqlConnections = `mysql_global_status_threads_connected{server_id="${serverId}"}`;
+      queries.mysqlMaxConnections = `mysql_global_variables_max_connections{server_id="${serverId}"}`;
+      queries.mysqlQueriesPerSec = `rate(mysql_global_status_queries{server_id="${serverId}"}[1m])`;
+      queries.mysqlSlowQueries = `mysql_global_status_slow_queries{server_id="${serverId}"}`;
+      queries.mysqlUptime = `mysql_global_status_uptime{server_id="${serverId}"}`;
+      queries.mysqlBufferPoolSize = `mysql_global_variables_innodb_buffer_pool_size{server_id="${serverId}"}`;
+      queries.mysqlBufferPoolUsed = `mysql_global_status_innodb_buffer_pool_bytes_data{server_id="${serverId}"}`;
+    }
 
     const results: Record<string, any> = {};
 

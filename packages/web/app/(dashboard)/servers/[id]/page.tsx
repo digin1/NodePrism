@@ -56,6 +56,14 @@ interface Metrics {
   load15: number | null;
   networkIn: number | null;
   networkOut: number | null;
+  // MySQL metrics (only present when MySQL exporter is running)
+  mysqlConnections: number | null;
+  mysqlMaxConnections: number | null;
+  mysqlQueriesPerSec: number | null;
+  mysqlSlowQueries: number | null;
+  mysqlUptime: number | null;
+  mysqlBufferPoolSize: number | null;
+  mysqlBufferPoolUsed: number | null;
 }
 
 function formatBytes(bytes: number | null): string {
@@ -75,6 +83,16 @@ function formatNetworkSpeed(bytesPerSec: number | null): string {
   const gbps = mbps / 1024;
   if (gbps < 1) return `${mbps.toFixed(2)} MB/s`;
   return `${gbps.toFixed(2)} GB/s`;
+}
+
+function formatUptime(seconds: number | null): string {
+  if (seconds === null) return 'N/A';
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
 }
 
 function MetricCard({
@@ -284,6 +302,65 @@ export default function ServerDetailPage() {
         </div>
       </div>
 
+      {/* MySQL Metrics - Only shown when MySQL exporter is running */}
+      {serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING') && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              </svg>
+              MySQL Database
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-7">
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Connections</p>
+                <p className="text-2xl font-bold mt-1 text-orange-600">
+                  {metricsData?.mysqlConnections ?? 'N/A'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Max: {metricsData?.mysqlMaxConnections ?? 'N/A'}
+                </p>
+              </div>
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Queries/sec</p>
+                <p className="text-2xl font-bold mt-1 text-orange-600">
+                  {metricsData?.mysqlQueriesPerSec?.toFixed(1) ?? 'N/A'}
+                </p>
+              </div>
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Slow Queries</p>
+                <p className="text-2xl font-bold mt-1 text-orange-600">
+                  {metricsData?.mysqlSlowQueries ?? 'N/A'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Total</p>
+              </div>
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Buffer Pool</p>
+                <p className="text-2xl font-bold mt-1 text-orange-600">
+                  {metricsData?.mysqlBufferPoolSize && metricsData?.mysqlBufferPoolUsed
+                    ? `${((metricsData.mysqlBufferPoolUsed / metricsData.mysqlBufferPoolSize) * 100).toFixed(1)}%`
+                    : 'N/A'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {metricsData?.mysqlBufferPoolSize
+                    ? `${formatBytes(metricsData.mysqlBufferPoolSize)} total`
+                    : ''}
+                </p>
+              </div>
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Uptime</p>
+                <p className="text-2xl font-bold mt-1 text-orange-600">
+                  {formatUptime(metricsData?.mysqlUptime ?? null)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2">
         {/* Server Info */}
         <Card>
@@ -487,7 +564,7 @@ export default function ServerDetailPage() {
       <BandwidthSummary serverId={serverId} />
 
       {/* Real-time Metrics Charts */}
-      <MetricsCharts serverId={serverId} />
+      <MetricsCharts serverId={serverId} hasMySQLExporter={serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING')} />
     </div>
   );
 }

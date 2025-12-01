@@ -57,3 +57,4 @@ agents/downloads/
 
 # Turbo
 .turbo/
+packages/api/uploads/

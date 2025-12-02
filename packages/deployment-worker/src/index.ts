@@ -1,8 +1,10 @@
 import dotenv from 'dotenv';
+import path from 'path';
 import { DeploymentWorker } from './worker';
 import { logger } from './utils/logger';
 
-dotenv.config();
+// Load root .env file
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 async function main() {
   logger.info('Starting Deployment Worker...');

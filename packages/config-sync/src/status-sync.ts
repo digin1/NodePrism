@@ -1,8 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import { PrometheusClient } from './prometheus';
+import axios from 'axios';
 
 const prisma = new PrismaClient();
 const prometheus = new PrometheusClient();
+
+// API URL for logging events (uses the api server's eventLogger)
+const API_URL = process.env.API_URL || 'http://localhost:4000';
 
 interface ServerHealthStatus {
   hostname: string;
@@ -92,6 +96,9 @@ export class StatusSyncService {
 
         // Only update if status changed
         if (server.status !== newStatus) {
+          const oldStatus = server.status;
+          const isRecovery = (oldStatus === 'OFFLINE' || oldStatus === 'CRITICAL') && newStatus === 'ONLINE';
+
           try {
             await prisma.server.update({
               where: { id: server.id },
@@ -101,7 +108,16 @@ export class StatusSyncService {
               },
             });
             updated++;
-            console.log(`[StatusSync] ${server.hostname}: ${server.status} → ${newStatus}`);
+
+            const statusLabel = isRecovery ? 'RECOVERED' : newStatus;
+            console.log(`[StatusSync] ${server.hostname}: ${oldStatus} → ${statusLabel}`);
+
+            // Log event via internal API call to maintain consistency with Socket.IO events
+            try {
+              await this.logStatusChangeEvent(server.id, oldStatus, newStatus, server.hostname, isRecovery);
+            } catch (eventErr) {
+              console.error(`[StatusSync] Failed to log event for ${server.hostname}:`, eventErr);
+            }
           } catch (err) {
             const errorMsg = `Failed to update ${server.hostname}: ${err}`;
             errors.push(errorMsg);
@@ -154,6 +170,50 @@ export class StatusSyncService {
       this.syncInterval = null;
       console.log('[StatusSync] Stopped');
     }
+  }
+
+  /**
+   * Log server status change event via the API
+   */
+  private async logStatusChangeEvent(
+    serverId: string,
+    oldStatus: string,
+    newStatus: string,
+    hostname: string,
+    isRecovery: boolean
+  ): Promise<void> {
+    const typeMap: Record<string, string> = {
+      ONLINE: 'SERVER_ONLINE',
+      OFFLINE: 'SERVER_OFFLINE',
+      WARNING: 'SERVER_WARNING',
+      CRITICAL: 'SERVER_CRITICAL',
+    };
+
+    const severityMap: Record<string, string> = {
+      ONLINE: 'INFO',
+      OFFLINE: 'CRITICAL',
+      WARNING: 'WARNING',
+      CRITICAL: 'CRITICAL',
+    };
+
+    const eventType = isRecovery ? 'SERVER_RECOVERED' : (typeMap[newStatus] || 'SERVER_OFFLINE');
+    const title = isRecovery ? 'Server recovered' : `Server ${newStatus.toLowerCase()}`;
+    const message = isRecovery
+      ? `Server ${hostname} has recovered and is now online (was ${oldStatus})`
+      : `Server ${hostname} changed status from ${oldStatus} to ${newStatus}`;
+
+    // Create event directly in database (same as eventLogger does)
+    await prisma.eventLog.create({
+      data: {
+        serverId,
+        type: eventType as any,
+        severity: (severityMap[newStatus] || 'INFO') as any,
+        title,
+        message,
+        metadata: { oldStatus, newStatus, hostname, isRecovery },
+        source: 'status-sync',
+      },
+    });
   }
 
   /**

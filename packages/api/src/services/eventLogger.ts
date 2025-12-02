@@ -85,8 +85,12 @@ export async function logServerStatusChange(
   serverId: string,
   oldStatus: string,
   newStatus: string,
-  hostname: string
+  hostname: string,
+  source: string = 'heartbeat'
 ): Promise<void> {
+  // Check if this is a recovery (from OFFLINE/CRITICAL to ONLINE)
+  const isRecovery = (oldStatus === 'OFFLINE' || oldStatus === 'CRITICAL') && newStatus === 'ONLINE';
+
   const typeMap: Record<string, EventType> = {
     ONLINE: 'SERVER_ONLINE',
     OFFLINE: 'SERVER_OFFLINE',
@@ -101,14 +105,21 @@ export async function logServerStatusChange(
     CRITICAL: 'CRITICAL',
   };
 
+  // Use SERVER_RECOVERED event type for recovery scenarios
+  const eventType = isRecovery ? 'SERVER_RECOVERED' : (typeMap[newStatus] || 'SERVER_OFFLINE');
+  const title = isRecovery ? 'Server recovered' : `Server ${newStatus.toLowerCase()}`;
+  const message = isRecovery
+    ? `Server ${hostname} has recovered and is now online (was ${oldStatus})`
+    : `Server ${hostname} changed status from ${oldStatus} to ${newStatus}`;
+
   await logEvent({
     serverId,
-    type: typeMap[newStatus] || 'SERVER_OFFLINE',
+    type: eventType as EventType,
     severity: severityMap[newStatus] || 'INFO',
-    title: `Server ${newStatus.toLowerCase()}`,
-    message: `Server ${hostname} changed status from ${oldStatus} to ${newStatus}`,
-    metadata: { oldStatus, newStatus, hostname },
-    source: 'heartbeat',
+    title,
+    message,
+    metadata: { oldStatus, newStatus, hostname, isRecovery },
+    source,
   });
 }
 

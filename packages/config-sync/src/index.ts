@@ -1,7 +1,9 @@
 import dotenv from 'dotenv';
+import path from 'path';
 import { StatusSyncService } from './status-sync';
 
-dotenv.config();
+// Load .env from root directory
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const SYNC_INTERVAL = parseInt(process.env.STATUS_SYNC_INTERVAL || '30000', 10);
 

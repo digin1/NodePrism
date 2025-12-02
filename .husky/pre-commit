@@ -1,0 +1,20 @@
+#!/bin/sh
+# Pre-commit hook to regenerate documentation
+
+# Check if relevant files have changed
+CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+# Pattern to match files that affect documentation
+DOC_PATTERNS="packages/api/src/routes/|packages/api/prisma/schema.prisma|packages/api/src/services/|packages/web/app/|\.env"
+
+if echo "$CHANGED_FILES" | grep -qE "$DOC_PATTERNS"; then
+  echo "📚 Regenerating documentation..."
+
+  # Run doc generator
+  pnpm docs:generate
+
+  # Stage updated docs
+  git add docs/
+
+  echo "✅ Documentation updated and staged"
+fi

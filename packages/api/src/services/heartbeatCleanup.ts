@@ -9,6 +9,8 @@ const CLEANUP_INTERVAL_MINUTES = parseInt(process.env.CLEANUP_INTERVAL_MINUTES |
 const OFFLINE_THRESHOLD_MINUTES = parseInt(process.env.OFFLINE_THRESHOLD_MINUTES || '10', 10);
 
 let cleanupInterval: NodeJS.Timeout | null = null;
+let deepHealthInterval: NodeJS.Timeout | null = null;
+const DEEP_HEALTH_CHECK_INTERVAL_MINUTES = parseInt(process.env.DEEP_HEALTH_CHECK_INTERVAL_MINUTES || '5', 10);
 
 /**
  * Mark stale agents as offline/stopped
@@ -184,7 +186,16 @@ export function startHeartbeatCleanup(): void {
     });
   }, intervalMs);
 
+  // Schedule periodic deep health check (for recovery detection)
+  const deepHealthIntervalMs = DEEP_HEALTH_CHECK_INTERVAL_MINUTES * 60 * 1000;
+  deepHealthInterval = setInterval(() => {
+    deepHealthCheck().catch(err => {
+      logger.error('Deep health check failed', { error: err });
+    });
+  }, deepHealthIntervalMs);
+
   logger.info(`Heartbeat cleanup started (interval: ${CLEANUP_INTERVAL_MINUTES} minutes)`);
+  logger.info(`Deep health check started (interval: ${DEEP_HEALTH_CHECK_INTERVAL_MINUTES} minutes)`);
 }
 
 /**
@@ -195,6 +206,11 @@ export function stopHeartbeatCleanup(): void {
     clearInterval(cleanupInterval);
     cleanupInterval = null;
     logger.info('Heartbeat cleanup stopped');
+  }
+  if (deepHealthInterval) {
+    clearInterval(deepHealthInterval);
+    deepHealthInterval = null;
+    logger.info('Deep health check stopped');
   }
 }
 
@@ -244,6 +260,7 @@ export async function deepHealthCheck(): Promise<{
 
     if (isHealthy && agent.status !== 'RUNNING') {
       // Agent is back online
+      const oldAgentStatus = agent.status;
       await prisma.agent.update({
         where: { id: agent.id },
         data: {
@@ -252,6 +269,43 @@ export async function deepHealthCheck(): Promise<{
         },
       });
       logger.info(`Agent ${agent.type} on ${agent.server.hostname} is back online`);
+
+      // Log agent recovery event
+      await logAgentStatusChange(
+        agent.serverId,
+        agent.type,
+        oldAgentStatus,
+        'RUNNING',
+        agent.server.hostname
+      );
+
+      // Check if server should be marked as recovered (all agents now running)
+      const serverAgents = await prisma.agent.findMany({
+        where: { serverId: agent.serverId },
+      });
+      const allRunning = serverAgents.every(a => a.id === agent.id || a.status === 'RUNNING');
+
+      if (allRunning) {
+        const server = await prisma.server.findUnique({ where: { id: agent.serverId } });
+        if (server && (server.status === 'OFFLINE' || server.status === 'CRITICAL' || server.status === 'WARNING')) {
+          const oldServerStatus = server.status;
+          await prisma.server.update({
+            where: { id: agent.serverId },
+            data: { status: 'ONLINE', lastSeen: new Date() },
+          });
+          logger.info(`Server ${agent.server.hostname} recovered - all agents online`);
+
+          // Log server recovery event
+          await logServerStatusChange(
+            agent.serverId,
+            oldServerStatus,
+            'ONLINE',
+            agent.server.hostname,
+            'deep-health-check'
+          );
+        }
+      }
+
       healthy++;
     } else if (!isHealthy && agent.status === 'RUNNING') {
       // Agent has gone offline

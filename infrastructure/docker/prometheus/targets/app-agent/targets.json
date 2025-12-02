@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "targets": [
+      "66.85.173.55:9101"
+    ],
+    "labels": {
+      "server_id": "c9b50c97-ee91-4037-b5a3-7992876ad554",
+      "hostname": "nodeprism-manager",
+      "environment": "development",
+      "agent_type": "app_agent"
+    }
+  }
+]

@@ -16,7 +16,7 @@ interface SSHCredentials {
   password?: string;
 }
 
-const SSH_PRIVATE_KEY_PATH = process.env.SSH_PRIVATE_KEY_PATH || '/app/ssh/id_rsa';
+const SSH_PRIVATE_KEY_PATH = process.env.SSH_PRIVATE_KEY_PATH || '/home/ubuntu/.ssh/id_rsa';
 const AGENT_SCRIPTS_PATH = process.env.AGENT_SCRIPTS_PATH || '/app/scripts';
 
 export class SSHDeployer {
@@ -31,8 +31,13 @@ export class SSHDeployer {
 
     // Try to use SSH key first, fall back to password if needed
     const fs = require('fs');
+    logger.info('SSH key path', { path: SSH_PRIVATE_KEY_PATH, exists: fs.existsSync(SSH_PRIVATE_KEY_PATH) });
     if (fs.existsSync(SSH_PRIVATE_KEY_PATH)) {
-      config.privateKey = fs.readFileSync(SSH_PRIVATE_KEY_PATH, 'utf8');
+      const privateKey = fs.readFileSync(SSH_PRIVATE_KEY_PATH, 'utf8');
+      config.privateKey = privateKey;
+      logger.info('SSH key loaded', { keyLength: privateKey.length });
+    } else {
+      logger.warn('SSH key not found', { path: SSH_PRIVATE_KEY_PATH });
     }
 
     return config;
@@ -99,7 +104,8 @@ export class SSHDeployer {
   }
 
   private async executeDeployment(client: Client, job: DeploymentJob): Promise<DeploymentResult> {
-    switch (job.agentType) {
+    const agentType = job.agentType.toLowerCase();
+    switch (agentType) {
       case 'node_exporter':
         return this.deployNodeExporter(client, job);
       case 'promtail':

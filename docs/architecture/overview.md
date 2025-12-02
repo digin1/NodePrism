@@ -1,6 +1,6 @@
 # Architecture Overview
 
-> Auto-generated on 2025-12-01
+> Auto-generated on 2025-12-02
 
 ## System Architecture
 

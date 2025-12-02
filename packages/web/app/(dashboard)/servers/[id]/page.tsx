@@ -123,7 +123,7 @@ export default function ServerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const serverId = params.id as string;
+  const serverId = params?.id as string;
 
   // State for manual agent registration
   const [showRegisterForm, setShowRegisterForm] = useState(false);

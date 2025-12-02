@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "targets": [
+      "66.85.173.27:9104"
+    ],
+    "labels": {
+      "server_id": "3426a123-159e-4b01-8cf7-a8e78dc5f9fd",
+      "hostname": "dummy-server",
+      "environment": "development",
+      "agent_type": "mysql_exporter"
+    }
+  }
+]

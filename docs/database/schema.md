@@ -1,6 +1,6 @@
 # Database Schema
 
-> Auto-generated on 2025-12-01
+> Auto-generated on 2025-12-02
 
 NodePrism uses PostgreSQL with Prisma ORM.
 

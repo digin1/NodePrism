@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import axios from 'axios';
 import type { Server as SocketIOServer } from 'socket.io';
+import { AgentType } from '@prisma/client';
 
 // Configuration
 const COLLECTION_INTERVAL_SECONDS = parseInt(process.env.METRIC_COLLECTION_INTERVAL_SECONDS || '30', 10);
@@ -60,7 +61,7 @@ async function queryMetric(query: string): Promise<number | null> {
  * Check if a server has a specific agent type registered (regardless of status)
  * This is used to determine if we should try to collect metrics for that agent type
  */
-async function hasAgentRegistered(serverId: string, agentType: string): Promise<boolean> {
+async function hasAgentRegistered(serverId: string, agentType: AgentType): Promise<boolean> {
   const agent = await prisma.agent.findFirst({
     where: {
       serverId,
@@ -85,7 +86,7 @@ async function collectServerMetrics(serverId: string): Promise<Record<string, nu
 
   // Collect MySQL metrics if MYSQL_EXPORTER is registered (regardless of current status)
   // This ensures we can recover agents that were incorrectly marked as stopped
-  const hasMySQLExporter = await hasAgentRegistered(serverId, 'MYSQL_EXPORTER');
+  const hasMySQLExporter = await hasAgentRegistered(serverId, AgentType.MYSQL_EXPORTER);
   if (hasMySQLExporter) {
     await Promise.all(
       Object.entries(MYSQL_METRIC_QUERIES).map(async ([metricName, queryFn]) => {
@@ -135,7 +136,7 @@ function emitMetricsUpdate(serverId: string, metrics: Record<string, number | nu
  * Update passive exporter agent's last health check when metrics are successfully collected
  * This prevents the heartbeat cleanup from marking passive agents as STOPPED
  */
-async function updatePassiveAgentHealthCheck(serverId: string, agentType: string): Promise<void> {
+async function updatePassiveAgentHealthCheck(serverId: string, agentType: AgentType): Promise<void> {
   try {
     await prisma.agent.updateMany({
       where: {
@@ -195,12 +196,12 @@ export async function collectAllMetrics(): Promise<{
 
             // Update NODE_EXPORTER health check since we successfully collected node metrics
             // This prevents heartbeat cleanup from marking passive agents as STOPPED
-            await updatePassiveAgentHealthCheck(server.id, 'NODE_EXPORTER');
+            await updatePassiveAgentHealthCheck(server.id, AgentType.NODE_EXPORTER);
 
             // If we collected MySQL metrics, update MYSQL_EXPORTER health check too
             const hasMySQLMetrics = metrics.mysqlConnections !== null || metrics.mysqlQueriesPerSec !== null;
             if (hasMySQLMetrics) {
-              await updatePassiveAgentHealthCheck(server.id, 'MYSQL_EXPORTER');
+              await updatePassiveAgentHealthCheck(server.id, AgentType.MYSQL_EXPORTER);
             }
 
             logger.debug(`Collected ${storedCount} metrics for ${server.hostname}`);

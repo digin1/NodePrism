@@ -1,6 +1,6 @@
 # API Documentation
 
-> Auto-generated on 2025-12-01
+> Auto-generated on 2025-12-02
 
 The NodePrism API is a RESTful service that provides:
 

@@ -23,7 +23,7 @@
     "@types/ssh2": "^1.11.18",
     "@types/amqplib": "^0.10.4",
     "nodemon": "^3.0.3",
-    "tsx": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.3"
   }
 }

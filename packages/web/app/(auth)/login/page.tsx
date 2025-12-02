@@ -1,7 +1,5 @@
 'use client';
 
-// Force dynamic rendering to avoid static generation issues with auth context
-export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';

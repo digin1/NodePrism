@@ -26,7 +26,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "docker:up": "docker compose -f infrastructure/docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f infrastructure/docker/docker-compose.yml down",
-    "docker:logs": "docker compose -f infrastructure/docker/docker-compose.yml logs -f"
+    "docker:logs": "docker compose -f infrastructure/docker/docker-compose.yml logs -f",
+    "docs:generate": "tsx docs/scripts/generate-docs.ts",
+    "docs:watch": "nodemon --watch packages --watch docs/scripts -e ts,tsx,prisma --exec 'pnpm docs:generate'"
   },
   "devDependencies": {
     "@types/jest": "^29.5.11",

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { serverApi, metricsApi, agentApi, containerApi, VirtualContainer } from '@/lib/api';
+import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
 
@@ -197,6 +197,13 @@ export default function ServerDetailPage() {
     queryFn: () => serverApi.tags(),
   });
 
+  const { data: maintenanceStatus } = useQuery({
+    queryKey: ['serverMaintenance', serverId],
+    queryFn: () => maintenanceApi.serverActive(serverId),
+    enabled: !!server,
+    refetchInterval: 60000,
+  });
+
   const updateTagsMutation = useMutation({
     mutationFn: (tags: string[]) => serverApi.update(serverId, { tags }),
     onSuccess: () => {
@@ -334,6 +341,9 @@ export default function ServerDetailPage() {
             <p className="text-muted-foreground font-mono">{serverData.ipAddress}</p>
           </div>
           <Badge variant={statusColors[serverData.status]}>{serverData.status}</Badge>
+          {(maintenanceStatus as any)?.inMaintenance && (
+            <Badge variant="warning">In Maintenance</Badge>
+          )}
         </div>
         <div className="flex gap-2">
           <Button

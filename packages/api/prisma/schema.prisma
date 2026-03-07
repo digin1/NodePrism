@@ -52,10 +52,11 @@ model Server {
   agents             Agent[]
   virtualContainers  VirtualContainer[]
   alerts             Alert[]
-  anomalyEvents  AnomalyEvent[]
-  anomalyModels  AnomalyModel[]
-  metricHistory  MetricHistory[]
-  eventLogs      EventLog[]
+  anomalyEvents      AnomalyEvent[]
+  anomalyModels      AnomalyModel[]
+  metricHistory      MetricHistory[]
+  eventLogs          EventLog[]
+  maintenanceWindows MaintenanceWindow[]
 
   @@map("servers")
 }
@@ -348,6 +349,26 @@ model SystemSettings {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
+}
+
+// ==================== MAINTENANCE WINDOWS ====================
+
+model MaintenanceWindow {
+  id        String   @id @default(uuid())
+  serverId  String   @map("server_id")
+  reason    String
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
+  @@index([startTime, endTime])
+  @@map("maintenance_windows")
 }
 
 // ==================== METRICS HISTORY ====================

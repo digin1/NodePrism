@@ -541,6 +541,22 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
         }
       }
 
+      // Check if server is in maintenance window — suppress new alerts
+      if (serverId && status === 'FIRING') {
+        const now = new Date();
+        const activeWindow = await prisma.maintenanceWindow.findFirst({
+          where: {
+            serverId,
+            startTime: { lte: now },
+            endTime: { gte: now },
+          },
+        });
+        if (activeWindow) {
+          logger.debug(`Alert suppressed for server ${serverId}: in maintenance window until ${activeWindow.endTime.toISOString()}`);
+          continue;
+        }
+      }
+
       // Upsert the alert
       const upsertedAlert = await prisma.alert.upsert({
         where: { fingerprint },

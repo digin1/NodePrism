@@ -17,6 +17,9 @@ export type AuditAction =
   // Notification Channels
   | 'notification_channel.create' | 'notification_channel.update' | 'notification_channel.delete' | 'notification_channel.test'
   // Settings
+  // Maintenance Windows
+  | 'maintenance_window.create' | 'maintenance_window.update' | 'maintenance_window.delete'
+  // Settings
   | 'settings.update' | 'settings.logo_upload' | 'settings.logo_delete' | 'settings.export' | 'settings.import'
   // Auth
   | 'auth.login' | 'auth.register' | 'auth.logout';

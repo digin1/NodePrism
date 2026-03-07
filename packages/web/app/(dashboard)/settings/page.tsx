@@ -256,6 +256,23 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Notification Channels */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Notification Channels</CardTitle>
+                <CardDescription>Configure where alerts are delivered (Email, Slack, Discord, etc.)</CardDescription>
+              </div>
+              <a href="/settings/notifications">
+                <Button>Manage Channels</Button>
+              </a>
+            </div>
+          </CardHeader>
+        </Card>
+      )}
+
       {/* System Status */}
       <Card>
         <CardHeader>

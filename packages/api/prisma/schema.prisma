@@ -245,7 +245,24 @@ model NotificationChannel {
   createdAt DateTime                @default(now()) @map("created_at")
   updatedAt DateTime                @updatedAt @map("updated_at")
 
+  logs NotificationLog[]
+
   @@map("notification_channels")
+}
+
+model NotificationLog {
+  id        String   @id @default(uuid())
+  channelId String   @map("channel_id")
+  alertId   String   @map("alert_id")
+  status    String   // SUCCESS, FAILED
+  message   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  channel NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([createdAt])
+  @@map("notification_logs")
 }
 
 enum NotificationChannelType {

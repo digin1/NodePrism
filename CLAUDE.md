@@ -17,21 +17,20 @@ THE MOST IMPORTANT RULES ARE:
 - Port 4002: Config Sync
 - Port 4003: Anomaly Detector
 
-Run this command before starting the app:
+## Starting the App (Production Mode)
+
+The app runs in **production mode by default**. Build first, then start:
+```bash
+lsof -ti:3000,4000,4002,4003 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run build && pnpm run start
+```
+
+For development/debugging only:
 ```bash
 lsof -ti:3000,4000,4002,4003 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run dev
 ```
 
-## Dev Performance
-
-The Next.js dev server compiles pages on-demand, causing slow first loads (1-2s). After the first visit, pages load quickly (30-60ms).
-
-**To pre-warm all pages after startup** (improves subsequent navigation):
-```bash
-sleep 30 && for p in / /dashboard /servers /alerts /logs /metrics /settings; do curl -s http://localhost:3000$p > /dev/null; done
-```
-
-**Optimizations applied:**
-- Using `tsx` instead of `ts-node` for backend services (faster compilation)
-- Turbopack enabled for Next.js (`next dev --turbo`)
-- React Strict Mode disabled (prevents double renders)
+**Production mode benefits:**
+- Next.js serves pre-built pages (instant loads vs 1-2s dev compilation)
+- Backend runs compiled JS (faster startup, lower memory)
+- No file watchers consuming resources
+- React Strict Mode double-renders disabled

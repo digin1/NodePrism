@@ -15,6 +15,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "start": "turbo run start",
     "lint": "turbo run lint",
     "test": "jest",
     "test:watch": "jest --watch",

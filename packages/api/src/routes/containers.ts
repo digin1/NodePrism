@@ -143,4 +143,33 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
   }
 });
 
+// GET /api/containers/:id - Get single container details
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const container = await prisma.virtualContainer.findUnique({
+      where: { id: req.params.id },
+      include: {
+        server: {
+          select: { id: true, hostname: true, ipAddress: true },
+        },
+      },
+    });
+
+    if (!container) {
+      return res.status(404).json({ success: false, error: 'Container not found' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...container,
+        networkRxBytes: container.networkRxBytes.toString(),
+        networkTxBytes: container.networkTxBytes.toString(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export { router as containerRoutes };

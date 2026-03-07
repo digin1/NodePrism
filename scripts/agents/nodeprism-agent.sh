@@ -156,6 +156,8 @@ print_help() {
   echo "  install       Install a monitoring agent"
   echo "  uninstall     Remove an installed agent"
   echo "  reconfigure   Modify an installed agent's configuration"
+  echo "  update        Check for and apply agent updates"
+  echo "  auto-update   Setup automatic update cron job"
   echo "  status        Show status of installed agents"
   echo "  (none)        Interactive main menu"
   echo ""
@@ -183,6 +185,9 @@ print_help() {
   echo "  sudo $0 install --non-interactive --type node_exporter # Quick install"
   echo "  sudo $0 install --type mysql_exporter --api-url http://manager:4000"
   echo "  sudo $0 reconfigure --type mysql_exporter              # Change MySQL config"
+  echo "  sudo $0 update                                         # Check & apply updates"
+  echo "  sudo $0 update --type node_exporter                    # Update specific agent"
+  echo "  sudo $0 auto-update --api-url http://manager:4000      # Setup weekly cron"
   echo "  sudo $0 uninstall --type node_exporter                 # Remove specific agent"
   echo "  sudo $0 uninstall --type all                           # Remove all agents"
   echo "  sudo $0 status                                         # Show all agent status"
@@ -574,11 +579,13 @@ main_menu() {
   echo -e "    ${BOLD}1)${NC} Install a new agent"
   echo -e "    ${BOLD}2)${NC} Uninstall an agent"
   echo -e "    ${BOLD}3)${NC} Reconfigure an agent"
-  echo -e "    ${BOLD}4)${NC} View agent status"
-  echo -e "    ${BOLD}5)${NC} Exit"
+  echo -e "    ${BOLD}4)${NC} Update agents"
+  echo -e "    ${BOLD}5)${NC} View agent status"
+  echo -e "    ${BOLD}6)${NC} Setup auto-update cron"
+  echo -e "    ${BOLD}7)${NC} Exit"
   echo ""
 
-  echo -en "  Select (1-5): "
+  echo -en "  Select (1-7): "
   local choice
   read -r choice
 
@@ -586,8 +593,10 @@ main_menu() {
     1) do_install ;;
     2) do_uninstall ;;
     3) do_reconfigure ;;
-    4) do_status ;;
-    5) exit 0 ;;
+    4) do_update ;;
+    5) do_status ;;
+    6) setup_auto_update_cron ;;
+    7) exit 0 ;;
     *) log_error "Invalid choice"; exit 1 ;;
   esac
 }
@@ -641,6 +650,205 @@ do_status() {
   if [[ "$found" == "false" ]]; then
     log_info "No agents installed on this system."
   fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+#  UPDATE
+# ═══════════════════════════════════════════════════════════════════════
+
+get_installed_version() {
+  local agent="$1"
+  local binary_path="/usr/local/bin/$agent"
+
+  if [[ ! -f "$binary_path" ]]; then
+    echo "not_installed"
+    return
+  fi
+
+  local version
+  version=$("$binary_path" --version 2>&1 | grep -oP '(\d+\.\d+\.\d+)' | head -1)
+  if [[ -n "$version" ]]; then
+    echo "$version"
+  else
+    echo "unknown"
+  fi
+}
+
+get_latest_version_from_api() {
+  local agent_type="$1"
+  local api_type="${AGENT_API_TYPES[$agent_type]}"
+
+  if [[ -z "$API_URL" ]]; then
+    echo ""
+    return
+  fi
+
+  local response
+  if command -v curl &>/dev/null; then
+    response=$(curl -sL -H "Authorization: Bearer $API_TOKEN" "${API_URL}/api/agents/latest-version/${api_type}" 2>/dev/null)
+  elif command -v wget &>/dev/null; then
+    response=$(wget -qO- --header="Authorization: Bearer $API_TOKEN" "${API_URL}/api/agents/latest-version/${api_type}" 2>/dev/null)
+  fi
+
+  if [[ -n "$response" ]]; then
+    echo "$response" | grep -oP '"latestVersion"\s*:\s*"\K[^"]+' | head -1
+  else
+    echo ""
+  fi
+}
+
+version_gt() {
+  # Returns 0 (true) if $1 > $2 using version comparison
+  [[ "$(printf '%s\n' "$1" "$2" | sort -V | tail -1)" == "$1" && "$1" != "$2" ]]
+}
+
+do_update() {
+  log_step "Agent Update"
+
+  # Determine which agents to update
+  local agents_to_check=()
+
+  if [[ -n "$PRESET_TYPE" ]]; then
+    agents_to_check=("$PRESET_TYPE")
+  else
+    # Find all installed agents
+    for agent in "${AGENT_TYPES_ORDERED[@]}"; do
+      if systemctl list-unit-files "${agent}.service" 2>/dev/null | grep -q "$agent" || [[ -f "/usr/local/bin/$agent" ]]; then
+        agents_to_check+=("$agent")
+      fi
+    done
+  fi
+
+  if [[ ${#agents_to_check[@]} -eq 0 ]]; then
+    log_info "No agents installed to update."
+    return
+  fi
+
+  local updates_available=false
+
+  printf "  ${BOLD}%-25s %-15s %-15s %-12s${NC}\n" "AGENT" "INSTALLED" "LATEST" "STATUS"
+  echo "  $(printf '%.0s─' {1..67})"
+
+  for agent in "${agents_to_check[@]}"; do
+    local installed_ver latest_ver status_text
+
+    installed_ver=$(get_installed_version "$agent")
+
+    # Try API first, fall back to default versions
+    latest_ver=$(get_latest_version_from_api "$agent")
+    if [[ -z "$latest_ver" ]]; then
+      latest_ver="${AGENT_DEFAULT_VERSIONS[$agent]}"
+    fi
+
+    if [[ "$installed_ver" == "not_installed" ]]; then
+      status_text="${RED}not installed${NC}"
+    elif [[ "$installed_ver" == "unknown" ]]; then
+      status_text="${YELLOW}unknown${NC}"
+    elif version_gt "$latest_ver" "$installed_ver"; then
+      status_text="${YELLOW}update available${NC}"
+      updates_available=true
+    else
+      status_text="${GREEN}up to date${NC}"
+    fi
+
+    printf "  %-25s %-15s %-15s %b\n" "$agent" "$installed_ver" "$latest_ver" "$status_text"
+  done
+
+  echo ""
+
+  if [[ "$updates_available" != "true" ]]; then
+    log_info "All agents are up to date."
+    return
+  fi
+
+  # Ask to proceed with updates (or auto-proceed in non-interactive)
+  if [[ "$NON_INTERACTIVE" != "true" ]]; then
+    echo -en "  Proceed with updates? (y/n): "
+    local confirm
+    read -r confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+      log_info "Update cancelled."
+      return
+    fi
+  fi
+
+  # Perform updates
+  for agent in "${agents_to_check[@]}"; do
+    local installed_ver latest_ver
+
+    installed_ver=$(get_installed_version "$agent")
+    latest_ver=$(get_latest_version_from_api "$agent")
+    if [[ -z "$latest_ver" ]]; then
+      latest_ver="${AGENT_DEFAULT_VERSIONS[$agent]}"
+    fi
+
+    if [[ "$installed_ver" == "not_installed" || "$installed_ver" == "unknown" ]]; then
+      continue
+    fi
+
+    if ! version_gt "$latest_ver" "$installed_ver"; then
+      continue
+    fi
+
+    log_info "Updating $agent from $installed_ver to $latest_ver..."
+
+    # Stop service
+    systemctl stop "$agent" 2>/dev/null || true
+
+    # Set globals for download_and_install
+    AGENT_TYPE="$agent"
+    AGENT_VERSION="$latest_ver"
+
+    # Download and install new version
+    download_and_install
+
+    # Start service
+    systemctl start "$agent" 2>/dev/null || true
+
+    # Verify
+    if systemctl is-active --quiet "$agent" 2>/dev/null; then
+      log_info "$agent updated successfully to v${latest_ver}"
+    else
+      log_error "$agent may have failed to start after update"
+    fi
+  done
+
+  log_info "Update complete."
+}
+
+setup_auto_update_cron() {
+  log_step "Auto-Update Cron Setup"
+
+  local script_path
+  script_path=$(readlink -f "$0")
+  local cron_schedule="0 3 * * 0"  # Weekly at 3 AM on Sundays
+
+  if [[ "$NON_INTERACTIVE" != "true" ]]; then
+    echo "  This will create a weekly cron job to check for and apply agent updates."
+    echo "  Default schedule: Sundays at 3:00 AM"
+    echo ""
+    echo -en "  Custom cron schedule (or press Enter for default): "
+    local custom_schedule
+    read -r custom_schedule
+    if [[ -n "$custom_schedule" ]]; then
+      cron_schedule="$custom_schedule"
+    fi
+  fi
+
+  local cron_cmd="${cron_schedule} ${script_path} update --non-interactive"
+  if [[ -n "$API_URL" ]]; then
+    cron_cmd="${cron_cmd} --api-url ${API_URL}"
+  fi
+  if [[ -n "$API_TOKEN" ]]; then
+    cron_cmd="${cron_cmd} --api-token ${API_TOKEN}"
+  fi
+  cron_cmd="${cron_cmd} >> /var/log/nodeprism-agent-update.log 2>&1"
+
+  # Remove existing nodeprism update cron entry and add new one
+  (crontab -l 2>/dev/null | grep -v "nodeprism-agent.*update" ; echo "$cron_cmd") | crontab -
+
+  log_info "Auto-update cron job installed: $cron_schedule"
+  log_info "Logs: /var/log/nodeprism-agent-update.log"
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1931,6 +2139,8 @@ main() {
     install)     do_install ;;
     uninstall)   do_uninstall ;;
     reconfigure) do_reconfigure ;;
+    update)      do_update ;;
+    auto-update) setup_auto_update_cron ;;
     status)      do_status ;;
     "")          main_menu ;;
     *)

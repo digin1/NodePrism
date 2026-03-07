@@ -16,7 +16,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
-API_URL="${API_URL:-http://localhost:3002}"
+API_URL="${API_URL:-http://localhost:4000}"
 WEB_URL="${WEB_URL:-http://localhost:3000}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-http://localhost:9090}"
 GRAFANA_URL="${GRAFANA_URL:-http://localhost:3030}"

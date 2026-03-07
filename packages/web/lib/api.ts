@@ -204,6 +204,10 @@ export interface VirtualContainer {
 export const containerApi = {
   listByServer: (serverId: string) =>
     getData<VirtualContainer[]>(api.get(`/api/containers/server/${serverId}`)),
+  get: (id: string) =>
+    getData<VirtualContainer & { server?: { id: string; hostname: string; ipAddress: string } }>(
+      api.get(`/api/containers/${id}`)
+    ),
 };
 
 // Agent API
@@ -218,6 +222,10 @@ export const agentApi = {
     version?: string;
   }) => api.post('/api/agents/register', data),
   unregister: (agentId: string) => api.post('/api/agents/unregister', { agentId }),
+  latestVersion: (type: string) =>
+    getData<{ type: string; latestVersion: string; changelog?: string }>(
+      api.get(`/api/agents/latest-version/${type}`)
+    ),
 };
 
 // Audit types

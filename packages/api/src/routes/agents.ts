@@ -340,4 +340,42 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+// Latest versions for each agent type (source of truth for auto-update)
+const LATEST_AGENT_VERSIONS: Record<string, { version: string; changelog?: string }> = {
+  NODE_EXPORTER:     { version: '1.7.0', changelog: 'https://github.com/prometheus/node_exporter/releases' },
+  MYSQL_EXPORTER:    { version: '0.15.1', changelog: 'https://github.com/prometheus/mysqld_exporter/releases' },
+  POSTGRES_EXPORTER: { version: '0.15.0', changelog: 'https://github.com/prometheus-community/postgres_exporter/releases' },
+  MONGODB_EXPORTER:  { version: '0.40.0', changelog: 'https://github.com/percona/mongodb_exporter/releases' },
+  NGINX_EXPORTER:    { version: '1.1.0', changelog: 'https://github.com/nginx/nginx-prometheus-exporter/releases' },
+  REDIS_EXPORTER:    { version: '1.56.0', changelog: 'https://github.com/oliver006/redis_exporter/releases' },
+  PROMTAIL:          { version: '2.9.3', changelog: 'https://github.com/grafana/loki/releases' },
+};
+
+// GET /api/agents/latest-version/:type - Get latest version for agent type
+router.get('/latest-version/:type', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const agentType = req.params.type.toUpperCase();
+    const info = LATEST_AGENT_VERSIONS[agentType];
+
+    if (!info) {
+      return res.status(404).json({
+        success: false,
+        error: `Unknown agent type: ${req.params.type}`,
+        validTypes: Object.keys(LATEST_AGENT_VERSIONS),
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        type: agentType,
+        latestVersion: info.version,
+        changelog: info.changelog,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export { router as agentRoutes };

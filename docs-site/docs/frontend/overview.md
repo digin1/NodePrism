@@ -34,6 +34,7 @@ title: Frontend
 | `/settings/audit` | `(dashboard)/settings/audit/page.tsx` | - |
 | `/settings/notifications` | `(dashboard)/settings/notifications/page.tsx` | - |
 | `/settings` | `(dashboard)/settings/page.tsx` | System settings |
+| `/settings/users` | `(dashboard)/settings/users/page.tsx` | - |
 | `/` | `page.tsx` | Home page / redirect |
 
 

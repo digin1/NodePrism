@@ -314,6 +314,9 @@ export const settingsApi = {
   },
   deleteLogo: () => api.delete('/api/settings/logo'),
   getSystemInfo: () => getData(api.get('/api/settings/system-info')),
+  exportConfig: () => getData(api.get('/api/settings/export')),
+  importConfig: (data: Record<string, unknown>, mode: 'skip' | 'overwrite') =>
+    getData(api.post('/api/settings/import', { data, mode })),
 };
 
 // Dashboard types

@@ -346,4 +346,183 @@ router.get('/system-info', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/settings/export
+ * Export system configuration as JSON (admin only)
+ */
+router.get('/export', requireAuth, requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const [alertRules, alertTemplates, dashboards, notificationChannels, settings] = await Promise.all([
+      prisma.alertRule.findMany(),
+      prisma.alertTemplate.findMany(),
+      prisma.dashboard.findMany(),
+      prisma.notificationChannel.findMany({ select: { id: true, name: true, type: true, config: true, enabled: true } }),
+      getOrCreateSettings(),
+    ]);
+
+    const exportData = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      alertRules: alertRules.map(r => ({
+        name: r.name,
+        description: r.description,
+        query: r.query,
+        duration: r.duration,
+        severity: r.severity,
+        labels: r.labels,
+        annotations: r.annotations,
+        enabled: r.enabled,
+      })),
+      alertTemplates: alertTemplates.map(t => ({
+        name: t.name,
+        description: t.description,
+        matchLabels: t.matchLabels,
+        matchHostLabels: t.matchHostLabels,
+        query: t.query,
+        calc: t.calc,
+        units: t.units,
+        warnCondition: t.warnCondition,
+        critCondition: t.critCondition,
+        every: t.every,
+        for: t.for,
+        actions: t.actions,
+        enabled: t.enabled,
+      })),
+      dashboards: dashboards.map(d => ({
+        name: d.name,
+        description: d.description,
+        config: d.config,
+        isDefault: d.isDefault,
+      })),
+      notificationChannels: notificationChannels.map(c => ({
+        name: c.name,
+        type: c.type,
+        config: c.config,
+        enabled: c.enabled,
+      })),
+      settings: {
+        systemName: settings.systemName,
+        primaryColor: settings.primaryColor,
+        timezone: settings.timezone,
+        dateFormat: settings.dateFormat,
+      },
+    };
+
+    audit(req, { action: 'settings.export', entityType: 'settings' });
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="nodeprism-config-${new Date().toISOString().split('T')[0]}.json"`);
+    res.json({ success: true, data: exportData });
+  } catch (error) {
+    logger.error('Failed to export config', { error });
+    res.status(500).json({ success: false, error: 'Failed to export configuration' });
+  }
+});
+
+/**
+ * POST /api/settings/import
+ * Import system configuration from JSON (admin only)
+ */
+router.post('/import', requireAuth, requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const { data, mode = 'skip' } = req.body; // mode: 'skip' | 'overwrite'
+
+    if (!data || !data.version) {
+      return res.status(400).json({ success: false, error: 'Invalid config file format' });
+    }
+
+    const results = { alertRules: 0, alertTemplates: 0, dashboards: 0, notificationChannels: 0, settings: false, skipped: 0 };
+
+    // Import alert rules
+    if (data.alertRules?.length) {
+      for (const rule of data.alertRules) {
+        const existing = await prisma.alertRule.findFirst({ where: { name: rule.name } });
+        if (existing) {
+          if (mode === 'overwrite') {
+            await prisma.alertRule.update({ where: { id: existing.id }, data: rule });
+            results.alertRules++;
+          } else {
+            results.skipped++;
+          }
+        } else {
+          await prisma.alertRule.create({ data: rule });
+          results.alertRules++;
+        }
+      }
+    }
+
+    // Import alert templates
+    if (data.alertTemplates?.length) {
+      for (const template of data.alertTemplates) {
+        const existing = await prisma.alertTemplate.findFirst({ where: { name: template.name } });
+        if (existing) {
+          if (mode === 'overwrite') {
+            await prisma.alertTemplate.update({ where: { id: existing.id }, data: template });
+            results.alertTemplates++;
+          } else {
+            results.skipped++;
+          }
+        } else {
+          await prisma.alertTemplate.create({ data: template });
+          results.alertTemplates++;
+        }
+      }
+    }
+
+    // Import dashboards
+    if (data.dashboards?.length) {
+      for (const dashboard of data.dashboards) {
+        const existing = await prisma.dashboard.findFirst({ where: { name: dashboard.name } });
+        if (existing) {
+          if (mode === 'overwrite') {
+            await prisma.dashboard.update({ where: { id: existing.id }, data: dashboard });
+            results.dashboards++;
+          } else {
+            results.skipped++;
+          }
+        } else {
+          await prisma.dashboard.create({ data: dashboard });
+          results.dashboards++;
+        }
+      }
+    }
+
+    // Import notification channels
+    if (data.notificationChannels?.length) {
+      for (const channel of data.notificationChannels) {
+        const existing = await prisma.notificationChannel.findFirst({ where: { name: channel.name } });
+        if (existing) {
+          if (mode === 'overwrite') {
+            await prisma.notificationChannel.update({ where: { id: existing.id }, data: channel });
+            results.notificationChannels++;
+          } else {
+            results.skipped++;
+          }
+        } else {
+          await prisma.notificationChannel.create({ data: channel });
+          results.notificationChannels++;
+        }
+      }
+    }
+
+    // Import settings
+    if (data.settings) {
+      await prisma.systemSettings.upsert({
+        where: { id: 'default' },
+        update: data.settings,
+        create: { id: 'default', ...data.settings },
+      });
+      results.settings = true;
+    }
+
+    logger.info('Config imported', { results });
+    audit(req, { action: 'settings.import', entityType: 'settings', details: { mode, results } });
+
+    res.json({ success: true, data: results });
+  } catch (error) {
+    logger.error('Failed to import config', { error });
+    res.status(500).json({ success: false, error: 'Failed to import configuration' });
+  }
+});
+
 export { router as settingsRoutes };

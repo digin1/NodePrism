@@ -92,10 +92,10 @@
 - [x] Write tests: `bulkOperations.test.ts`
 
 ### 2.5 Config Export / Import
-- [ ] Export alert rules, templates, settings as JSON
-- [ ] Import from JSON with conflict resolution (skip/overwrite)
-- [ ] Add export/import buttons to settings page
-- [ ] Write tests: `configExportImport.test.ts`
+- [x] Export alert rules, templates, settings as JSON
+- [x] Import from JSON with conflict resolution (skip/overwrite)
+- [x] Add export/import buttons to settings page
+- [x] Write tests: `configExportImport.test.ts`
 
 ---
 
@@ -195,7 +195,7 @@
 - [x] `serverTags.test.ts` — Tag filtering, bulk ops, autocomplete (25 tests)
 - [x] `bandwidth.test.ts` — Bandwidth formatting, ranking, and visualization (14 tests)
 - [x] `bulkOperations.test.ts` — Bulk delete, acknowledge, silence, move, selection (19 tests)
-- [ ] `configExportImport.test.ts` — Config export/import
+- [x] `configExportImport.test.ts` — Config export/import validation and conflict resolution (32 tests)
 - [ ] `healthCheck.test.ts` — Health endpoint
 - [ ] `apiMetrics.test.ts` — Prometheus self-metrics
 - [ ] `maintenanceWindows.test.ts` — Maintenance window logic

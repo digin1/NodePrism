@@ -52,6 +52,8 @@ Base path: `/api/alerts`
 | DELETE | `/alerts/rules/:id` | - | Validation schemas |
 | POST | `/alerts/:id/acknowledge` | - | Validation schemas |
 | POST | `/alerts/:id/silence` | - | Validation schemas |
+| POST | `/alerts/bulk/acknowledge` | - | Validation schemas |
+| POST | `/alerts/bulk/silence` | - | Validation schemas |
 | POST | `/alerts/webhook` | - | Validation schemas |
 | GET | `/alerts/stats` | - | Validation schemas |
 | GET | `/alerts/history` | - | Validation schemas |
@@ -93,6 +95,8 @@ Base path: `/api/auth`
 | GET | `/auth/me` | - | Apply strict rate limiting to auth routes |
 | POST | `/auth/logout` | - | Apply strict rate limiting to auth routes |
 | GET | `/auth/users` | - | Apply strict rate limiting to auth routes |
+| PUT | `/auth/users/:id` | - | Apply strict rate limiting to auth routes |
+| DELETE | `/auth/users/:id` | - | Apply strict rate limiting to auth routes |
 
 ## Containers
 
@@ -154,6 +158,7 @@ Base path: `/api/metrics`
 | GET | `/metrics/server/:serverId/bandwidth/all` | - | localhost:9090'; |
 | GET | `/metrics/server/:serverId/aggregate` | - | localhost:9090'; |
 | GET | `/metrics/server/:serverId/chart-data` | - | localhost:9090'; |
+| GET | `/metrics/bandwidth/top` | - | localhost:9090'; |
 
 ## Notifications
 
@@ -188,6 +193,9 @@ Base path: `/api/servers`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
+| GET | `/servers/tags` | - | Validation schemas |
+| PUT | `/servers/tags/bulk` | - | Validation schemas |
+| DELETE | `/servers/bulk` | - | Validation schemas |
 | GET | `/servers` | - | Validation schemas |
 | GET | `/servers/:id` | - | Validation schemas |
 | POST | `/servers` | - | Validation schemas |

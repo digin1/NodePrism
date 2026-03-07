@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { healthApi, metricsApi, settingsApi, SystemSettings } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -24,6 +25,8 @@ export default function SettingsPage() {
   const [primaryColor, setPrimaryColor] = useState('#3B82F6');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [importMode, setImportMode] = useState<'skip' | 'overwrite'>('skip');
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const { data: health } = useQuery({
     queryKey: ['health'],
@@ -304,6 +307,104 @@ export default function SettingsPage() {
               </a>
             </div>
           </CardHeader>
+        </Card>
+      )}
+
+      {/* Config Export / Import */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Configuration Export / Import</CardTitle>
+            <CardDescription>
+              Export or import alert rules, templates, dashboards, notification channels, and settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Export */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Export Configuration</h4>
+              <p className="text-xs text-muted-foreground mb-3">
+                Download a JSON file containing all your alert rules, templates, dashboards, notification channels, and settings.
+              </p>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    const data = await settingsApi.exportConfig();
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `nodeprism-config-${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    setMessage({ type: 'success', text: 'Configuration exported successfully' });
+                    setTimeout(() => setMessage(null), 3000);
+                  } catch {
+                    setMessage({ type: 'error', text: 'Failed to export configuration' });
+                    setTimeout(() => setMessage(null), 3000);
+                  }
+                }}
+              >
+                Export Config
+              </Button>
+            </div>
+
+            {/* Import */}
+            <div className="border-t pt-6">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Import Configuration</h4>
+              <p className="text-xs text-muted-foreground mb-3">
+                Upload a previously exported JSON file to restore configuration.
+              </p>
+              <div className="flex items-center gap-4">
+                <Select value={importMode} onChange={(e) => setImportMode(e.target.value as 'skip' | 'overwrite')}>
+                  <option value="skip">Skip existing</option>
+                  <option value="overwrite">Overwrite existing</option>
+                </Select>
+                <input
+                  type="file"
+                  ref={importFileRef}
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const text = await file.text();
+                      const parsed = JSON.parse(text);
+                      if (!parsed.version) {
+                        setMessage({ type: 'error', text: 'Invalid config file: missing version field' });
+                        setTimeout(() => setMessage(null), 3000);
+                        return;
+                      }
+                      const result = await settingsApi.importConfig(parsed, importMode) as any;
+                      const parts: string[] = [];
+                      if (result.alertRules) parts.push(`${result.alertRules} alert rules`);
+                      if (result.alertTemplates) parts.push(`${result.alertTemplates} templates`);
+                      if (result.dashboards) parts.push(`${result.dashboards} dashboards`);
+                      if (result.notificationChannels) parts.push(`${result.notificationChannels} channels`);
+                      if (result.settings) parts.push('settings');
+                      if (result.skipped) parts.push(`${result.skipped} skipped`);
+                      setMessage({
+                        type: 'success',
+                        text: `Import complete: ${parts.length ? parts.join(', ') : 'no changes'}`,
+                      });
+                      queryClient.invalidateQueries();
+                      setTimeout(() => setMessage(null), 5000);
+                    } catch {
+                      setMessage({ type: 'error', text: 'Failed to import configuration. Check file format.' });
+                      setTimeout(() => setMessage(null), 3000);
+                    }
+                    // Reset input so the same file can be re-imported
+                    if (importFileRef.current) importFileRef.current.value = '';
+                  }}
+                />
+                <Button variant="outline" onClick={() => importFileRef.current?.click()}>
+                  Import Config
+                </Button>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       )}
 

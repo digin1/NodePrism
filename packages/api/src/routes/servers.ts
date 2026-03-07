@@ -80,6 +80,37 @@ router.put('/tags/bulk', async (req: Request, res: Response, next: NextFunction)
   }
 });
 
+// DELETE /api/servers/bulk - Bulk delete servers
+router.delete('/bulk', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const schema = z.object({
+      serverIds: z.array(z.string().uuid()).min(1),
+    });
+    const data = schema.parse(req.body);
+
+    const result = await prisma.server.deleteMany({
+      where: { id: { in: data.serverIds } },
+    });
+
+    logger.info(`Bulk deleted ${result.count} servers`);
+    audit(req, { action: 'server.delete', entityType: 'server', entityId: data.serverIds.join(','), details: { count: result.count } });
+
+    const io = req.app.get('io');
+    if (io) {
+      for (const id of data.serverIds) {
+        io.emit('server:deleted', { id });
+      }
+    }
+
+    res.json({ success: true, data: { deleted: result.count } });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Validation error', details: error.errors });
+    }
+    next(error);
+  }
+});
+
 // GET /api/servers - List all servers
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {

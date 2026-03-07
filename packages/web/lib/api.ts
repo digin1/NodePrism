@@ -60,6 +60,8 @@ export const serverApi = {
   tags: () => getData<string[]>(api.get('/api/servers/tags')),
   bulkTags: (data: { serverIds: string[]; addTags?: string[]; removeTags?: string[] }) =>
     api.put('/api/servers/tags/bulk', data),
+  bulkDelete: (serverIds: string[]) =>
+    api.delete('/api/servers/bulk', { data: { serverIds } }),
 };
 
 // Server Group API
@@ -124,6 +126,10 @@ export const alertApi = {
     api.post(`/api/alerts/${id}/acknowledge`, { acknowledgedBy }),
   silence: (id: string, silencedBy?: string, duration?: number) =>
     api.post(`/api/alerts/${id}/silence`, { silencedBy, duration }),
+  bulkAcknowledge: (alertIds: string[], acknowledgedBy?: string) =>
+    api.post('/api/alerts/bulk/acknowledge', { alertIds, acknowledgedBy }),
+  bulkSilence: (alertIds: string[], silencedBy?: string, duration?: number) =>
+    api.post('/api/alerts/bulk/silence', { alertIds, silencedBy, duration }),
   history: (params?: { serverId?: string; limit?: number; offset?: number }) =>
     getData(api.get('/api/alerts/history', { params })),
   stats: () => getData(api.get('/api/alerts/stats')),

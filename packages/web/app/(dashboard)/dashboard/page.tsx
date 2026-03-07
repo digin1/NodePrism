@@ -1,11 +1,46 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { serverApi, alertApi, metricsApi } from '@/lib/api';
+import { Sparkline } from '@/components/dashboard/Sparkline';
+
+const REFRESH_INTERVAL = 30000; // 30s
+
+function useAutoRefresh(interval: number) {
+  const [secondsLeft, setSecondsLeft] = useState(interval / 1000);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsLeft(prev => {
+        if (prev <= 1) {
+          setLastUpdated(new Date());
+          return interval / 1000;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [interval]);
+
+  const reset = useCallback(() => {
+    setSecondsLeft(interval / 1000);
+    setLastUpdated(new Date());
+  }, [interval]);
+
+  return { secondsLeft, lastUpdated, reset };
+}
+
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  return `${Math.floor(seconds / 60)}m ago`;
+}
 
 function StatCard({
   title,
@@ -14,6 +49,7 @@ function StatCard({
   icon,
   accentColor,
   trend,
+  sparklineData,
 }: {
   title: string;
   value: string | number;
@@ -21,24 +57,30 @@ function StatCard({
   icon: React.ReactNode;
   accentColor: string;
   trend?: 'up' | 'down' | 'neutral';
+  sparklineData?: number[];
 }) {
   return (
     <Card className="stat-card-accent" style={{ '--accent-color': accentColor } as React.CSSProperties}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1 min-w-0">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold tracking-tight">{value}</p>
+            <div className="flex items-end gap-3">
+              <p className="text-3xl font-bold tracking-tight">{value}</p>
+              {sparklineData && sparklineData.length >= 2 && (
+                <Sparkline data={sparklineData} color={accentColor} width={72} height={28} className="mb-1" />
+              )}
+            </div>
             {subtitle && (
               <p className="text-sm text-muted-foreground flex items-center gap-1">
-                {trend === 'up' && <span className="text-green-500">&#9650;</span>}
-                {trend === 'down' && <span className="text-red-500">&#9660;</span>}
+                {trend === 'up' && <span className="text-red-500">&#9650;</span>}
+                {trend === 'down' && <span className="text-green-500">&#9660;</span>}
                 {subtitle}
               </p>
             )}
           </div>
           <div
-            className="h-10 w-10 rounded-lg flex items-center justify-center"
+            className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${accentColor}20`, color: accentColor }}
           >
             {icon}
@@ -63,33 +105,86 @@ function formatRate(bytesPerSec: number): string {
   return `${(bytesPerSec / 1024 / 1024).toFixed(2)} MB/s`;
 }
 
+function extractSparklineValues(data: any): number[] {
+  if (!data?.data?.result?.[0]?.values) return [];
+  return data.data.result[0].values.map((v: [number, string]) => parseFloat(v[1]));
+}
+
 export default function DashboardPage() {
   const [bwPeriod, setBwPeriod] = useState<string>('day');
+  const { secondsLeft, lastUpdated, reset } = useAutoRefresh(REFRESH_INTERVAL);
+  const [now, setNow] = useState(Date.now());
 
-  const { data: serverStats, isLoading: serversLoading } = useQuery({
+  // Update the "ago" display every 5 seconds
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const refetchOpts = { refetchInterval: REFRESH_INTERVAL };
+
+  const { data: serverStats, isLoading: serversLoading, dataUpdatedAt: serversUpdatedAt } = useQuery({
     queryKey: ['serverStats'],
     queryFn: () => serverApi.stats(),
+    ...refetchOpts,
   });
 
   const { data: alertStats, isLoading: alertsLoading } = useQuery({
     queryKey: ['alertStats'],
     queryFn: () => alertApi.stats(),
+    ...refetchOpts,
   });
 
   const { data: targets, isLoading: targetsLoading } = useQuery({
     queryKey: ['targets'],
     queryFn: () => metricsApi.targets(),
+    ...refetchOpts,
   });
 
   const { data: servers } = useQuery({
     queryKey: ['servers'],
     queryFn: () => serverApi.list(),
+    ...refetchOpts,
   });
 
   const { data: topBandwidth, isLoading: bwLoading } = useQuery({
     queryKey: ['bandwidthTop', bwPeriod],
     queryFn: () => metricsApi.bandwidthTop({ period: bwPeriod, limit: 10 }),
     refetchInterval: 60000,
+  });
+
+  // Sparkline data — fetch 1h of data in 12 points (5m steps)
+  const end = Math.floor(Date.now() / 1000);
+  const start = end - 3600;
+
+  const { data: cpuSparkline } = useQuery({
+    queryKey: ['sparkline-cpu'],
+    queryFn: () => metricsApi.queryRange(
+      '100 - avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100',
+      start, end, '300'
+    ),
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  const { data: memSparkline } = useQuery({
+    queryKey: ['sparkline-mem'],
+    queryFn: () => metricsApi.queryRange(
+      'avg((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)',
+      start, end, '300'
+    ),
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  const { data: netSparkline } = useQuery({
+    queryKey: ['sparkline-net'],
+    queryFn: () => metricsApi.queryRange(
+      'sum(irate(node_network_receive_bytes_total[5m]))',
+      start, end, '300'
+    ),
+    refetchInterval: 60000,
+    staleTime: 30000,
   });
 
   const isLoading = serversLoading || alertsLoading || targetsLoading;
@@ -99,11 +194,29 @@ export default function DashboardPage() {
   const targetsData = targets as any;
   const serverList = servers as any;
 
+  const cpuData = extractSparklineValues(cpuSparkline);
+  const memData = extractSparklineValues(memSparkline);
+  const netData = extractSparklineValues(netSparkline);
+
+  // Progress ring for refresh countdown
+  const progress = 1 - (secondsLeft / (REFRESH_INTERVAL / 1000));
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Dashboard</h2>
-        <p className="text-muted-foreground">Overview of your monitoring infrastructure</p>
+      {/* Header with auto-refresh indicator */}
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Dashboard</h2>
+          <p className="text-muted-foreground">Overview of your monitoring infrastructure</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: `${REFRESH_INTERVAL}ms`, animationTimingFunction: 'linear' }} viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray={`${progress * 40.8} 40.8`} strokeLinecap="round" className="opacity-50" />
+            </svg>
+            <span>{formatTimeAgo(new Date(serversUpdatedAt || Date.now()))}</span>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -126,14 +239,10 @@ export default function DashboardPage() {
               value={stats?.total || 0}
               subtitle={`${stats?.online || 0} online`}
               accentColor="#10b981"
+              sparklineData={cpuData}
               icon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
                 </svg>
               }
             />
@@ -145,12 +254,7 @@ export default function DashboardPage() {
               trend={alerts?.firing > 0 ? 'up' : undefined}
               icon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
               }
             />
@@ -159,14 +263,10 @@ export default function DashboardPage() {
               value={targetsData?.summary?.up || 0}
               subtitle={`of ${targetsData?.summary?.total || 0} total`}
               accentColor="#3b82f6"
+              sparklineData={memData}
               icon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               }
             />
@@ -174,16 +274,12 @@ export default function DashboardPage() {
               title="Targets Down"
               value={targetsData?.summary?.down || 0}
               subtitle="Require attention"
-              accentColor={targetsData?.summary?.down > 0 ? '#f59e0b' : '#6b7280'}
+              accentColor={targetsData?.summary?.down > 0 ? '#f59e0b' : '#10b981'}
               trend={targetsData?.summary?.down > 0 ? 'down' : undefined}
+              sparklineData={netData}
               icon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               }
             />
@@ -354,7 +450,7 @@ export default function DashboardPage() {
                 return (
                   <div key={server.id} className="relative group">
                     <div
-                      className="absolute inset-0 bg-primary/5 dark:bg-primary/10 rounded-md"
+                      className="absolute inset-0 bg-blue-500/8 dark:bg-blue-400/15 rounded-md transition-all"
                       style={{ width: `${pct}%` }}
                     />
                     <div className="relative flex items-center justify-between p-2.5 rounded-md">
@@ -437,12 +533,7 @@ export default function DashboardPage() {
         >
           <div className="h-10 w-10 rounded-lg bg-red-500/10 dark:bg-red-500/20 flex items-center justify-center text-red-500">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
           </div>
           <div>

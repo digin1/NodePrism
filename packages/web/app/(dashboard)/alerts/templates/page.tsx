@@ -163,7 +163,7 @@ export default function AlertTemplatesPage() {
             </Button>
           </Link>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Alert Templates</h2>
+            <h2 className="text-2xl font-bold text-foreground">Alert Templates</h2>
             <p className="text-muted-foreground">
               Templates evaluate PromQL queries per server with warning/critical thresholds
             </p>
@@ -341,7 +341,7 @@ export default function AlertTemplatesPage() {
           ) : !templateList?.length ? (
             <div className="text-center py-12">
               <svg
-                className="mx-auto h-12 w-12 text-gray-400"
+                className="mx-auto h-12 w-12 text-muted-foreground"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -353,8 +353,8 @@ export default function AlertTemplatesPage() {
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                 />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No alert templates</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="mt-2 text-sm font-medium text-foreground">No alert templates</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Create a template to evaluate alerts per-server with warn/crit thresholds.
               </p>
             </div>
@@ -362,7 +362,7 @@ export default function AlertTemplatesPage() {
             <div className="space-y-4">
               {templateList.map((template) => (
                 <div key={template.id}>
-                  <div className="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-start justify-between p-4 bg-muted/50 rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium">{template.name}</h4>
@@ -377,7 +377,7 @@ export default function AlertTemplatesPage() {
                       {template.description && (
                         <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
                       )}
-                      <p className="text-xs font-mono text-muted-foreground mt-2 bg-gray-100 p-2 rounded">
+                      <p className="text-xs font-mono text-muted-foreground mt-2 bg-muted p-2 rounded">
                         {template.query}
                       </p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -427,7 +427,7 @@ export default function AlertTemplatesPage() {
 
                   {/* Test Results */}
                   {testingId === template.id && testResults && (
-                    <div className="mt-2 ml-4 p-4 bg-white border rounded-lg">
+                    <div className="mt-2 ml-4 p-4 bg-card border rounded-lg">
                       <h5 className="text-sm font-medium mb-2">
                         Test Results ({testResults.length} servers matched)
                       </h5>
@@ -438,7 +438,7 @@ export default function AlertTemplatesPage() {
                       ) : (
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="text-left text-gray-500 border-b">
+                            <tr className="text-left text-muted-foreground border-b">
                               <th className="pb-1 pr-4">Server</th>
                               <th className="pb-1 pr-4">Value</th>
                               <th className="pb-1 pr-4">Warning</th>
@@ -447,7 +447,7 @@ export default function AlertTemplatesPage() {
                           </thead>
                           <tbody>
                             {testResults.map((r) => (
-                              <tr key={r.serverId} className="border-b border-gray-100">
+                              <tr key={r.serverId} className="border-b border-border">
                                 <td className="py-1.5 pr-4">{r.hostname}</td>
                                 <td className="py-1.5 pr-4 font-mono">
                                   {r.value !== null ? r.value.toFixed(2) : 'N/A'}
@@ -542,7 +542,7 @@ export default function AlertTemplatesPage() {
                   setShowCreate(true);
                   setEditingId(null);
                 }}
-                className="text-left p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                className="text-left p-4 border rounded-lg hover:bg-muted/50 transition-colors"
               >
                 <p className="font-medium">{preset.name}</p>
                 <p className="text-xs font-mono text-muted-foreground mt-1 truncate">{preset.query}</p>

@@ -6,7 +6,7 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
       <div className="text-center">
         <h1 className="text-4xl font-bold mb-4">NodePrism</h1>
-        <p className="text-xl text-gray-600 mb-8">
+        <p className="text-xl text-muted-foreground mb-8">
           Advanced server monitoring system
         </p>
         <div className="flex gap-4 justify-center">
@@ -20,7 +20,7 @@ export default function Home() {
             href="/api/health"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+            className="px-6 py-3 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition"
           >
             API Health Check
           </a>

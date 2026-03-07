@@ -85,7 +85,7 @@ export default function DocsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Documentation</h2>
+        <h2 className="text-2xl font-bold text-foreground">Documentation</h2>
         <p className="text-muted-foreground">Reference guide for NodePrism</p>
       </div>
 
@@ -102,7 +102,7 @@ export default function DocsPage() {
               <dl className="space-y-3">
                 {section.items.map((item) => (
                   <div key={item.label} className="flex flex-col sm:flex-row sm:gap-4 py-1 border-b last:border-0">
-                    <dt className="font-mono text-sm font-medium min-w-[260px] text-gray-900 dark:text-gray-100">
+                    <dt className="font-mono text-sm font-medium min-w-[260px] text-foreground">
                       {item.label}
                     </dt>
                     <dd className="text-sm text-muted-foreground">{item.desc}</dd>

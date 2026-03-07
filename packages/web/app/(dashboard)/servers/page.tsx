@@ -325,7 +325,7 @@ export default function ServersPage() {
           {server.tags?.map(tag => (
             <span
               key={tag}
-              className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700"
+              className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400"
             >
               {tag}
               <button
@@ -337,7 +337,7 @@ export default function ServersPage() {
             </span>
           ))}
           {(!server.tags || server.tags.length === 0) && (
-            <span className="text-gray-400 text-xs">-</span>
+            <span className="text-muted-foreground text-xs">-</span>
           )}
         </div>
       </TableCell>
@@ -346,7 +346,7 @@ export default function ServersPage() {
         {server._count?.alerts && server._count.alerts > 0 ? (
           <Badge variant="danger">{server._count.alerts}</Badge>
         ) : (
-          <span className="text-gray-400">0</span>
+          <span className="text-muted-foreground">0</span>
         )}
       </TableCell>
       <TableCell className="text-right">
@@ -367,7 +367,7 @@ export default function ServersPage() {
           <Button
             size="sm"
             variant="ghost"
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-500/10"
             onClick={() => {
               if (confirm('Are you sure you want to delete this server?')) {
                 deleteMutation.mutate(server.id);
@@ -391,12 +391,12 @@ export default function ServersPage() {
       <div key={group.id}>
         {/* Group Header */}
         <div
-          className={`flex items-center gap-2 px-4 py-3 hover:bg-gray-50 border-b cursor-pointer`}
+          className={`flex items-center gap-2 px-4 py-3 hover:bg-muted/50 border-b cursor-pointer`}
           style={{ paddingLeft: `${16 + depth * 24}px` }}
         >
           <button
             onClick={() => toggleGroup(group.id)}
-            className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600"
+            className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground"
           >
             {hasChildren ? (
               <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -409,10 +409,10 @@ export default function ServersPage() {
           <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
           </svg>
-          <span className="font-medium text-gray-900 flex-1" onClick={() => toggleGroup(group.id)}>
+          <span className="font-medium flex-1" onClick={() => toggleGroup(group.id)}>
             {group.name}
           </span>
-          <span className="text-sm text-gray-500 mr-2">
+          <span className="text-sm text-muted-foreground mr-2">
             {serverCount} server{serverCount !== 1 ? 's' : ''}
           </span>
           <div className="flex gap-1">
@@ -429,7 +429,7 @@ export default function ServersPage() {
             <Button
               size="sm"
               variant="ghost"
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-500/10"
               onClick={(e) => {
                 e.stopPropagation();
                 if (confirm(`Delete group "${group.name}"? Servers will become ungrouped.`)) {
@@ -470,7 +470,7 @@ export default function ServersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Servers</h2>
+          <h2 className="text-2xl font-bold">Servers</h2>
           <p className="text-muted-foreground">Manage your monitored servers</p>
         </div>
         <div className="flex gap-2">
@@ -529,13 +529,13 @@ export default function ServersPage() {
             </div>
             <div className="flex gap-1 border rounded-lg p-1 sm:shrink-0">
               <button
-                className={`px-3 py-1 rounded text-sm ${viewMode === 'groups' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`px-3 py-1 rounded text-sm transition-colors ${viewMode === 'groups' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                 onClick={() => setViewMode('groups')}
               >
                 Groups
               </button>
               <button
-                className={`px-3 py-1 rounded text-sm ${viewMode === 'list' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`px-3 py-1 rounded text-sm transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                 onClick={() => setViewMode('list')}
               >
                 List
@@ -547,8 +547,8 @@ export default function ServersPage() {
 
       {/* Bulk Actions Bar */}
       {selectedServers.size > 0 && (
-        <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-sm font-medium text-blue-700">
+        <div className="flex items-center gap-4 p-3 bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/20 rounded-lg">
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
             {selectedServers.size} server{selectedServers.size !== 1 ? 's' : ''} selected
           </span>
           <Button size="sm" variant="outline" onClick={() => setShowBulkTagModal(true)}>
@@ -560,7 +560,7 @@ export default function ServersPage() {
           <Button
             size="sm"
             variant="outline"
-            className="text-red-600 border-red-200 hover:bg-red-50"
+            className="text-red-600 dark:text-red-400 border-red-500/20 hover:bg-red-500/10"
             onClick={() => {
               if (confirm(`Delete ${selectedServers.size} server${selectedServers.size !== 1 ? 's' : ''}? This cannot be undone.`)) {
                 bulkDeleteMutation.mutate(Array.from(selectedServers));
@@ -594,8 +594,8 @@ export default function ServersPage() {
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No servers</h3>
-              <p className="mt-1 text-sm text-gray-500">Get started by adding a new server.</p>
+              <h3 className="mt-2 text-sm font-medium">No servers</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Get started by adding a new server.</p>
               <div className="mt-6">
                 <Link href="/servers/new">
                   <Button>Add Server</Button>
@@ -638,12 +638,12 @@ export default function ServersPage() {
               {/* Ungrouped servers */}
               {ungroupedServers.length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b">
-                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
+                    <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
                     </svg>
-                    <span className="font-medium text-gray-500">Ungrouped</span>
-                    <span className="text-sm text-gray-400">{ungroupedServers.length} server{ungroupedServers.length !== 1 ? 's' : ''}</span>
+                    <span className="font-medium text-muted-foreground">Ungrouped</span>
+                    <span className="text-sm text-muted-foreground">{ungroupedServers.length} server{ungroupedServers.length !== 1 ? 's' : ''}</span>
                   </div>
                   <Table>
                     <TableBody>
@@ -667,13 +667,13 @@ export default function ServersPage() {
       {/* Create/Edit Group Modal */}
       {showGroupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={resetGroupModal}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-card rounded-lg shadow-xl border p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">
               {editingGroup ? 'Edit Group' : 'Create Group'}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Name</label>
                 <Input
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
@@ -682,7 +682,7 @@ export default function ServersPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Description</label>
                 <Input
                   value={groupDescription}
                   onChange={(e) => setGroupDescription(e.target.value)}
@@ -690,7 +690,7 @@ export default function ServersPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Parent Group</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Parent Group</label>
                 <Select
                   value={groupParentId || ''}
                   onChange={(e) => setGroupParentId(e.target.value || null)}
@@ -717,13 +717,13 @@ export default function ServersPage() {
       {/* Move Server Modal */}
       {movingServer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setMovingServer(null)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-card rounded-lg shadow-xl border p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">Move Server</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Move <strong>{movingServer.hostname}</strong> to a group
             </p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Group</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Target Group</label>
               <Select
                 value={moveTargetGroupId || ''}
                 onChange={(e) => setMoveTargetGroupId(e.target.value || null)}
@@ -754,23 +754,23 @@ export default function ServersPage() {
       {/* Bulk Tag Modal */}
       {showBulkTagModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBulkTagModal(false)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-card rounded-lg shadow-xl border p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">Bulk Tag Operations</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               {selectedServers.size} server{selectedServers.size !== 1 ? 's' : ''} selected
             </p>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Operation</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Operation</label>
                 <div className="flex gap-2">
                   <button
-                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium ${bulkTagMode === 'add' ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 text-gray-600'}`}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${bulkTagMode === 'add' ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400' : 'border-border text-muted-foreground'}`}
                     onClick={() => setBulkTagMode('add')}
                   >
                     Add Tags
                   </button>
                   <button
-                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium ${bulkTagMode === 'remove' ? 'bg-red-50 border-red-300 text-red-700' : 'border-gray-300 text-gray-600'}`}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${bulkTagMode === 'remove' ? 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400' : 'border-border text-muted-foreground'}`}
                     onClick={() => setBulkTagMode('remove')}
                   >
                     Remove Tags
@@ -778,7 +778,7 @@ export default function ServersPage() {
                 </div>
               </div>
               <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-muted-foreground mb-1">
                   Tags (comma-separated)
                 </label>
                 <Input
@@ -789,11 +789,11 @@ export default function ServersPage() {
                   autoFocus
                 />
                 {bulkTagSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-card border rounded-lg shadow-lg max-h-40 overflow-y-auto">
                     {bulkTagSuggestions.slice(0, 8).map(tag => (
                       <button
                         key={tag}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
                         onClick={() => applySuggestion(tag)}
                       >
                         {tag}
@@ -819,13 +819,13 @@ export default function ServersPage() {
       {/* Bulk Move Modal */}
       {showBulkMoveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBulkMoveModal(false)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-card rounded-lg shadow-xl border p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">Move Servers to Group</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               {selectedServers.size} server{selectedServers.size !== 1 ? 's' : ''} selected
             </p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Group</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Target Group</label>
               <Select
                 value={bulkMoveGroupId || ''}
                 onChange={(e) => setBulkMoveGroupId(e.target.value || null)}

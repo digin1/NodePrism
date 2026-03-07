@@ -41,7 +41,7 @@ export default function NewServerPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Add New Server</h2>
+        <h2 className="text-2xl font-bold text-foreground">Add New Server</h2>
         <p className="text-muted-foreground">Register a server for monitoring</p>
       </div>
 
@@ -55,7 +55,7 @@ export default function NewServerPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              <div className="p-3 bg-red-500/10 dark:bg-red-500/20 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400 text-sm">
                 {error}
               </div>
             )}

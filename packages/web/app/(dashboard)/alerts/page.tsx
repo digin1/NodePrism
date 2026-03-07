@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -107,7 +107,7 @@ export default function AlertsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Alerts</h2>
+          <h2 className="text-2xl font-bold">Alerts</h2>
           <p className="text-muted-foreground">Monitor and manage active alerts</p>
         </div>
         <div className="flex gap-2">
@@ -128,28 +128,28 @@ export default function AlertsPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="stat-card-accent" style={{ '--accent-color': '#ef4444' } as React.CSSProperties}>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Firing</p>
-            <p className="text-3xl font-bold text-red-600">{alertStats?.firing || 0}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Firing</p>
+            <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">{alertStats?.firing || 0}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="stat-card-accent" style={{ '--accent-color': '#dc2626' } as React.CSSProperties}>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Critical</p>
-            <p className="text-3xl font-bold text-red-800">{alertStats?.critical || 0}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Critical</p>
+            <p className="text-3xl font-bold text-red-700 dark:text-red-300 mt-1">{alertStats?.critical || 0}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="stat-card-accent" style={{ '--accent-color': '#f59e0b' } as React.CSSProperties}>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Warning</p>
-            <p className="text-3xl font-bold text-yellow-600">{alertStats?.warning || 0}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Warning</p>
+            <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">{alertStats?.warning || 0}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="stat-card-accent" style={{ '--accent-color': '#10b981' } as React.CSSProperties}>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Resolved</p>
-            <p className="text-3xl font-bold text-green-600">{alertStats?.resolved || 0}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Resolved</p>
+            <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">{alertStats?.resolved || 0}</p>
           </CardContent>
         </Card>
       </div>
@@ -177,8 +177,8 @@ export default function AlertsPage() {
 
       {/* Bulk Actions Bar */}
       {selectedAlerts.size > 0 && (
-        <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-sm font-medium text-blue-700">
+        <div className="flex items-center gap-4 p-3 bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/20 rounded-lg">
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
             {selectedAlerts.size} alert{selectedAlerts.size !== 1 ? 's' : ''} selected
           </span>
           {selectedFiringIds.length > 0 && (
@@ -226,8 +226,8 @@ export default function AlertsPage() {
               <svg className="mx-auto h-12 w-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No alerts</h3>
-              <p className="mt-1 text-sm text-gray-500">All systems are operating normally.</p>
+              <h3 className="mt-2 text-sm font-medium">No alerts</h3>
+              <p className="mt-1 text-sm text-muted-foreground">All systems are operating normally.</p>
             </div>
           ) : (
             <Table>

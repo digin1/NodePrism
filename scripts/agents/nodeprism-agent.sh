@@ -256,10 +256,12 @@ gather_system_info() {
   OS_DISTRO_ID=""
 
   if [[ -f /etc/os-release ]]; then
-    OS_DISTRO=$(. /etc/os-release && echo "${PRETTY_NAME:-$NAME}")
-    OS_DISTRO_VERSION=$(. /etc/os-release && echo "${VERSION_ID:-}")
-    OS_DISTRO_CODENAME=$(. /etc/os-release && echo "${VERSION_CODENAME:-}")
-    OS_DISTRO_ID=$(. /etc/os-release && echo "${ID:-}")
+    # Parse rather than source to avoid executing arbitrary code
+    OS_DISTRO=$(grep -m1 '^PRETTY_NAME=' /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '"')
+    [[ -z "$OS_DISTRO" ]] && OS_DISTRO=$(grep -m1 '^NAME=' /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '"')
+    OS_DISTRO_VERSION=$(grep -m1 '^VERSION_ID=' /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '"')
+    OS_DISTRO_CODENAME=$(grep -m1 '^VERSION_CODENAME=' /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '"')
+    OS_DISTRO_ID=$(grep -m1 '^ID=' /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '"')
   elif [[ -f /etc/redhat-release ]]; then
     OS_DISTRO=$(cat /etc/redhat-release)
   elif [[ -f /etc/debian_version ]]; then
@@ -295,8 +297,30 @@ gather_system_info() {
   if [[ -d /proc/xen ]] && [[ "$OS_VIRT" == "physical" ]]; then
     OS_VIRT="xen"
   fi
+  # OpenVZ/Virtuozzo: /proc/vz exists in containers, /proc/bc only on host node
+  if [[ -d /proc/vz ]] && [[ ! -d /proc/bc ]]; then
+    OS_VIRT="openvz"
+  fi
+  # LXC/LXD containers
+  if grep -q 'lxc\|lxd' /proc/1/cgroup 2>/dev/null || [[ -f /dev/lxd/sock ]]; then
+    OS_VIRT="lxc"
+  fi
   if grep -q docker /proc/1/cgroup 2>/dev/null || [[ -f /.dockerenv ]]; then
     OS_VIRT="docker"
+  fi
+  # systemd-detect-virt covers Virtuozzo 7+, Hyper-V, and others
+  if command -v systemd-detect-virt &>/dev/null && [[ "$OS_VIRT" == "physical" ]]; then
+    local sdv
+    sdv=$(systemd-detect-virt 2>/dev/null || echo "none")
+    case "$sdv" in
+      openvz)       OS_VIRT="openvz" ;;
+      virtuozzo)    OS_VIRT="virtuozzo" ;;
+      lxc|lxc-libvirt) OS_VIRT="lxc" ;;
+      microsoft)    OS_VIRT="hyperv" ;;
+      oracle)       OS_VIRT="virtualbox" ;;
+      none)         ;; # keep physical
+      *)            [[ "$sdv" != "none" ]] && OS_VIRT="$sdv" ;;
+    esac
   fi
   # Cloud detection
   if command -v dmidecode &>/dev/null; then

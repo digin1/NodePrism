@@ -155,6 +155,7 @@ print_help() {
   echo "Commands:"
   echo "  install       Install a monitoring agent"
   echo "  uninstall     Remove an installed agent"
+  echo "  reconfigure   Modify an installed agent's configuration"
   echo "  status        Show status of installed agents"
   echo "  (none)        Interactive main menu"
   echo ""
@@ -172,11 +173,16 @@ print_help() {
   echo "  --type TYPE          Agent to remove (or 'all')"
   echo "  --non-interactive    Skip confirmation prompts"
   echo ""
+  echo "Options (reconfigure):"
+  echo "  --type TYPE          Agent to reconfigure"
+  echo "  --non-interactive    Use provided values without prompts"
+  echo ""
   echo "Examples:"
   echo "  sudo $0                                                # Interactive menu"
   echo "  sudo $0 install                                        # Interactive install"
   echo "  sudo $0 install --non-interactive --type node_exporter # Quick install"
   echo "  sudo $0 install --type mysql_exporter --api-url http://manager:4000"
+  echo "  sudo $0 reconfigure --type mysql_exporter              # Change MySQL config"
   echo "  sudo $0 uninstall --type node_exporter                 # Remove specific agent"
   echo "  sudo $0 uninstall --type all                           # Remove all agents"
   echo "  sudo $0 status                                         # Show all agent status"
@@ -567,19 +573,21 @@ main_menu() {
   echo ""
   echo -e "    ${BOLD}1)${NC} Install a new agent"
   echo -e "    ${BOLD}2)${NC} Uninstall an agent"
-  echo -e "    ${BOLD}3)${NC} View agent status"
-  echo -e "    ${BOLD}4)${NC} Exit"
+  echo -e "    ${BOLD}3)${NC} Reconfigure an agent"
+  echo -e "    ${BOLD}4)${NC} View agent status"
+  echo -e "    ${BOLD}5)${NC} Exit"
   echo ""
 
-  echo -en "  Select (1-4): "
+  echo -en "  Select (1-5): "
   local choice
   read -r choice
 
   case $choice in
     1) do_install ;;
     2) do_uninstall ;;
-    3) do_status ;;
-    4) exit 0 ;;
+    3) do_reconfigure ;;
+    4) do_status ;;
+    5) exit 0 ;;
     *) log_error "Invalid choice"; exit 1 ;;
   esac
 }
@@ -633,6 +641,190 @@ do_status() {
   if [[ "$found" == "false" ]]; then
     log_info "No agents installed on this system."
   fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+#  RECONFIGURE
+# ═══════════════════════════════════════════════════════════════════════
+
+load_existing_config() {
+  local agent="$1"
+  local service_file="/etc/systemd/system/${agent}.service"
+
+  if [[ ! -f "$service_file" ]]; then
+    return 1
+  fi
+
+  # Read port from service file
+  LISTEN_PORT=$(grep -oP 'listen-address=:?\K[0-9]+' "$service_file" 2>/dev/null || echo "")
+  [[ -z "$LISTEN_PORT" ]] && LISTEN_PORT="${AGENT_DEFAULT_PORTS[$agent]}"
+
+  # Read service user
+  SERVICE_USER=$(grep -oP '^User=\K.+' "$service_file" 2>/dev/null || echo "$agent")
+
+  # Read hostname from system
+  HOSTNAME_LABEL=$(hostname)
+
+  # Read version from binary
+  AGENT_VERSION=$("$INSTALL_DIR/$agent" --version 2>&1 | grep -oP '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "")
+  [[ -z "$AGENT_VERSION" ]] && AGENT_VERSION="${AGENT_DEFAULT_VERSIONS[$agent]}"
+
+  # Read agent-specific config from env files
+  case $agent in
+    mysql_exporter)
+      if [[ -f /etc/mysql_exporter.env ]]; then
+        local dsn
+        dsn=$(grep -oP '^DATA_SOURCE_NAME=\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "")
+        if [[ -n "$dsn" ]]; then
+          MYSQL_USER=$(echo "$dsn" | grep -oP '^[^:]+' || echo "exporter")
+          MYSQL_PASSWORD=$(echo "$dsn" | grep -oP '(?<=:)[^@]+' || echo "")
+          MYSQL_HOST=$(echo "$dsn" | grep -oP '(?<=tcp\()[^:]+' || echo "127.0.0.1")
+          MYSQL_PORT=$(echo "$dsn" | grep -oP '(?<=:)[0-9]+(?=\))' || echo "3306")
+        fi
+      fi
+      ;;
+    postgres_exporter)
+      if [[ -f /etc/postgres_exporter.env ]]; then
+        local pg_dsn
+        pg_dsn=$(grep -oP '^DATA_SOURCE_NAME=\K.+' /etc/postgres_exporter.env 2>/dev/null || echo "")
+        if [[ -n "$pg_dsn" ]]; then
+          PG_USER=$(echo "$pg_dsn" | grep -oP '(?<=://)[^:]+' || echo "postgres")
+          PG_PASSWORD=$(echo "$pg_dsn" | grep -oP '(?<=://[^:]{0,50}:)[^@]+' || echo "")
+          PG_HOST=$(echo "$pg_dsn" | grep -oP '(?<=@)[^:]+' || echo "127.0.0.1")
+          PG_PORT=$(echo "$pg_dsn" | grep -oP '(?<=:)[0-9]+(?=/)' || echo "5432")
+          PG_DATABASE=$(echo "$pg_dsn" | grep -oP '(?<=/)[^?]+' || echo "postgres")
+          PG_SSLMODE=$(echo "$pg_dsn" | grep -oP '(?<=sslmode=)[^&]+' || echo "disable")
+        fi
+      fi
+      ;;
+    mongodb_exporter)
+      if [[ -f /etc/mongodb_exporter.env ]]; then
+        local mongo_uri
+        mongo_uri=$(grep -oP '^MONGODB_URI=\K.+' /etc/mongodb_exporter.env 2>/dev/null || echo "")
+        if [[ -n "$mongo_uri" ]]; then
+          MONGO_HOST=$(echo "$mongo_uri" | grep -oP '(?<=@)[^:/]+' || echo "127.0.0.1")
+          MONGO_PORT=$(echo "$mongo_uri" | grep -oP '(?<=:)[0-9]+(?=/)' || echo "27017")
+          MONGO_USER=$(echo "$mongo_uri" | grep -oP '(?<=://)[^:@]+(?=:)' || echo "")
+          MONGO_PASSWORD=$(echo "$mongo_uri" | grep -oP '(?<=://[^:]{0,50}:)[^@]+' || echo "")
+        fi
+      fi
+      ;;
+    redis_exporter)
+      if [[ -f /etc/redis_exporter.env ]]; then
+        REDIS_ADDR=$(grep -oP '^REDIS_ADDR=\K.+' /etc/redis_exporter.env 2>/dev/null || echo "redis://127.0.0.1:6379")
+        REDIS_PASSWORD=$(grep -oP '^REDIS_PASSWORD=\K.+' /etc/redis_exporter.env 2>/dev/null || echo "")
+      fi
+      ;;
+    nginx_exporter)
+      NGINX_STATUS_URL=$(grep -oP 'scrape-uri=\K\S+' "$service_file" 2>/dev/null || echo "http://127.0.0.1/nginx_status")
+      ;;
+    promtail)
+      PROMTAIL_CONFIG_DIR="${AGENT_CONFIG_DIRS[promtail]:-/etc/promtail}"
+      if [[ -f "${PROMTAIL_CONFIG_DIR}/config.yml" ]]; then
+        LOKI_URL=$(grep -oP 'url:\s*\K\S+' "${PROMTAIL_CONFIG_DIR}/config.yml" 2>/dev/null | head -1 || echo "")
+      fi
+      ;;
+  esac
+
+  return 0
+}
+
+do_reconfigure() {
+  log_step "Reconfigure Agent"
+
+  # Find installed agents
+  local installed_agents=()
+  for agent in "${AGENT_TYPES_ORDERED[@]}"; do
+    if [[ -f "/etc/systemd/system/${agent}.service" ]]; then
+      installed_agents+=("$agent")
+    fi
+  done
+
+  if [[ ${#installed_agents[@]} -eq 0 ]]; then
+    log_error "No agents installed to reconfigure."
+    return
+  fi
+
+  # Select agent (use --type if provided)
+  if [[ -n "$PRESET_TYPE" ]]; then
+    AGENT_TYPE="$PRESET_TYPE"
+    if [[ ! -f "/etc/systemd/system/${AGENT_TYPE}.service" ]]; then
+      log_error "${AGENT_TYPE} is not installed."
+      return 1
+    fi
+  elif [[ "$NON_INTERACTIVE" == "true" ]]; then
+    log_error "Must provide --type for non-interactive reconfigure"
+    return 1
+  else
+    echo "  Installed agents:"
+    echo ""
+    local i=1
+    for agent in "${installed_agents[@]}"; do
+      local status="${RED}stopped${NC}"
+      if systemctl is-active --quiet "$agent" 2>/dev/null; then
+        status="${GREEN}running${NC}"
+      fi
+      echo -e "    ${BOLD}${i})${NC} ${AGENT_DISPLAY_NAMES[$agent]}  [${status}]"
+      ((i++))
+    done
+    echo ""
+    echo -en "  Select agent to reconfigure (1-${#installed_agents[@]}): "
+    local choice
+    read -r choice
+    if [[ "$choice" -lt 1 || "$choice" -gt ${#installed_agents[@]} ]] 2>/dev/null; then
+      log_error "Invalid selection"
+      return 1
+    fi
+    AGENT_TYPE="${installed_agents[$((choice - 1))]}"
+  fi
+
+  log_info "Reconfiguring ${AGENT_DISPLAY_NAMES[$AGENT_TYPE]}..."
+  echo ""
+
+  # Load current config as defaults
+  if ! load_existing_config "$AGENT_TYPE"; then
+    log_error "Could not read existing config for ${AGENT_TYPE}"
+    return 1
+  fi
+
+  log_info "Current configuration loaded. Press Enter to keep existing values."
+  echo ""
+
+  # Re-run configuration (prompt uses loaded values as defaults)
+  configure_agent
+  configure_registration
+
+  # Show changes and confirm
+  review_config
+
+  if [[ "$NON_INTERACTIVE" != "true" ]]; then
+    if ! prompt_yn "Apply this configuration?" "y"; then
+      log_info "Reconfiguration cancelled."
+      return
+    fi
+  fi
+
+  # Apply: regenerate env file, systemd service, restart
+  log_info "Applying new configuration..."
+  create_env_file
+  create_systemd_service
+
+  log_info "Restarting ${AGENT_TYPE}..."
+  systemctl restart "$AGENT_TYPE"
+
+  sleep 2
+  if systemctl is-active --quiet "$AGENT_TYPE"; then
+    log_info "${AGENT_TYPE} is running with new configuration"
+  else
+    log_error "${AGENT_TYPE} failed to start. Check: journalctl -u ${AGENT_TYPE} -f"
+    return 1
+  fi
+
+  # Re-register with API if configured
+  register_with_api
+
+  echo ""
+  log_info "Reconfiguration complete!"
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1736,10 +1928,11 @@ main() {
   print_banner
 
   case "$COMMAND" in
-    install)   do_install ;;
-    uninstall) do_uninstall ;;
-    status)    do_status ;;
-    "")        main_menu ;;
+    install)     do_install ;;
+    uninstall)   do_uninstall ;;
+    reconfigure) do_reconfigure ;;
+    status)      do_status ;;
+    "")          main_menu ;;
     *)
       log_error "Unknown command: $COMMAND"
       echo "Run '$0 --help' for usage."

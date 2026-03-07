@@ -48,9 +48,10 @@ model Server {
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
   // Relations
-  group          ServerGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  agents         Agent[]
-  alerts         Alert[]
+  group              ServerGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  agents             Agent[]
+  virtualContainers  VirtualContainer[]
+  alerts             Alert[]
   anomalyEvents  AnomalyEvent[]
   anomalyModels  AnomalyModel[]
   metricHistory  MetricHistory[]
@@ -70,6 +71,32 @@ enum Environment {
   DEVELOPMENT
   STAGING
   PRODUCTION
+}
+
+// ==================== VIRTUAL CONTAINERS ====================
+
+model VirtualContainer {
+  id            String    @id @default(uuid())
+  serverId      String    @map("server_id")
+  containerId   String    @map("container_id")  // CTID for OpenVZ, UUID for KVM
+  name          String                           // VM/container name
+  type          String                           // openvz, kvm, virtuozzo, docker, lxc
+  status        String    @default("unknown")    // running, stopped, paused, etc.
+  ipAddress     String?   @map("ip_address")
+  hostname      String?
+  networkRxBytes BigInt   @default(0) @map("network_rx_bytes")
+  networkTxBytes BigInt   @default(0) @map("network_tx_bytes")
+  metadata      Json?                            // Extra info (vCPUs, memory, interfaces)
+  lastSeen      DateTime? @map("last_seen")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, containerId])
+  @@index([serverId])
+  @@map("virtual_containers")
 }
 
 // ==================== AGENT MANAGEMENT ====================

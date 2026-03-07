@@ -9,6 +9,7 @@ import { logRoutes } from './logs';
 import { eventRoutes } from './events';
 import { settingsRoutes } from './settings';
 import { serverGroupRoutes } from './serverGroups';
+import { containerRoutes } from './containers';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -23,12 +24,14 @@ router.use('/auth', authRoutes);
 
 // Agent routes (public - agents need to register without auth)
 router.use('/agents', agentRoutes);
+router.use('/agents/containers', containerRoutes);
 
 // Settings routes (partially public - for login page branding)
 router.use('/settings', settingsRoutes);
 
 // Protected routes (require authentication)
 router.use('/servers', optionalAuth, serverRoutes);
+router.use('/containers', optionalAuth, containerRoutes);
 router.use('/server-groups', optionalAuth, serverGroupRoutes);
 router.use('/alerts', optionalAuth, alertRoutes);
 router.use('/metrics', optionalAuth, metricRoutes);

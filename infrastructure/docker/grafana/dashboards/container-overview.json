@@ -1,0 +1,162 @@
+{
+  "annotations": { "list": [] },
+  "description": "Container and VM overview using PostgreSQL datasource for virtual_containers table",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Total Containers / VMs",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS \"Total\" FROM virtual_containers",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none" }
+      }
+    },
+    {
+      "title": "Running",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS \"Running\" FROM virtual_containers WHERE status = 'running'",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Stopped",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS \"Stopped\" FROM virtual_containers WHERE status = 'stopped'",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "steps": [
+              { "color": "orange", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "By Type",
+      "type": "piechart",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT type AS metric, COUNT(*) AS value FROM virtual_containers GROUP BY type ORDER BY value DESC",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Containers by Server",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "postgres", "uid": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT s.hostname AS \"Server\", COUNT(vc.id) AS \"Containers\", COUNT(CASE WHEN vc.status = 'running' THEN 1 END) AS \"Running\", COUNT(CASE WHEN vc.status = 'stopped' THEN 1 END) AS \"Stopped\", pg_size_pretty(SUM(vc.network_rx_bytes + vc.network_tx_bytes)) AS \"Total Traffic\" FROM virtual_containers vc JOIN servers s ON vc.server_id = s.id GROUP BY s.hostname ORDER BY COUNT(vc.id) DESC",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Top Containers by Network RX",
+      "type": "bargauge",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "postgres", "uid": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT vc.name AS metric, vc.network_rx_bytes AS \"RX Bytes\" FROM virtual_containers vc WHERE vc.status = 'running' ORDER BY vc.network_rx_bytes DESC LIMIT 10",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1073741824 },
+              { "color": "red", "value": 10737418240 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "All Containers",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "postgres", "uid": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT vc.name AS \"Name\", vc.type AS \"Type\", vc.status AS \"Status\", vc.container_id AS \"Container ID\", s.hostname AS \"Server\", vc.ip_address AS \"IP Address\", pg_size_pretty(vc.network_rx_bytes) AS \"RX\", pg_size_pretty(vc.network_tx_bytes) AS \"TX\", vc.last_seen AS \"Last Seen\" FROM virtual_containers vc JOIN servers s ON vc.server_id = s.id ORDER BY vc.status, vc.name",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Recently Updated Containers",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
+      "datasource": { "type": "postgres", "uid": "postgres" },
+      "targets": [
+        {
+          "rawSql": "SELECT vc.name AS \"Name\", vc.type AS \"Type\", vc.status AS \"Status\", s.hostname AS \"Server\", vc.last_seen AS \"Last Seen\", vc.updated_at AS \"Updated\" FROM virtual_containers vc JOIN servers s ON vc.server_id = s.id WHERE vc.updated_at >= NOW() - INTERVAL '24 hours' ORDER BY vc.updated_at DESC LIMIT 20",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 38,
+  "tags": ["nodeprism", "containers", "vm"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "title": "Container / VM Overview",
+  "uid": "nodeprism-container-overview"
+}

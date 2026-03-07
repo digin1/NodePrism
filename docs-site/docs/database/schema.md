@@ -70,6 +70,7 @@ AlertTemplate ──── NotificationChannel
 | anomalyModels | AnomalyModel[] | ✓ | - |
 | metricHistory | MetricHistory[] | ✓ | - |
 | eventLogs | EventLog[] | ✓ | - |
+| maintenanceWindows | MaintenanceWindow[] | ✓ | - |
 
 ---
 
@@ -274,6 +275,26 @@ AlertTemplate ──── NotificationChannel
 | dateFormat | String | ✓ | Default: "YYYY-MM-DD" |
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
+
+---
+
+### MaintenanceWindow
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| serverId | String | ✓ | - |
+| reason | String | ✓ | - |
+| startTime | DateTime | ✓ | - |
+| endTime | DateTime | ✓ | - |
+| createdBy | String | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| server | Server | ✓ | Relation |
+
+**Indexes:**
+- `@@index([serverId])`
+- `@@index([startTime, endTime])`
 
 ---
 

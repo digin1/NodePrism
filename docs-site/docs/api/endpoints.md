@@ -142,6 +142,19 @@ Base path: `/api/logs`
 | GET | `/logs/labels/:name/values` | - | Loki response types |
 | GET | `/logs/tail` | - | Loki response types |
 
+## MaintenanceWindows
+
+Base path: `/api/maintenanceWindows`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/maintenanceWindows` | ✓ | - |
+| GET | `/maintenanceWindows/:id` | ✓ | - |
+| POST | `/maintenanceWindows` | ✓ | - |
+| PUT | `/maintenanceWindows/:id` | ✓ | Verify server exists |
+| DELETE | `/maintenanceWindows/:id` | ✓ | Verify server exists |
+| GET | `/maintenanceWindows/server/:serverId/active` | ✓ | Verify server exists |
+
 ## Metrics
 
 Base path: `/api/metrics`
@@ -215,6 +228,9 @@ Base path: `/api/settings`
 | POST | `/settings/logo` | ✓ | Uploads directory configuration |
 | DELETE | `/settings/logo` | ✓ | Uploads directory configuration |
 | GET | `/settings/system-info` | ✓ | Uploads directory configuration |
+| POST | `/settings/backup` | ✓ | Uploads directory configuration |
+| GET | `/settings/export` | ✓ | Uploads directory configuration |
+| POST | `/settings/import` | ✓ | Uploads directory configuration |
 
 ## WebSocket Events
 

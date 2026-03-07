@@ -8,6 +8,7 @@ import { anomalyRoutes } from './anomalies';
 import { logRoutes } from './logs';
 import { eventRoutes } from './events';
 import { settingsRoutes } from './settings';
+import { serverGroupRoutes } from './serverGroups';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -28,6 +29,7 @@ router.use('/settings', settingsRoutes);
 
 // Protected routes (require authentication)
 router.use('/servers', optionalAuth, serverRoutes);
+router.use('/server-groups', optionalAuth, serverGroupRoutes);
 router.use('/alerts', optionalAuth, alertRoutes);
 router.use('/metrics', optionalAuth, metricRoutes);
 router.use('/anomalies', optionalAuth, anomalyRoutes);

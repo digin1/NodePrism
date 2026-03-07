@@ -50,12 +50,36 @@ export const serverApi = {
     hostname: string;
     ipAddress: string;
     environment?: string;
+    groupId?: string | null;
     region?: string;
     tags?: string[];
   }) => api.post('/api/servers', data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/api/servers/${id}`, data),
   delete: (id: string) => api.delete(`/api/servers/${id}`),
   stats: () => getData(api.get('/api/servers/stats/overview')),
+};
+
+// Server Group API
+export interface ServerGroup {
+  id: string;
+  name: string;
+  description?: string | null;
+  parentId?: string | null;
+  sortOrder: number;
+  children?: ServerGroup[];
+  _count?: { servers: number };
+}
+
+export const serverGroupApi = {
+  list: (flat?: boolean) => getData<ServerGroup[]>(api.get('/api/server-groups', { params: flat ? { flat: 'true' } : {} })),
+  get: (id: string) => getData(api.get(`/api/server-groups/${id}`)),
+  create: (data: { name: string; description?: string; parentId?: string | null; sortOrder?: number }) =>
+    getData<ServerGroup>(api.post('/api/server-groups', data)),
+  update: (id: string, data: Partial<{ name: string; description: string; parentId: string | null; sortOrder: number }>) =>
+    getData<ServerGroup>(api.put(`/api/server-groups/${id}`, data)),
+  delete: (id: string) => api.delete(`/api/server-groups/${id}`),
+  moveServers: (serverIds: string[], groupId: string | null) =>
+    api.post('/api/server-groups/move-servers', { serverIds, groupId }),
 };
 
 // Alerts API

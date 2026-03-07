@@ -10,6 +10,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==================== SERVER GROUP MANAGEMENT ====================
+
+model ServerGroup {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  parentId    String?       @map("parent_id")
+  sortOrder   Int           @default(0) @map("sort_order")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Self-referencing hierarchy
+  parent   ServerGroup?  @relation("GroupHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children ServerGroup[] @relation("GroupHierarchy")
+
+  // Servers in this group
+  servers Server[]
+
+  @@map("server_groups")
+}
+
 // ==================== SERVER MANAGEMENT ====================
 
 model Server {
@@ -18,6 +39,7 @@ model Server {
   ipAddress   String       @map("ip_address")
   status      ServerStatus @default(OFFLINE)
   environment Environment  @default(PRODUCTION)
+  groupId     String?      @map("group_id")
   region      String?
   tags        String[]     @default([])
   metadata    Json?
@@ -26,6 +48,7 @@ model Server {
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
   // Relations
+  group          ServerGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   agents         Agent[]
   alerts         Alert[]
   anomalyEvents  AnomalyEvent[]

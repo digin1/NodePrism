@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 
 interface TimelineEvent {
   id: string;
-  type: 'alert' | 'anomaly' | 'deployment';
+  type: 'alert' | 'anomaly';
   title: string;
   description: string;
   timestamp: Date;
@@ -161,24 +161,6 @@ export function EventTimeline() {
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-          </div>
-        );
-      case 'deployment':
-        return (
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-            <svg
-              className="w-4 h-4 text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
               />
             </svg>
           </div>

@@ -57,8 +57,6 @@ export const serverApi = {
   }) => api.post('/api/servers', data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/api/servers/${id}`, data),
   delete: (id: string) => api.delete(`/api/servers/${id}`),
-  deploy: (id: string, agentTypes?: string[]) =>
-    api.post(`/api/servers/${id}/deploy`, { agentTypes }),
   stats: () => getData(api.get('/api/servers/stats/overview')),
 };
 

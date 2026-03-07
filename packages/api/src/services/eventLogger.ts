@@ -161,41 +161,6 @@ export async function logAgentStatusChange(
 }
 
 /**
- * Log deployment event
- */
-export async function logDeployment(
-  serverId: string,
-  agentType: string,
-  status: 'started' | 'completed' | 'failed',
-  hostname: string,
-  error?: string
-): Promise<void> {
-  const typeMap: Record<string, EventType> = {
-    started: 'DEPLOYMENT_STARTED',
-    completed: 'DEPLOYMENT_COMPLETED',
-    failed: 'DEPLOYMENT_FAILED',
-  };
-
-  const severityMap: Record<string, EventSeverity> = {
-    started: 'INFO',
-    completed: 'INFO',
-    failed: 'CRITICAL',
-  };
-
-  await logEvent({
-    serverId,
-    type: typeMap[status],
-    severity: severityMap[status],
-    title: `Deployment ${status}`,
-    message: error
-      ? `Deployment of ${agentType} on ${hostname} failed: ${error}`
-      : `Deployment of ${agentType} on ${hostname} ${status}`,
-    metadata: { agentType, hostname, error },
-    source: 'deployment-worker',
-  });
-}
-
-/**
  * Log threshold alert
  */
 export async function logThresholdAlert(

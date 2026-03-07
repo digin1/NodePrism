@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import * as os from 'os';
+import { logger } from './logger';
 
 export interface AgentConfig {
   manager: {
@@ -56,7 +57,7 @@ export function loadConfig(): AgentConfig {
       try {
         const fileContents = fs.readFileSync(configPath, 'utf8');
         const fileConfig = yaml.load(fileContents) as Partial<AgentConfig>;
-        console.log(`Loaded config from ${configPath}`);
+        logger.info(`Loaded config from ${configPath}`);
         return mergeConfig(DEFAULT_CONFIG, fileConfig);
       } catch (err) {
         console.error(`Failed to load config from ${configPath}:`, err);
@@ -64,7 +65,7 @@ export function loadConfig(): AgentConfig {
     }
   }
 
-  console.log('Using default configuration (set MANAGER_URL environment variable)');
+  logger.info('Using default configuration (set MANAGER_URL environment variable)');
   return DEFAULT_CONFIG;
 }
 

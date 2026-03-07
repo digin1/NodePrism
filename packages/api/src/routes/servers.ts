@@ -1,9 +1,7 @@
 import { Router, Request, Response, NextFunction, type Router as ExpressRouter } from 'express';
-import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
-import { rabbitmq } from '../services/rabbitmq';
 
 const router: ExpressRouter = Router();
 
@@ -65,10 +63,6 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       where: { id },
       include: {
         agents: true,
-        deployments: {
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-        },
         alerts: {
           where: { status: 'FIRING' },
           orderBy: { startsAt: 'desc' },
@@ -200,82 +194,6 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     res.json({
       success: true,
       message: 'Server deleted successfully',
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// POST /api/servers/:id/deploy - Deploy agents to server
-router.post('/:id/deploy', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const { agentTypes } = req.body;
-
-    const server = await prisma.server.findUnique({
-      where: { id },
-    });
-
-    if (!server) {
-      return res.status(404).json({
-        success: false,
-        error: 'Server not found',
-      });
-    }
-
-    // Create deployment records
-    const deployments = await Promise.all(
-      (agentTypes || ['NODE_EXPORTER']).map((agentType: string) =>
-        prisma.deployment.create({
-          data: {
-            serverId: id,
-            agentType: agentType as any,
-            status: 'PENDING',
-          },
-        })
-      )
-    );
-
-    // Update server status
-    await prisma.server.update({
-      where: { id },
-      data: { status: 'DEPLOYING' },
-    });
-
-    // Queue deployment jobs to RabbitMQ
-    for (const deployment of deployments) {
-      try {
-        await rabbitmq.publishDeploymentJob({
-          id: randomUUID(),
-          serverId: server.id,
-          hostname: server.hostname,
-          ipAddress: server.ipAddress,
-          sshPort: server.sshPort,
-          sshUsername: server.sshUsername || 'root',
-          agentType: deployment.agentType,
-          deploymentId: deployment.id,
-        });
-      } catch (error) {
-        logger.error(`Failed to queue deployment job for ${deployment.agentType}`, { error });
-        // Mark deployment as failed if we can't queue it
-        await prisma.deployment.update({
-          where: { id: deployment.id },
-          data: { status: 'FAILED', error: 'Failed to queue deployment job' },
-        });
-      }
-    }
-
-    logger.info(`Deployment initiated for server ${server.hostname}`, { deployments });
-
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('deployment:started', { serverId: id, deployments });
-    }
-
-    res.json({
-      success: true,
-      data: deployments,
-      message: 'Deployment initiated',
     });
   } catch (error) {
     next(error);

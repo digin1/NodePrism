@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { PrometheusClient } from './prometheus';
 import axios from 'axios';
+import { logger } from './utils/logger';
 
 const prisma = new PrismaClient();
 const prometheus = new PrometheusClient();
@@ -110,18 +111,18 @@ export class StatusSyncService {
             updated++;
 
             const statusLabel = isRecovery ? 'RECOVERED' : newStatus;
-            console.log(`[StatusSync] ${server.hostname}: ${oldStatus} → ${statusLabel}`);
+            logger.info(`${server.hostname}: ${oldStatus} → ${statusLabel}`);
 
             // Log event via internal API call to maintain consistency with Socket.IO events
             try {
               await this.logStatusChangeEvent(server.id, oldStatus, newStatus, server.hostname, isRecovery);
             } catch (eventErr) {
-              console.error(`[StatusSync] Failed to log event for ${server.hostname}:`, eventErr);
+              logger.error(`Failed to log event for ${server.hostname}`, { error: eventErr });
             }
           } catch (err) {
             const errorMsg = `Failed to update ${server.hostname}: ${err}`;
             errors.push(errorMsg);
-            console.error(`[StatusSync] ${errorMsg}`);
+            logger.error(errorMsg);
           }
         }
       }
@@ -130,7 +131,7 @@ export class StatusSyncService {
     } catch (error) {
       const errorMsg = `Status sync failed: ${error}`;
       errors.push(errorMsg);
-      console.error(`[StatusSync] ${errorMsg}`);
+      logger.error(errorMsg);
       return { updated, errors };
     }
   }
@@ -139,13 +140,13 @@ export class StatusSyncService {
    * Start periodic status sync
    */
   start(intervalMs: number = 30000): void {
-    console.log(`[StatusSync] Starting status sync (interval: ${intervalMs}ms)`);
+    logger.info(`Starting status sync (interval: ${intervalMs}ms)`);
 
     // Run immediately
     this.syncServerStatus().then(({ updated, errors }) => {
-      console.log(`[StatusSync] Initial sync: ${updated} servers updated`);
+      logger.info(`Initial sync: ${updated} servers updated`);
       if (errors.length > 0) {
-        console.error(`[StatusSync] Errors:`, errors);
+        logger.error('Sync errors', { errors });
       }
     });
 
@@ -153,10 +154,10 @@ export class StatusSyncService {
     this.syncInterval = setInterval(async () => {
       const { updated, errors } = await this.syncServerStatus();
       if (updated > 0) {
-        console.log(`[StatusSync] ${updated} servers updated`);
+        logger.info(`${updated} servers updated`);
       }
       if (errors.length > 0) {
-        console.error(`[StatusSync] Errors:`, errors);
+        logger.error('Sync errors', { errors });
       }
     }, intervalMs);
   }
@@ -168,7 +169,7 @@ export class StatusSyncService {
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
-      console.log('[StatusSync] Stopped');
+      logger.info('Stopped');
     }
   }
 

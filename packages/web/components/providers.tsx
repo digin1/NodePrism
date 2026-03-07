@@ -30,13 +30,11 @@ function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log('WebSocket connected');
       setIsConnected(true);
       setSocket(ws);
     };
 
     ws.onclose = () => {
-      console.log('WebSocket disconnected');
       setIsConnected(false);
       setSocket(null);
     };

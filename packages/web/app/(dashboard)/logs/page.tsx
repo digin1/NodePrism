@@ -60,9 +60,6 @@ const typeIcons: Record<string, string> = {
   AGENT_STOPPED: '⏹️',
   AGENT_FAILED: '❌',
   AGENT_UPDATED: '🔄',
-  DEPLOYMENT_STARTED: '🚀',
-  DEPLOYMENT_COMPLETED: '✅',
-  DEPLOYMENT_FAILED: '❌',
   ALERT_TRIGGERED: '🔔',
   ALERT_RESOLVED: '✅',
   ALERT_ACKNOWLEDGED: '👁️',
@@ -140,7 +137,7 @@ export default function EventsPage() {
     });
 
     socket.on('connect', () => {
-      console.log('Socket connected for events');
+      // connected
     });
 
     socket.on('event:new', (event: EventEntry) => {
@@ -261,11 +258,6 @@ export default function EventsPage() {
                   <option value="AGENT_STARTED">Agent Started</option>
                   <option value="AGENT_STOPPED">Agent Stopped</option>
                   <option value="AGENT_FAILED">Agent Failed</option>
-                </optgroup>
-                <optgroup label="Deployment">
-                  <option value="DEPLOYMENT_STARTED">Deployment Started</option>
-                  <option value="DEPLOYMENT_COMPLETED">Deployment Completed</option>
-                  <option value="DEPLOYMENT_FAILED">Deployment Failed</option>
                 </optgroup>
                 <optgroup label="Alerts">
                   <option value="ALERT_TRIGGERED">Alert Triggered</option>

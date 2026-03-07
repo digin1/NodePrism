@@ -1,6 +1,6 @@
 # API Endpoints
 
-> Auto-generated on 2025-12-02
+> Auto-generated on 2026-03-07
 
 ## Base URL
 
@@ -131,7 +131,6 @@ Base path: `/api/servers`
 | POST | `/servers` | - | Validation schemas |
 | PUT | `/servers/:id` | - | Validation schemas |
 | DELETE | `/servers/:id` | - | Validation schemas |
-| POST | `/servers/:id/deploy` | - | Validation schemas |
 | GET | `/servers/stats/overview` | - | Validation schemas |
 
 ## Settings

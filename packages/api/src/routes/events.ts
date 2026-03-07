@@ -62,11 +62,6 @@ router.get('/types', (_req: Request, res: Response) => {
       'AGENT_FAILED',
       'AGENT_UPDATED',
     ],
-    deployment: [
-      'DEPLOYMENT_STARTED',
-      'DEPLOYMENT_COMPLETED',
-      'DEPLOYMENT_FAILED',
-    ],
     alert: [
       'ALERT_TRIGGERED',
       'ALERT_RESOLVED',

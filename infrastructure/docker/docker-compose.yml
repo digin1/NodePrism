@@ -267,11 +267,11 @@ services:
 
   # Database Exporters
   mysql-exporter:
-    image: prom/mysqld-exporter:latest
+    image: prom/mysqld-exporter:v0.15.1
     container_name: nodeprism-mysql-exporter
     restart: unless-stopped
     environment:
-      - DATA_SOURCE_NAME=root:${MYSQL_ROOT_PASSWORD:-password}@tcp(mysql:3306)/
+      - MYSQLD_EXPORTER_PASSWORD=${MYSQL_ROOT_PASSWORD:-password}
     ports:
       - '9104:9104'
     networks:
@@ -279,6 +279,8 @@ services:
     depends_on:
       - mysql
     command:
+      - --mysqld.address=mysql:3306
+      - --mysqld.username=root
       - --collect.info_schema.innodb_metrics
       - --collect.info_schema.processlist
       - --collect.info_schema.query_response_time

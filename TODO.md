@@ -102,11 +102,11 @@
 ## Phase 3: Operational Improvements
 
 ### 3.1 Health Check Endpoint Enrichment
-- [ ] Extend `GET /health` to include DB connectivity, Redis status, Prometheus reachability
-- [ ] Add response time for each dependency
-- [ ] Return degraded status if any dependency is slow/down
-- [ ] Update health-check.sh to use enriched endpoint
-- [ ] Write tests: `healthCheck.test.ts`
+- [x] Extend `GET /health` to include DB connectivity, Redis status, Prometheus reachability
+- [x] Add response time for each dependency
+- [x] Return degraded status if any dependency is slow/down
+- [x] Update health-check.sh to use enriched endpoint
+- [x] Write tests: `healthCheck.test.ts`
 
 ### 3.2 API Self-Monitoring (Prometheus Metrics)
 - [ ] Add `prom-client` to API package
@@ -196,7 +196,7 @@
 - [x] `bandwidth.test.ts` — Bandwidth formatting, ranking, and visualization (14 tests)
 - [x] `bulkOperations.test.ts` — Bulk delete, acknowledge, silence, move, selection (19 tests)
 - [x] `configExportImport.test.ts` — Config export/import validation and conflict resolution (32 tests)
-- [ ] `healthCheck.test.ts` — Health endpoint
+- [x] `healthCheck.test.ts` — Health endpoint enrichment and dependency checks (23 tests)
 - [ ] `apiMetrics.test.ts` — Prometheus self-metrics
 - [ ] `maintenanceWindows.test.ts` — Maintenance window logic
 - [ ] `gracefulDegradation.test.ts` — Fallback behavior

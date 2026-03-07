@@ -131,10 +131,3 @@ cp .env.example .env
 |----------|---------|-------------|
 | `STATUS_SYNC_INTERVAL` | `30000` | How often to sync server status from Prometheus (ms) |
 
-## Deployment Worker
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SSH_TIMEOUT` | `30000` | SSH connection timeout (ms) |
-| `DEFAULT_SSH_USER` | `root` | Default SSH user for deployments |
-

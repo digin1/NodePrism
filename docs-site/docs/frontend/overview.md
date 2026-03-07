@@ -22,13 +22,16 @@ title: Frontend
 | `/register` | `(auth)/register/page.tsx` | User registration |
 | `/alerts` | `(dashboard)/alerts/page.tsx` | Active alerts list |
 | `/alerts/rules` | `(dashboard)/alerts/rules/page.tsx` | Alert rules management |
+| `/alerts/templates` | `(dashboard)/alerts/templates/page.tsx` | - |
 | `/dashboard` | `(dashboard)/dashboard/page.tsx` | Main dashboard with overview |
+| `/dashboards` | `(dashboard)/dashboards/page.tsx` | - |
 | `/docs` | `(dashboard)/docs/page.tsx` | - |
 | `/logs` | `(dashboard)/logs/page.tsx` | Log aggregation view |
 | `/metrics` | `(dashboard)/metrics/page.tsx` | Metrics explorer (PromQL) |
 | `/servers/:id` | `(dashboard)/servers/[id]/page.tsx` | Server details and metrics |
 | `/servers/new` | `(dashboard)/servers/new/page.tsx` | Add new server |
 | `/servers` | `(dashboard)/servers/page.tsx` | Server list and management |
+| `/settings/audit` | `(dashboard)/settings/audit/page.tsx` | - |
 | `/settings/notifications` | `(dashboard)/settings/notifications/page.tsx` | - |
 | `/settings` | `(dashboard)/settings/page.tsx` | System settings |
 | `/` | `page.tsx` | Home page / redirect |

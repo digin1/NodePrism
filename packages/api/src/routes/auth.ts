@@ -277,4 +277,93 @@ router.get('/users', async (req: Request, res: Response, next: NextFunction) => 
   }
 });
 
+// PUT /api/auth/users/:id - Update user (admin only)
+router.put('/users/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+
+    if (decoded.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+    const updateSchema = z.object({
+      name: z.string().min(2).optional(),
+      role: z.enum(['ADMIN', 'OPERATOR', 'VIEWER']).optional(),
+      password: z.string().min(8).optional(),
+    });
+
+    const data = updateSchema.parse(req.body);
+    const updateData: Record<string, unknown> = {};
+
+    if (data.name) updateData.name = data.name;
+    if (data.role) updateData.role = data.role;
+    if (data.password) updateData.passwordHash = await bcrypt.hash(data.password, 12);
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: updateData,
+      select: { id: true, email: true, name: true, role: true, lastLogin: true, createdAt: true },
+    });
+
+    logger.info(`User updated: ${user.email}`);
+    audit(req, { action: 'settings.update', entityType: 'user', entityId: user.id, details: { email: user.email, changes: Object.keys(updateData) } });
+
+    res.json({ success: true, data: user });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Validation error', details: error.errors });
+    }
+    if ((error as any)?.code === 'P2025') {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    next(error);
+  }
+});
+
+// DELETE /api/auth/users/:id - Delete user (admin only)
+router.delete('/users/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+
+    if (decoded.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+
+    // Prevent self-deletion
+    if (id === decoded.userId) {
+      return res.status(400).json({ success: false, error: 'Cannot delete your own account' });
+    }
+
+    const user = await prisma.user.delete({
+      where: { id },
+      select: { id: true, email: true, name: true },
+    });
+
+    logger.info(`User deleted: ${user.email}`);
+    audit(req, { action: 'settings.update', entityType: 'user', entityId: user.id, details: { email: user.email, action: 'deleted' } });
+
+    res.json({ success: true, message: 'User deleted' });
+  } catch (error) {
+    if ((error as any)?.code === 'P2025') {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    next(error);
+  }
+});
+
 export { router as authRoutes };

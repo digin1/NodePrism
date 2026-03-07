@@ -226,22 +226,71 @@ router.delete('/templates/:id', async (req: Request, res: Response, next: NextFu
   }
 });
 
-// POST /api/alerts/templates/:id/test - Test template against historical data
+// POST /api/alerts/templates/:id/test - Test template against live Prometheus data
 router.post('/templates/:id/test', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const { serverId, startTime, endTime } = req.body;
 
-    // This would implement historical testing logic
-    // For now, return a placeholder response
+    const template = await prisma.alertTemplate.findUnique({ where: { id } });
+    if (!template) {
+      return res.status(404).json({ success: false, error: 'Template not found' });
+    }
+
+    // Get all servers with node_exporter to test against
+    const servers = await prisma.server.findMany({
+      where: { status: { in: ['ONLINE', 'WARNING'] } },
+      select: { id: true, hostname: true, ipAddress: true },
+    });
+
+    const PROMETHEUS_URL = process.env.PROMETHEUS_URL || 'http://localhost:9090';
+    const templateService = new AlertTemplateService();
+    const results: Array<{ serverId: string; hostname: string; value: number | null; warnFiring: boolean; critFiring: boolean }> = [];
+
+    for (const server of servers) {
+      // Check if template matches this server
+      const matching = await templateService.findMatchingTemplates(server.id);
+      if (!matching.some(t => t.id === id)) continue;
+
+      // Query Prometheus
+      let query = template.query;
+      if (query.includes('{')) {
+        query = query.replace('{', `{server_id="${server.id}", `);
+      } else {
+        query = query.replace(/^(\w+)/, `$1{server_id="${server.id}"}`);
+      }
+
+      let value: number | null = null;
+      try {
+        const axios = require('axios');
+        const resp = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+          params: { query },
+          timeout: 5000,
+        });
+        const data = resp.data?.data?.result?.[0]?.value;
+        value = data ? parseFloat(data[1]) : null;
+      } catch {
+        // Prometheus unreachable or query failed
+      }
+
+      const warnCond = template.warnCondition as any;
+      const critCond = template.critCondition as any;
+
+      results.push({
+        serverId: server.id,
+        hostname: server.hostname,
+        value,
+        warnFiring: value !== null && warnCond?.condition ? templateService.evaluateCondition(warnCond.condition, value) : false,
+        critFiring: value !== null && critCond?.condition ? templateService.evaluateCondition(critCond.condition, value) : false,
+      });
+    }
 
     res.json({
       success: true,
       data: {
         templateId: id,
-        serverId,
-        testResults: [],
-        message: 'Template testing not yet implemented',
+        templateName: template.name,
+        results,
+        testedAt: new Date().toISOString(),
       },
     });
   } catch (error) {

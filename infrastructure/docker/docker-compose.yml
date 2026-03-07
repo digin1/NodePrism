@@ -195,6 +195,7 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - DB_PASSWORD=${DB_PASSWORD:-nodeprism123}
     ports:
       - '${GRAFANA_PORT:-3030}:3000'
     volumes:

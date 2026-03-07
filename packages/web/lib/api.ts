@@ -321,6 +321,43 @@ export const maintenanceApi = {
     getData<{ inMaintenance: boolean; window: MaintenanceWindow | null }>(api.get(`/api/maintenance-windows/server/${serverId}/active`)),
 };
 
+// Uptime API
+export const uptimeApi = {
+  list: () => getData(api.get('/api/uptime')),
+  get: (id: string) => getData(api.get(`/api/uptime/${id}`)),
+  create: (data: { name: string; type: string; target: string; interval?: number; timeout?: number; method?: string; expectedStatus?: number; keyword?: string }) =>
+    getData(api.post('/api/uptime', data)),
+  update: (id: string, data: Record<string, unknown>) => getData(api.put(`/api/uptime/${id}`, data)),
+  delete: (id: string) => api.delete(`/api/uptime/${id}`),
+  checks: (id: string, params?: { start?: string; end?: string; limit?: number }) =>
+    getData(api.get(`/api/uptime/${id}/checks`, { params })),
+  stats: () => getData(api.get('/api/uptime/stats/overview')),
+  test: (id: string) => getData(api.post(`/api/uptime/${id}/test`)),
+};
+
+// Incident API
+export const incidentApi = {
+  list: (params?: { status?: string; severity?: string; limit?: number; offset?: number }) =>
+    getData(api.get('/api/incidents', { params })),
+  get: (id: string) => getData(api.get(`/api/incidents/${id}`)),
+  create: (data: { title: string; description?: string; severity: string; assignee?: string; alertId?: string; serverId?: string; createdBy?: string }) =>
+    getData(api.post('/api/incidents', data)),
+  update: (id: string, data: Record<string, unknown>) => getData(api.put(`/api/incidents/${id}`, data)),
+  delete: (id: string) => api.delete(`/api/incidents/${id}`),
+  addUpdate: (id: string, data: { message: string; status?: string; createdBy?: string }) =>
+    getData(api.post(`/api/incidents/${id}/updates`, data)),
+  fromAlert: (alertId: string) => getData(api.post('/api/incidents/from-alert', { alertId })),
+  stats: () => getData(api.get('/api/incidents/stats')),
+};
+
+// Forecasting API
+export const forecastApi = {
+  disk: (serverId: string) => getData(api.get(`/api/forecasting/disk/${serverId}`)),
+  memory: (serverId: string) => getData(api.get(`/api/forecasting/memory/${serverId}`)),
+  cpu: (serverId: string) => getData(api.get(`/api/forecasting/cpu/${serverId}`)),
+  all: (serverId: string) => getData(api.get(`/api/forecasting/all/${serverId}`)),
+};
+
 // Settings types
 export interface SystemSettings {
   systemName: string;

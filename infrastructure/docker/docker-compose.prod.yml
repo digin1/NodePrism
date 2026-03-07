@@ -45,7 +45,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - PROMETHEUS_URL=http://prometheus:9090
       - LOKI_URL=http://loki:3100
-      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set in .env}
       - CORS_ORIGIN=https://${DOMAIN:-localhost}
     expose:
       - "4000"

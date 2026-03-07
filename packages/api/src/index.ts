@@ -16,6 +16,7 @@ import { startMetricCollector, stopMetricCollector } from './services/metricColl
 import { startHousekeeping, stopHousekeeping, startBackupScheduler, stopBackupScheduler } from './services/housekeeping';
 import { startAutoDiscovery, stopAutoDiscovery } from './services/autoDiscoveryService';
 import { setEventLoggerSocket, logSystemStartup } from './services/eventLogger';
+import { startUptimeMonitoring, stopUptimeMonitoring } from './services/uptimeService';
 import { prisma } from './lib/prisma';
 import { metricsMiddleware, metricsRegistry, setWebSocketConnections } from './services/apiMetrics';
 
@@ -244,6 +245,9 @@ server.listen(PORT, async () => {
   // Start auto-discovery service (periodic service detection)
   startAutoDiscovery();
 
+  // Start uptime monitoring service
+  startUptimeMonitoring();
+
   // Log system startup event
   logSystemStartup();
 });
@@ -256,6 +260,7 @@ process.on('SIGTERM', () => {
   stopHousekeeping();
   stopBackupScheduler();
   stopAutoDiscovery();
+  stopUptimeMonitoring();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);

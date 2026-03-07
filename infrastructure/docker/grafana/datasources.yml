@@ -32,7 +32,7 @@ datasources:
     database: nodeprism
     editable: true
     secureJsonData:
-      password: ${DB_PASSWORD}
+      password: $DB_PASSWORD
     jsonData:
       sslmode: disable
       postgresVersion: 1500

@@ -23,7 +23,13 @@ const nextConfig = {
   },
   async rewrites() {
     return {
-      beforeFiles: [],
+      beforeFiles: [
+        // Socket.IO must be proxied before any Next.js route matching
+        {
+          source: '/socket.io/:path*',
+          destination: 'http://localhost:4000/socket.io/:path*',
+        },
+      ],
       afterFiles: [],
       fallback: [
         // Fallback rewrites - only matched if no Next.js page or API route exists

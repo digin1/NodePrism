@@ -14,6 +14,7 @@ import { routes } from './routes';
 import { startHeartbeatCleanup, stopHeartbeatCleanup } from './services/heartbeatCleanup';
 import { startMetricCollector, stopMetricCollector } from './services/metricCollector';
 import { startHousekeeping, stopHousekeeping } from './services/housekeeping';
+import { startAutoDiscovery, stopAutoDiscovery } from './services/autoDiscoveryService';
 import { setEventLoggerSocket, logSystemStartup } from './services/eventLogger';
 
 // Load environment variables from root .env
@@ -165,6 +166,9 @@ server.listen(PORT, async () => {
   // Start housekeeping (log rotation, DB pruning, disk monitoring)
   startHousekeeping();
 
+  // Start auto-discovery service (periodic service detection)
+  startAutoDiscovery();
+
   // Log system startup event
   logSystemStartup();
 });
@@ -175,6 +179,7 @@ process.on('SIGTERM', () => {
   stopHeartbeatCleanup();
   stopMetricCollector();
   stopHousekeeping();
+  stopAutoDiscovery();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);

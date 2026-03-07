@@ -328,6 +328,36 @@ export default function SettingsPage() {
         </Card>
       )}
 
+      {/* Database Backup */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Database Backup</CardTitle>
+                <CardDescription>Scheduled PostgreSQL backups with configurable retention</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    setMessage({ type: 'success', text: 'Backup started...' });
+                    await settingsApi.triggerBackup();
+                    setMessage({ type: 'success', text: 'Database backup completed successfully' });
+                    setTimeout(() => setMessage(null), 5000);
+                  } catch {
+                    setMessage({ type: 'error', text: 'Backup failed. Check server logs.' });
+                    setTimeout(() => setMessage(null), 3000);
+                  }
+                }}
+              >
+                Backup Now
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
+      )}
+
       {/* Config Export / Import */}
       {isAdmin && (
         <Card>

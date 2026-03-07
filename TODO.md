@@ -131,11 +131,11 @@
 - [x] Write tests: `gracefulDegradation.test.ts`
 
 ### 3.5 Database Backup & Restore
-- [ ] Add scheduled PostgreSQL backup (`pg_dump`) to housekeeping service
-- [ ] Configurable retention (keep N backups)
-- [ ] Add backup status to settings system-info endpoint
-- [ ] Add manual backup trigger in settings UI
-- [ ] Write tests: `dbBackup.test.ts`
+- [x] Add scheduled PostgreSQL backup (`pg_dump`) to housekeeping service
+- [x] Configurable retention (keep N backups)
+- [x] Add backup status to settings system-info endpoint
+- [x] Add manual backup trigger in settings UI
+- [x] Write tests: `dbBackup.test.ts`
 
 ---
 
@@ -200,7 +200,7 @@
 - [x] `apiMetrics.test.ts` — Prometheus self-metrics, route normalization, error classification (26 tests)
 - [x] `maintenanceWindows.test.ts` — Maintenance window validation, suppression, overlap detection (23 tests)
 - [x] `gracefulDegradation.test.ts` — Redis fallback, retry backoff, metric cache, status events (22 tests)
-- [ ] `dbBackup.test.ts` — Backup scheduling
+- [x] `dbBackup.test.ts` — Backup filename, retention, scheduling, filtering (23 tests)
 - [x] `housekeeping.test.ts` — Disk-aware cleanup logic (11 tests)
 - [ ] `heartbeatCleanup.test.ts` — Agent health monitoring
 - [x] `metricCollector.test.ts` — Metric collection and storage (12 tests)

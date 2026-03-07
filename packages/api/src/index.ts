@@ -13,7 +13,7 @@ import { generalLimiter, initRateLimiting } from './middleware/rateLimit';
 import { routes } from './routes';
 import { startHeartbeatCleanup, stopHeartbeatCleanup } from './services/heartbeatCleanup';
 import { startMetricCollector, stopMetricCollector } from './services/metricCollector';
-import { startHousekeeping, stopHousekeeping } from './services/housekeeping';
+import { startHousekeeping, stopHousekeeping, startBackupScheduler, stopBackupScheduler } from './services/housekeeping';
 import { startAutoDiscovery, stopAutoDiscovery } from './services/autoDiscoveryService';
 import { setEventLoggerSocket, logSystemStartup } from './services/eventLogger';
 import { prisma } from './lib/prisma';
@@ -238,6 +238,9 @@ server.listen(PORT, async () => {
   // Start housekeeping (log rotation, DB pruning, disk monitoring)
   startHousekeeping();
 
+  // Start database backup scheduler
+  startBackupScheduler();
+
   // Start auto-discovery service (periodic service detection)
   startAutoDiscovery();
 
@@ -251,6 +254,7 @@ process.on('SIGTERM', () => {
   stopHeartbeatCleanup();
   stopMetricCollector();
   stopHousekeeping();
+  stopBackupScheduler();
   stopAutoDiscovery();
   server.close(() => {
     logger.info('Server closed');

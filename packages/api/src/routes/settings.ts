@@ -7,7 +7,7 @@ import fs from 'fs';
 import os from 'os';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { logger } from '../utils/logger';
-import { getDiskUsage } from '../services/housekeeping';
+import { getDiskUsage, getBackupStatus, runDatabaseBackup } from '../services/housekeeping';
 import { audit } from '../services/auditLogger';
 
 const router: ExpressRouter = Router();
@@ -335,6 +335,7 @@ router.get('/system-info', requireAuth, async (req: Request, res: Response) => {
           usedPercent: Math.round((1 - os.freemem() / os.totalmem()) * 100),
         },
         disk,
+        backup: getBackupStatus(),
       },
     });
   } catch (error) {
@@ -343,6 +344,25 @@ router.get('/system-info', requireAuth, async (req: Request, res: Response) => {
       success: false,
       error: 'Failed to get system info',
     });
+  }
+});
+
+/**
+ * POST /api/settings/backup
+ * Trigger a manual database backup (admin only)
+ */
+router.post('/backup', requireAuth, requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const result = await runDatabaseBackup();
+    if (result) {
+      audit(req, { action: 'settings.update', entityType: 'backup', details: { file: result.file } });
+      res.json({ success: true, data: result });
+    } else {
+      res.status(500).json({ success: false, error: 'Backup failed' });
+    }
+  } catch (error) {
+    logger.error('Manual backup failed', { error });
+    res.status(500).json({ success: false, error: 'Backup failed' });
   }
 });
 

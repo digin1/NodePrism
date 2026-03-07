@@ -437,6 +437,59 @@ router.post('/:id/silence', async (req: Request, res: Response, next: NextFuncti
   }
 });
 
+// POST /api/alerts/bulk/acknowledge - Bulk acknowledge alerts
+router.post('/bulk/acknowledge', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const schema = z.object({
+      alertIds: z.array(z.string().uuid()).min(1),
+      acknowledgedBy: z.string().default('Admin'),
+    });
+    const data = schema.parse(req.body);
+
+    const result = await prisma.alert.updateMany({
+      where: { id: { in: data.alertIds }, status: 'FIRING' },
+      data: { status: 'ACKNOWLEDGED', acknowledgedAt: new Date(), acknowledgedBy: data.acknowledgedBy },
+    });
+
+    logger.info(`Bulk acknowledged ${result.count} alerts`);
+    audit(req, { action: 'alert.acknowledge', entityType: 'alert', entityId: data.alertIds.join(','), details: { count: result.count } });
+
+    res.json({ success: true, data: { updated: result.count } });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Validation error', details: error.errors });
+    }
+    next(error);
+  }
+});
+
+// POST /api/alerts/bulk/silence - Bulk silence alerts
+router.post('/bulk/silence', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const schema = z.object({
+      alertIds: z.array(z.string().uuid()).min(1),
+      silencedBy: z.string().default('Admin'),
+      duration: z.number().min(1).default(60), // minutes
+    });
+    const data = schema.parse(req.body);
+
+    const result = await prisma.alert.updateMany({
+      where: { id: { in: data.alertIds }, status: { in: ['FIRING', 'ACKNOWLEDGED'] } },
+      data: { status: 'SILENCED', acknowledgedAt: new Date(), acknowledgedBy: data.silencedBy },
+    });
+
+    logger.info(`Bulk silenced ${result.count} alerts for ${data.duration}m`);
+    audit(req, { action: 'alert.silence', entityType: 'alert', entityId: data.alertIds.join(','), details: { count: result.count, duration: data.duration } });
+
+    res.json({ success: true, data: { updated: result.count } });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Validation error', details: error.errors });
+    }
+    next(error);
+  }
+});
+
 // POST /api/alerts/webhook - Receive alerts from AlertManager
 router.post('/webhook', async (req: Request, res: Response, next: NextFunction) => {
   try {

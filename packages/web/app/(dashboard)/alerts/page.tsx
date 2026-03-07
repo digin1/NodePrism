@@ -1,6 +1,5 @@
 'use client';
 
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +45,7 @@ export default function AlertsPage() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('FIRING');
   const [severityFilter, setSeverityFilter] = useState('');
+  const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
 
   const { data: alerts, isLoading } = useQuery({
     queryKey: ['alerts', { status: statusFilter, severity: severityFilter }],
@@ -57,16 +57,51 @@ export default function AlertsPage() {
     queryFn: () => alertApi.stats(),
   });
 
+  const invalidateAlerts = () => {
+    queryClient.invalidateQueries({ queryKey: ['alerts'] });
+    queryClient.invalidateQueries({ queryKey: ['alertStats'] });
+  };
+
   const acknowledgeMutation = useMutation({
     mutationFn: (id: string) => alertApi.acknowledge(id, 'Admin'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['alerts'] });
-      queryClient.invalidateQueries({ queryKey: ['alertStats'] });
-    },
+    onSuccess: invalidateAlerts,
+  });
+
+  const bulkAcknowledgeMutation = useMutation({
+    mutationFn: (alertIds: string[]) => alertApi.bulkAcknowledge(alertIds, 'Admin'),
+    onSuccess: () => { invalidateAlerts(); setSelectedAlerts(new Set()); },
+  });
+
+  const bulkSilenceMutation = useMutation({
+    mutationFn: (alertIds: string[]) => alertApi.bulkSilence(alertIds, 'Admin', 60),
+    onSuccess: () => { invalidateAlerts(); setSelectedAlerts(new Set()); },
   });
 
   const alertList = alerts as Alert[] | undefined;
   const alertStats = stats as AlertStats | undefined;
+
+  const toggleAlertSelection = (alertId: string) => {
+    setSelectedAlerts(prev => {
+      const next = new Set(prev);
+      if (next.has(alertId)) next.delete(alertId);
+      else next.add(alertId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!alertList) return;
+    if (selectedAlerts.size === alertList.length) {
+      setSelectedAlerts(new Set());
+    } else {
+      setSelectedAlerts(new Set(alertList.map(a => a.id)));
+    }
+  };
+
+  // Only show bulk actions for firing alerts
+  const selectedFiringIds = alertList
+    ?.filter(a => selectedAlerts.has(a.id) && (a.status === 'FIRING' || a.status === 'ACKNOWLEDGED'))
+    .map(a => a.id) || [];
 
   return (
     <div className="space-y-6">
@@ -128,6 +163,7 @@ export default function AlertsPage() {
               <option value="FIRING">Firing</option>
               <option value="RESOLVED">Resolved</option>
               <option value="ACKNOWLEDGED">Acknowledged</option>
+              <option value="SILENCED">Silenced</option>
             </Select>
             <Select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
               <option value="">All Severity</option>
@@ -138,6 +174,38 @@ export default function AlertsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Bulk Actions Bar */}
+      {selectedAlerts.size > 0 && (
+        <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <span className="text-sm font-medium text-blue-700">
+            {selectedAlerts.size} alert{selectedAlerts.size !== 1 ? 's' : ''} selected
+          </span>
+          {selectedFiringIds.length > 0 && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => bulkAcknowledgeMutation.mutate(selectedFiringIds)}
+                disabled={bulkAcknowledgeMutation.isPending}
+              >
+                {bulkAcknowledgeMutation.isPending ? 'Acknowledging...' : 'Acknowledge Selected'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => bulkSilenceMutation.mutate(selectedFiringIds)}
+                disabled={bulkSilenceMutation.isPending}
+              >
+                {bulkSilenceMutation.isPending ? 'Silencing...' : 'Silence Selected (1h)'}
+              </Button>
+            </>
+          )}
+          <Button size="sm" variant="ghost" onClick={() => setSelectedAlerts(new Set())}>
+            Clear Selection
+          </Button>
+        </div>
+      )}
 
       {/* Alert List */}
       <Card>
@@ -165,6 +233,14 @@ export default function AlertsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <input
+                      type="checkbox"
+                      checked={alertList.length > 0 && selectedAlerts.size === alertList.length}
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300"
+                    />
+                  </TableHead>
                   <TableHead>Alert</TableHead>
                   <TableHead>Server</TableHead>
                   <TableHead>Severity</TableHead>
@@ -176,6 +252,14 @@ export default function AlertsPage() {
               <TableBody>
                 {alertList?.map((alert) => (
                   <TableRow key={alert.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedAlerts.has(alert.id)}
+                        onChange={() => toggleAlertSelection(alert.id)}
+                        className="rounded border-gray-300"
+                      />
+                    </TableCell>
                     <TableCell>
                       <p className="font-medium">{alert.message}</p>
                       {alert.rule && (

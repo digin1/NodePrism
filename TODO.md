@@ -85,11 +85,11 @@
 - [x] Write tests: `bandwidth.test.ts`
 
 ### 2.4 Bulk Operations
-- [ ] Bulk delete servers
-- [ ] Bulk acknowledge/silence alerts
-- [ ] Bulk move servers to group
-- [ ] Select-all checkbox with shift-click support
-- [ ] Write tests: `bulkOperations.test.ts`
+- [x] Bulk delete servers
+- [x] Bulk acknowledge/silence alerts
+- [x] Bulk move servers to group
+- [x] Select-all checkbox with shift-click support
+- [x] Write tests: `bulkOperations.test.ts`
 
 ### 2.5 Config Export / Import
 - [ ] Export alert rules, templates, settings as JSON
@@ -194,7 +194,7 @@
 - [x] `userManagement.test.ts` — User CRUD, roles, and permission hierarchy (19 tests)
 - [x] `serverTags.test.ts` — Tag filtering, bulk ops, autocomplete (25 tests)
 - [x] `bandwidth.test.ts` — Bandwidth formatting, ranking, and visualization (14 tests)
-- [ ] `bulkOperations.test.ts` — Bulk server/alert operations
+- [x] `bulkOperations.test.ts` — Bulk delete, acknowledge, silence, move, selection (19 tests)
 - [ ] `configExportImport.test.ts` — Config export/import
 - [ ] `healthCheck.test.ts` — Health endpoint
 - [ ] `apiMetrics.test.ts` — Prometheus self-metrics

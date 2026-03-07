@@ -59,6 +59,8 @@ export default function ServersPage() {
   const [bulkTagMode, setBulkTagMode] = useState<'add' | 'remove'>('add');
   const [bulkTagSuggestions, setBulkTagSuggestions] = useState<string[]>([]);
   const bulkTagInputRef = useRef<HTMLInputElement>(null);
+  const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
+  const [bulkMoveGroupId, setBulkMoveGroupId] = useState<string | null>(null);
 
   const { data: servers, isLoading } = useQuery({
     queryKey: ['servers', { search, status: statusFilter, environment: envFilter, tag: tagFilter }],
@@ -144,6 +146,27 @@ export default function ServersPage() {
       setShowBulkTagModal(false);
       setSelectedServers(new Set());
       setBulkTagInput('');
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (serverIds: string[]) => serverApi.bulkDelete(serverIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+      queryClient.invalidateQueries({ queryKey: ['serverGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['serverTags'] });
+      setSelectedServers(new Set());
+    },
+  });
+
+  const bulkMoveMutation = useMutation({
+    mutationFn: ({ serverIds, groupId }: { serverIds: string[]; groupId: string | null }) =>
+      serverGroupApi.moveServers(serverIds, groupId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+      queryClient.invalidateQueries({ queryKey: ['serverGroups'] });
+      setSelectedServers(new Set());
+      setShowBulkMoveModal(false);
     },
   });
 
@@ -516,6 +539,21 @@ export default function ServersPage() {
           <Button size="sm" variant="outline" onClick={() => setShowBulkTagModal(true)}>
             Manage Tags
           </Button>
+          <Button size="sm" variant="outline" onClick={() => { setBulkMoveGroupId(null); setShowBulkMoveModal(true); }}>
+            Move to Group
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-600 border-red-200 hover:bg-red-50"
+            onClick={() => {
+              if (confirm(`Delete ${selectedServers.size} server${selectedServers.size !== 1 ? 's' : ''}? This cannot be undone.`)) {
+                bulkDeleteMutation.mutate(Array.from(selectedServers));
+              }
+            }}
+          >
+            Delete Selected
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelectedServers(new Set())}>
             Clear Selection
           </Button>
@@ -757,6 +795,39 @@ export default function ServersPage() {
                 disabled={!bulkTagInput.trim() || bulkTagMutation.isPending}
               >
                 {bulkTagMutation.isPending ? 'Applying...' : `${bulkTagMode === 'add' ? 'Add' : 'Remove'} Tags`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Move Modal */}
+      {showBulkMoveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBulkMoveModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">Move Servers to Group</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {selectedServers.size} server{selectedServers.size !== 1 ? 's' : ''} selected
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Target Group</label>
+              <Select
+                value={bulkMoveGroupId || ''}
+                onChange={(e) => setBulkMoveGroupId(e.target.value || null)}
+              >
+                <option value="">Ungrouped</option>
+                {flatGroups?.map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setShowBulkMoveModal(false)}>Cancel</Button>
+              <Button
+                onClick={() => bulkMoveMutation.mutate({ serverIds: Array.from(selectedServers), groupId: bulkMoveGroupId })}
+                disabled={bulkMoveMutation.isPending}
+              >
+                {bulkMoveMutation.isPending ? 'Moving...' : 'Move'}
               </Button>
             </div>
           </div>

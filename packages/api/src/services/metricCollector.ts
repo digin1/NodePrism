@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import axios from 'axios';
 import type { Server as SocketIOServer } from 'socket.io';
 import { AgentType } from '@prisma/client';
+import { MultiStageAlertProcessor } from './multiStageAlertProcessor';
 
 // Configuration
 const COLLECTION_INTERVAL_SECONDS = parseInt(process.env.METRIC_COLLECTION_INTERVAL_SECONDS || '30', 10);
@@ -12,6 +13,7 @@ const RETENTION_DAYS = parseInt(process.env.METRIC_RETENTION_DAYS || '7', 10);
 let collectionInterval: NodeJS.Timeout | null = null;
 let cleanupInterval: NodeJS.Timeout | null = null;
 let socketIO: SocketIOServer | null = null;
+const alertProcessor = new MultiStageAlertProcessor();
 
 // Node exporter metric queries (always collected)
 const NODE_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
@@ -206,6 +208,11 @@ export async function collectAllMetrics(): Promise<{
 
             logger.debug(`Collected ${storedCount} metrics for ${server.hostname}`);
           }
+
+          // Evaluate alert templates against this server (non-blocking)
+          alertProcessor.evaluateMultiStageAlerts(server.id).catch(err => {
+            logger.warn(`Alert evaluation failed for ${server.hostname}`, { error: err });
+          });
         } catch (error) {
           logger.warn(`Failed to collect metrics for server ${server.hostname}`, { error });
         }

@@ -1,6 +1,10 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { AlertTemplateService, AlertTemplateConfig } from './alertTemplateService';
+import { dispatchNotifications } from './notificationSender';
+import axios from 'axios';
+
+const PROMETHEUS_URL = process.env.PROMETHEUS_URL || 'http://localhost:9090';
 
 export interface MultiStageAlert {
   id: string;
@@ -15,18 +19,40 @@ export interface MultiStageAlert {
   labels: Record<string, string>;
 }
 
-export interface AlertStage {
-  name: string;
-  query: string;
-  calc?: string;
-  condition: string;
-  duration: string; // How long condition must be true
-  severity: 'warning' | 'critical';
+/**
+ * Query Prometheus for a single instant value.
+ * Returns null if the query fails or returns no data.
+ */
+async function queryPrometheus(query: string): Promise<number | null> {
+  try {
+    const response = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+      params: { query },
+      timeout: 5000,
+    });
+    const result = response.data?.data?.result?.[0]?.value;
+    return result ? parseFloat(result[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Inject server_id label into a PromQL query.
+ * If the query already contains a label selector (curly braces), appends server_id.
+ * Otherwise wraps the metric name with {server_id="..."}.
+ */
+function injectServerId(query: string, serverId: string): string {
+  if (query.includes('{')) {
+    // Insert server_id into existing label selector
+    return query.replace('{', `{server_id="${serverId}", `);
+  }
+  // No label selector — add one
+  return query.replace(/^(\w+)/, `$1{server_id="${serverId}"}`);
 }
 
 /**
  * Multi-Stage Alert Processor
- * Handles complex alerts that build on each other
+ * Evaluates alert templates against live Prometheus data for each server.
  */
 export class MultiStageAlertProcessor {
   private templateService: AlertTemplateService;
@@ -36,15 +62,15 @@ export class MultiStageAlertProcessor {
   }
 
   /**
-   * Evaluate multi-stage alerts for a server
+   * Evaluate all matching alert templates for a single server.
+   * Called from the metric collection cycle.
    */
   async evaluateMultiStageAlerts(serverId: string): Promise<void> {
     try {
-      // Get all templates that match this server
       const templates = await this.templateService.findMatchingTemplates(serverId);
 
       for (const template of templates) {
-        await this.evaluateTemplateStages(template, serverId);
+        await this.evaluateTemplate(template, serverId);
       }
     } catch (error) {
       logger.error('Failed to evaluate multi-stage alerts', { serverId, error });
@@ -52,155 +78,145 @@ export class MultiStageAlertProcessor {
   }
 
   /**
-   * Evaluate all stages of a template
+   * Evaluate a single template against a server: query Prometheus, check warn/crit conditions.
    */
-  private async evaluateTemplateStages(
+  private async evaluateTemplate(
     template: AlertTemplateConfig,
     serverId: string
   ): Promise<void> {
-    // For now, implement basic two-stage logic (warning -> critical)
-    // In a full implementation, this would parse template.calc for multi-stage definitions
+    // Query Prometheus with server_id injected
+    const query = injectServerId(template.query, serverId);
+    const value = await queryPrometheus(query);
 
-    const stages: AlertStage[] = [
-      {
-        name: 'warning',
-        query: template.query,
-        calc: template.calc,
-        condition: template.warn.condition,
-        duration: template.for,
-        severity: 'warning',
-      },
-      {
-        name: 'critical',
-        query: template.query,
-        calc: template.calc,
-        condition: template.crit.condition,
-        duration: template.for,
-        severity: 'critical',
-      },
-    ];
-
-    for (let i = 0; i < stages.length; i++) {
-      const stage = stages[i];
-      const stageResult = await this.evaluateStage(stage, serverId, template);
-
-      if (stageResult) {
-        await this.handleStageFiring(template, serverId, i + 1, stage, stageResult);
-      } else {
-        await this.handleStageResolution(template, serverId, i + 1);
-      }
+    if (value === null) {
+      // No data from Prometheus — skip evaluation
+      return;
     }
+
+    // Determine previous state from DB
+    const previousState = await this.getPreviousState(template.id, serverId);
+
+    // Check critical first (higher priority)
+    const critFiring = this.templateService.evaluateHysteresis(
+      template.crit,
+      value,
+      previousState
+    );
+
+    if (critFiring) {
+      await this.upsertAlert(template, serverId, 'CRITICAL', value);
+      return;
+    }
+
+    // Check warning
+    const warnFiring = this.templateService.evaluateHysteresis(
+      template.warn,
+      value,
+      previousState
+    );
+
+    if (warnFiring) {
+      await this.upsertAlert(template, serverId, 'WARNING', value);
+      return;
+    }
+
+    // Neither condition met — resolve if there was an active alert
+    await this.resolveAlert(template.id, serverId);
   }
 
   /**
-   * Evaluate a single stage
+   * Look up the current state of the alert for this template+server.
    */
-  private async evaluateStage(
-    stage: AlertStage,
-    serverId: string,
-    template: AlertTemplateConfig
-  ): Promise<{ value: number; labels: Record<string, string> } | null> {
-    try {
-      // This would query Prometheus with the stage query
-      // For now, return mock data
-      const mockValue = Math.random() * 100;
-      const mockLabels = { server_id: serverId };
+  private async getPreviousState(
+    templateId: string,
+    serverId: string
+  ): Promise<'clear' | 'warning' | 'critical'> {
+    const existing = await prisma.alert.findFirst({
+      where: {
+        templateId,
+        serverId,
+        status: { in: ['FIRING', 'PENDING'] },
+      },
+      select: { severity: true },
+    });
 
-      // Evaluate condition
-      const conditionMet = this.templateService.evaluateHysteresis(
-        { condition: stage.condition },
-        mockValue,
-        'clear' // Would track previous state
-      );
-
-      if (conditionMet) {
-        return { value: mockValue, labels: mockLabels };
-      }
-
-      return null;
-    } catch (error) {
-      logger.error('Failed to evaluate stage', { stage: stage.name, serverId, error });
-      return null;
-    }
+    if (!existing) return 'clear';
+    if (existing.severity === 'CRITICAL') return 'critical';
+    if (existing.severity === 'WARNING') return 'warning';
+    return 'clear';
   }
 
   /**
-   * Handle stage firing
+   * Create or update an alert for a template+server, and dispatch notifications.
    */
-  private async handleStageFiring(
+  private async upsertAlert(
     template: AlertTemplateConfig,
     serverId: string,
-    stageNumber: number,
-    stage: AlertStage,
-    result: { value: number; labels: Record<string, string> }
+    severity: 'WARNING' | 'CRITICAL',
+    value: number
   ): Promise<void> {
     try {
-      // Check if alert already exists
-      const existingAlert = await prisma.alert.findFirst({
-        where: {
+      const fingerprint = `template-${template.id}-${serverId}`;
+
+      const alert = await prisma.alert.upsert({
+        where: { fingerprint },
+        create: {
           templateId: template.id,
           serverId,
-          status: { in: ['FIRING', 'PENDING'] },
+          status: 'FIRING',
+          severity,
+          message: `${template.name}: ${severity.toLowerCase()} (value: ${value.toFixed(2)}${template.units ? ' ' + template.units : ''})`,
+          labels: { server_id: serverId },
+          annotations: { template: template.name, value, units: template.units },
+          fingerprint,
+          startsAt: new Date(),
+        },
+        update: {
+          status: 'FIRING',
+          severity,
+          message: `${template.name}: ${severity.toLowerCase()} (value: ${value.toFixed(2)}${template.units ? ' ' + template.units : ''})`,
+          annotations: { template: template.name, value, units: template.units },
+        },
+        include: {
+          server: { select: { hostname: true, ipAddress: true } },
         },
       });
 
-      if (existingAlert) {
-        // Update existing alert
-        await prisma.alert.update({
-          where: { id: existingAlert.id },
-          data: {
-            status: 'FIRING',
-            severity: stage.severity.toUpperCase() as any,
-            message: `${template.name} - ${stage.name} stage`,
-            labels: result.labels,
-          },
-        });
-      } else {
-        // Create new alert
-        const fingerprint = `${template.id}-${serverId}-${stageNumber}`;
+      // Dispatch notifications (non-blocking)
+      dispatchNotifications({
+        id: alert.id,
+        status: alert.status,
+        severity: alert.severity,
+        message: alert.message,
+        labels: (alert.labels as Record<string, string>) || {},
+        annotations: (alert.annotations as Record<string, string>) || undefined,
+        startsAt: alert.startsAt,
+        endsAt: alert.endsAt,
+        serverHostname: alert.server?.hostname,
+        serverIp: alert.server?.ipAddress,
+      }).catch(err => {
+        logger.error('Failed to dispatch template alert notifications', { error: err.message });
+      });
 
-        await prisma.alert.create({
-          data: {
-            templateId: template.id,
-            serverId,
-            status: 'PENDING', // Would transition to FIRING after duration
-            severity: stage.severity.toUpperCase() as any,
-            message: `${template.name} - ${stage.name} stage`,
-            labels: result.labels,
-            annotations: {
-              stage: stageNumber,
-              template: template.name,
-              value: result.value,
-            },
-            fingerprint,
-            startsAt: new Date(),
-          },
-        });
-      }
-
-      logger.info('Multi-stage alert fired', {
+      logger.info('Template alert fired', {
         template: template.name,
         serverId,
-        stage: stageNumber,
-        severity: stage.severity,
+        severity,
+        value,
       });
     } catch (error) {
-      logger.error('Failed to handle stage firing', { templateId: template.id, serverId, error });
+      logger.error('Failed to upsert template alert', { templateId: template.id, serverId, error });
     }
   }
 
   /**
-   * Handle stage resolution
+   * Resolve an active alert if conditions have cleared.
    */
-  private async handleStageResolution(
-    template: AlertTemplateConfig,
-    serverId: string,
-    stageNumber: number
-  ): Promise<void> {
+  private async resolveAlert(templateId: string, serverId: string): Promise<void> {
     try {
       const alert = await prisma.alert.findFirst({
         where: {
-          templateId: template.id,
+          templateId,
           serverId,
           status: { in: ['FIRING', 'PENDING'] },
         },
@@ -215,23 +231,15 @@ export class MultiStageAlertProcessor {
           },
         });
 
-        logger.info('Multi-stage alert resolved', {
-          template: template.name,
-          serverId,
-          stage: stageNumber,
-        });
+        logger.info('Template alert resolved', { template: templateId, serverId });
       }
     } catch (error) {
-      logger.error('Failed to handle stage resolution', {
-        templateId: template.id,
-        serverId,
-        error,
-      });
+      logger.error('Failed to resolve template alert', { templateId, serverId, error });
     }
   }
 
   /**
-   * Get current multi-stage alert states
+   * Get current multi-stage alert states for the API.
    */
   async getMultiStageStates(serverId?: string): Promise<MultiStageAlert[]> {
     try {
@@ -241,19 +249,17 @@ export class MultiStageAlertProcessor {
           templateId: { not: null },
           status: { in: ['FIRING', 'PENDING'] },
         },
-        include: {
-          template: true,
-        },
+        include: { template: true },
       });
 
       return alerts.map((alert) => ({
         id: alert.id,
         templateId: alert.templateId!,
         serverId: alert.serverId!,
-        stage: (alert.annotations as any)?.stage || 1,
-        status: alert.status === 'PENDING' ? 'pending' : 'firing',
+        stage: alert.severity === 'CRITICAL' ? 2 : 1,
+        status: alert.status === 'PENDING' ? 'pending' as const : 'firing' as const,
         value: (alert.annotations as any)?.value || 0,
-        threshold: 0, // Would be calculated from template
+        threshold: 0,
         startedAt: alert.startsAt,
         lastEvaluated: alert.createdAt,
         labels: (alert.labels as Record<string, string>) || {},

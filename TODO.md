@@ -22,11 +22,11 @@
 - [x] Write tests: `notifications.test.ts`
 
 ### 1.2 Audit Logging
-- [ ] Create `packages/api/src/routes/audit.ts` with query/filter endpoints
-- [ ] Create `packages/api/src/middleware/auditLogger.ts` middleware
-- [ ] Populate audit log on: server CRUD, alert rule changes, settings changes, user actions
-- [ ] Add audit log viewer UI page (`/settings/audit`)
-- [ ] Write tests: `auditLogger.test.ts`
+- [x] Create `packages/api/src/routes/audit.ts` with query/filter endpoints
+- [x] Create `packages/api/src/services/auditLogger.ts` utility
+- [x] Populate audit log on: server CRUD, alert rule changes, settings changes, user actions
+- [x] Add audit log viewer UI page (`/settings/audit`)
+- [x] Write tests: `auditLogger.test.ts`
 
 ### 1.3 Multi-Stage Alert Processor
 - [ ] Replace mock random data with real Prometheus queries in `multiStageAlertProcessor.ts`
@@ -183,7 +183,7 @@
 ### Unit Tests
 - [x] `targetGenerator.test.ts` — Prometheus target generation (8 tests)
 - [x] `notifications.test.ts` — Notification dispatch (24 tests)
-- [ ] `auditLogger.test.ts` — Audit log middleware
+- [x] `auditLogger.test.ts` — Audit log entries and querying (16 tests)
 - [ ] `multiStageAlertProcessor.test.ts` — Alert stage evaluation
 - [ ] `alertTemplates.test.ts` — Alert template CRUD and matching
 - [ ] `autoDiscovery.test.ts` — Service auto-discovery
@@ -198,16 +198,16 @@
 - [ ] `maintenanceWindows.test.ts` — Maintenance window logic
 - [ ] `gracefulDegradation.test.ts` — Fallback behavior
 - [ ] `dbBackup.test.ts` — Backup scheduling
-- [ ] `housekeeping.test.ts` — Disk-aware cleanup logic
+- [x] `housekeeping.test.ts` — Disk-aware cleanup logic (11 tests)
 - [ ] `heartbeatCleanup.test.ts` — Agent health monitoring
-- [ ] `metricCollector.test.ts` — Metric collection and storage
-- [ ] `eventLogger.test.ts` — Event logging
-- [ ] `containers.test.ts` — Container CRUD and BigInt serialization
-- [ ] `auth.test.ts` — Authentication and authorization
-- [ ] `servers.test.ts` — Server CRUD and validation
-- [ ] `agents.test.ts` — Agent registration and heartbeat
-- [ ] `alerts.test.ts` — Alert lifecycle (fire, acknowledge, silence, resolve)
-- [ ] `serverGroups.test.ts` — Hierarchical group operations
+- [x] `metricCollector.test.ts` — Metric collection and storage (12 tests)
+- [x] `eventLogger.test.ts` — Event logging (11 tests)
+- [x] `containers.test.ts` — Container CRUD and BigInt serialization (11 tests)
+- [x] `auth.test.ts` — Authentication and authorization (8 tests)
+- [x] `servers.test.ts` — Server CRUD and validation (11 tests)
+- [x] `agents.test.ts` — Agent registration and heartbeat (18 tests)
+- [x] `alerts.test.ts` — Alert lifecycle (fire, acknowledge, silence, resolve) (17 tests)
+- [x] `serverGroups.test.ts` — Hierarchical group operations (19 tests)
 
 ### Integration Tests
 - [x] `integration-test.sh` — End-to-end service health and API tests

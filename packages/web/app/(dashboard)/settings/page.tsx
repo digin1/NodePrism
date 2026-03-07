@@ -273,6 +273,23 @@ export default function SettingsPage() {
         </Card>
       )}
 
+      {/* Audit Log */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Audit Log</CardTitle>
+                <CardDescription>Track all changes made by users across the system</CardDescription>
+              </div>
+              <a href="/settings/audit">
+                <Button>View Audit Log</Button>
+              </a>
+            </div>
+          </CardHeader>
+        </Card>
+      )}
+
       {/* System Status */}
       <Card>
         <CardHeader>

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { authLimiter } from '../middleware/rateLimit';
 import bcrypt from 'bcrypt';
+import { audit } from '../services/auditLogger';
 import jwt from 'jsonwebtoken';
 
 const router: ExpressRouter = Router();
@@ -73,6 +74,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     );
 
     logger.info(`User registered: ${user.email}`);
+    audit(req, { action: 'auth.register', entityType: 'user', entityId: user.id, details: { email: user.email } });
 
     res.status(201).json({
       success: true,
@@ -134,6 +136,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     );
 
     logger.info(`User logged in: ${user.email}`);
+    audit(req, { action: 'auth.login', entityType: 'user', entityId: user.id, details: { email: user.email } });
 
     res.json({
       success: true,

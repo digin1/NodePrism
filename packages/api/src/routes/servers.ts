@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction, type Router as ExpressRouter }
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
+import { audit } from '../services/auditLogger';
 
 const router: ExpressRouter = Router();
 
@@ -117,6 +118,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     });
 
     logger.info(`Server created: ${server.hostname} (${server.ipAddress})`);
+    audit(req, { action: 'server.create', entityType: 'server', entityId: server.id, details: { hostname: server.hostname, ipAddress: server.ipAddress } });
 
     // Emit socket event for real-time updates
     const io = req.app.get('io');
@@ -152,6 +154,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
     });
 
     logger.info(`Server updated: ${server.hostname}`);
+    audit(req, { action: 'server.update', entityType: 'server', entityId: server.id, details: data as Record<string, unknown> });
 
     const io = req.app.get('io');
     if (io) {
@@ -184,6 +187,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     });
 
     logger.info(`Server deleted: ${id}`);
+    audit(req, { action: 'server.delete', entityType: 'server', entityId: id });
 
     const io = req.app.get('io');
     if (io) {

@@ -133,6 +133,20 @@ Base path: `/api/metrics`
 | GET | `/metrics/server/:serverId/aggregate` | - | localhost:9090'; |
 | GET | `/metrics/server/:serverId/chart-data` | - | localhost:9090'; |
 
+## Notifications
+
+Base path: `/api/notifications`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/notifications/channels` | - | Validation schemas |
+| GET | `/notifications/channels/:id` | - | Validation schemas |
+| POST | `/notifications/channels` | - | Validation schemas |
+| PUT | `/notifications/channels/:id` | - | Validation schemas |
+| DELETE | `/notifications/channels/:id` | - | Validation schemas |
+| POST | `/notifications/channels/:id/test` | - | Validation schemas |
+| GET | `/notifications/logs` | - | Validation schemas |
+
 ## ServerGroups
 
 Base path: `/api/serverGroups`

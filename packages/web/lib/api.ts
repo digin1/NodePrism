@@ -116,6 +116,7 @@ export const alertApi = {
     api.put(`/api/alerts/templates/${id}`, data),
   deleteRule: (id: string) => api.delete(`/api/alerts/rules/${id}`),
   deleteTemplate: (id: string) => api.delete(`/api/alerts/templates/${id}`),
+  testTemplate: (id: string) => getData(api.post(`/api/alerts/templates/${id}/test`)),
   acknowledge: (id: string, acknowledgedBy?: string) =>
     api.post(`/api/alerts/${id}/acknowledge`, { acknowledgedBy }),
   silence: (id: string, silencedBy?: string, duration?: number) =>

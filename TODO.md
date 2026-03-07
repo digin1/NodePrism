@@ -37,10 +37,10 @@
 - [x] Write tests: `multiStageAlertProcessor.test.ts`
 
 ### 1.4 Alert Template UI
-- [ ] Add `/alerts/templates` page with template list, create, edit, delete
-- [ ] Implement the test endpoint (`POST /api/alerts/templates/:id/test`) — run template query against Prometheus and return live results
-- [ ] Show matched servers per template
-- [ ] Write tests: `alertTemplates.test.ts`
+- [x] Add `/alerts/templates` page with template list, create, edit, delete
+- [x] Implement the test endpoint (`POST /api/alerts/templates/:id/test`) — run template query against Prometheus and return live results
+- [x] Show matched servers per template (test results table with per-server values)
+- [x] Write tests: `alertTemplates.test.ts`
 
 ### 1.5 Auto-Discovery Service
 - [ ] Fix version probing (MySQL, PostgreSQL, MongoDB, Redis, Nginx)
@@ -186,7 +186,7 @@
 - [x] `notifications.test.ts` — Notification dispatch (24 tests)
 - [x] `auditLogger.test.ts` — Audit log entries and querying (16 tests)
 - [x] `multiStageAlertProcessor.test.ts` — Condition evaluation, hysteresis, PromQL injection (30 tests)
-- [ ] `alertTemplates.test.ts` — Alert template CRUD and matching
+- [x] `alertTemplates.test.ts` — Alert template config, label matching, validation (19 tests)
 - [ ] `autoDiscovery.test.ts` — Service auto-discovery
 - [ ] `dashboards.test.ts` — Dashboard CRUD
 - [ ] `userManagement.test.ts` — User CRUD and roles

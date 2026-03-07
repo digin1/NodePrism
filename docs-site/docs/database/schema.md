@@ -29,6 +29,23 @@ AlertTemplate ──── NotificationChannel
 
 ## Models
 
+### ServerGroup
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| description | String | - | - |
+| parentId | String | - | - |
+| sortOrder | Int | ✓ | Default: 0 |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| parent | ServerGroup | - | Relation |
+| children | ServerGroup[] | ✓ | Relation |
+| servers | Server[] | ✓ | - |
+
+---
+
 ### Server
 
 | Field | Type | Required | Constraints |
@@ -38,12 +55,14 @@ AlertTemplate ──── NotificationChannel
 | ipAddress | String | ✓ | - |
 | status | ServerStatus | ✓ | Default: OFFLINE |
 | environment | Environment | ✓ | Default: PRODUCTION |
+| groupId | String | - | - |
 | region | String | - | - |
 | tags | String[] | ✓ | Default: [] |
 | metadata | Json | - | - |
 | lastSeen | DateTime | - | - |
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
+| group | ServerGroup | - | Relation |
 | agents | Agent[] | ✓ | - |
 | alerts | Alert[] | ✓ | - |
 | anomalyEvents | AnomalyEvent[] | ✓ | - |

@@ -243,6 +243,73 @@ detect_os() {
   esac
 }
 
+# Gather detailed OS/system information for registration
+gather_system_info() {
+  # Kernel
+  OS_KERNEL=$(uname -r 2>/dev/null || echo "unknown")
+  OS_ARCH_RAW=$(uname -m 2>/dev/null || echo "unknown")
+
+  # Distribution detection
+  OS_DISTRO="unknown"
+  OS_DISTRO_VERSION=""
+  OS_DISTRO_CODENAME=""
+  OS_DISTRO_ID=""
+
+  if [[ -f /etc/os-release ]]; then
+    OS_DISTRO=$(. /etc/os-release && echo "${PRETTY_NAME:-$NAME}")
+    OS_DISTRO_VERSION=$(. /etc/os-release && echo "${VERSION_ID:-}")
+    OS_DISTRO_CODENAME=$(. /etc/os-release && echo "${VERSION_CODENAME:-}")
+    OS_DISTRO_ID=$(. /etc/os-release && echo "${ID:-}")
+  elif [[ -f /etc/redhat-release ]]; then
+    OS_DISTRO=$(cat /etc/redhat-release)
+  elif [[ -f /etc/debian_version ]]; then
+    OS_DISTRO="Debian $(cat /etc/debian_version)"
+    OS_DISTRO_ID="debian"
+  elif command -v lsb_release &>/dev/null; then
+    OS_DISTRO=$(lsb_release -ds 2>/dev/null || echo "unknown")
+  fi
+
+  # CPU info
+  OS_CPU_MODEL=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | sed 's/^ //' || echo "unknown")
+  OS_CPU_CORES=$(nproc 2>/dev/null || grep -c ^processor /proc/cpuinfo 2>/dev/null || echo "0")
+
+  # Memory (total in bytes)
+  OS_MEMORY_TOTAL=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2 * 1024}' || echo "0")
+
+  # Uptime
+  OS_UPTIME=$(cat /proc/uptime 2>/dev/null | awk '{print int($1)}' || echo "0")
+
+  # Virtualization
+  OS_VIRT="physical"
+  if [[ -f /sys/class/dmi/id/product_name ]]; then
+    local product
+    product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || echo "")
+    case "$product" in
+      *Virtual*|*VMware*) OS_VIRT="vmware" ;;
+      *KVM*)              OS_VIRT="kvm" ;;
+      *VirtualBox*)       OS_VIRT="virtualbox" ;;
+      *Xen*)              OS_VIRT="xen" ;;
+      *Droplet*)          OS_VIRT="digitalocean" ;;
+    esac
+  fi
+  if [[ -d /proc/xen ]] && [[ "$OS_VIRT" == "physical" ]]; then
+    OS_VIRT="xen"
+  fi
+  if grep -q docker /proc/1/cgroup 2>/dev/null || [[ -f /.dockerenv ]]; then
+    OS_VIRT="docker"
+  fi
+  # Cloud detection
+  if command -v dmidecode &>/dev/null; then
+    local sys_vendor
+    sys_vendor=$(dmidecode -s system-manufacturer 2>/dev/null || echo "")
+    case "$sys_vendor" in
+      *Amazon*)    OS_VIRT="aws" ;;
+      *Google*)    OS_VIRT="gcp" ;;
+      *Microsoft*) OS_VIRT="azure" ;;
+    esac
+  fi
+}
+
 get_ip_address() {
   local ip=""
   if command -v hostname &>/dev/null; then
@@ -1270,8 +1337,17 @@ register_with_api() {
 
   log_info "Registering with NodePrism..."
 
+  # Gather OS/system info before registration
+  gather_system_info
+
   local ip_address
   ip_address=$(get_ip_address)
+
+  # Escape strings for JSON safety
+  local cpu_model_escaped
+  cpu_model_escaped=$(echo "$OS_CPU_MODEL" | sed 's/"/\\"/g')
+  local distro_escaped
+  distro_escaped=$(echo "$OS_DISTRO" | sed 's/"/\\"/g')
 
   local payload
   payload=$(cat <<EOF
@@ -1280,7 +1356,24 @@ register_with_api() {
   "ipAddress": "${ip_address}",
   "agentType": "${AGENT_API_TYPES[$AGENT_TYPE]}",
   "port": ${LISTEN_PORT},
-  "version": "${AGENT_VERSION}"
+  "version": "${AGENT_VERSION}",
+  "metadata": {
+    "os": {
+      "distro": "${distro_escaped}",
+      "distroId": "${OS_DISTRO_ID}",
+      "distroVersion": "${OS_DISTRO_VERSION}",
+      "distroCodename": "${OS_DISTRO_CODENAME}",
+      "kernel": "${OS_KERNEL}",
+      "arch": "${OS_ARCH_RAW}",
+      "platform": "${OS_VIRT}"
+    },
+    "hardware": {
+      "cpuModel": "${cpu_model_escaped}",
+      "cpuCores": ${OS_CPU_CORES},
+      "memoryTotal": ${OS_MEMORY_TOTAL}
+    },
+    "uptime": ${OS_UPTIME}
+  }
 }
 EOF
 )

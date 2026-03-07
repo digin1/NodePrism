@@ -51,6 +51,10 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 
     const isNewServer = !server;
 
+    // Extract OS info from agent metadata if present
+    const osInfo = data.metadata?.os || null;
+    const hardwareInfo = data.metadata?.hardware || null;
+
     if (!server) {
       // Auto-create server
       server = await prisma.server.create({
@@ -63,18 +67,31 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
           metadata: {
             autoRegistered: true,
             registeredAt: new Date().toISOString(),
+            ...(osInfo && { os: osInfo }),
+            ...(hardwareInfo && { hardware: hardwareInfo }),
+            ...(data.metadata?.uptime !== undefined && { lastBootUptime: data.metadata.uptime }),
           },
         },
       });
       logger.info(`Auto-created server: ${server.hostname} (${server.ipAddress})`);
     } else {
-      // Update hostname if changed
-      if (server.hostname !== data.hostname) {
-        server = await prisma.server.update({
-          where: { id: server.id },
-          data: { hostname: data.hostname },
-        });
-      }
+      // Update hostname and merge OS info
+      const existingMeta = (server.metadata as Record<string, unknown>) || {};
+      const updatedMeta = {
+        ...existingMeta,
+        ...(osInfo && { os: osInfo }),
+        ...(hardwareInfo && { hardware: hardwareInfo }),
+        ...(data.metadata?.uptime !== undefined && { lastBootUptime: data.metadata.uptime }),
+        lastRegisteredAt: new Date().toISOString(),
+      };
+
+      server = await prisma.server.update({
+        where: { id: server.id },
+        data: {
+          hostname: data.hostname,
+          metadata: updatedMeta,
+        },
+      });
     }
 
     // Check if this agent type already exists for this server

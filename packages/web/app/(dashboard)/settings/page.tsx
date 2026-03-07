@@ -111,7 +111,6 @@ export default function SettingsPage() {
     { name: 'AlertManager', port: 9093, status: 'running' },
     { name: 'Loki', port: 3100, status: 'running' },
     { name: 'Pushgateway', port: 9091, status: 'running' },
-    { name: 'RabbitMQ', port: 5672, status: 'running' },
   ];
 
   // Get logo URL - local paths are proxied via Next.js rewrites
@@ -362,21 +361,6 @@ export default function SettingsPage() {
                 <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}</p>
               </div>
             </a>
-            <a
-              href={process.env.NEXT_PUBLIC_RABBITMQ_URL || 'http://localhost:15672'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl">
-                R
-              </div>
-              <div>
-                <p className="font-medium">RabbitMQ</p>
-                <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_RABBITMQ_URL || 'http://localhost:15672'}</p>
-                <p className="text-xs text-muted-foreground mt-1">nodeprism / nodeprism123</p>
-              </div>
-            </a>
           </div>
         </CardContent>
       </Card>
@@ -393,7 +377,7 @@ export default function SettingsPage() {
 NEXT_PUBLIC_GRAFANA_URL=${process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}
 NEXT_PUBLIC_PROMETHEUS_URL=${process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}
 NEXT_PUBLIC_ALERTMANAGER_URL=${process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}
-NEXT_PUBLIC_RABBITMQ_URL=${process.env.NEXT_PUBLIC_RABBITMQ_URL || 'http://localhost:15672'}`}</pre>
+NEXT_PUBLIC_DOCS_URL=${process.env.NEXT_PUBLIC_DOCS_URL || 'http://localhost:3080'}`}</pre>
           </div>
         </CardContent>
       </Card>

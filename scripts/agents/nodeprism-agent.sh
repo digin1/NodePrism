@@ -332,6 +332,34 @@ gather_system_info() {
       *Microsoft*) OS_VIRT="azure" ;;
     esac
   fi
+
+  # Control panel detection
+  OS_PANEL=""
+  if [[ -d /usr/local/cpanel ]]; then
+    OS_PANEL="cpanel"
+    local cpanel_ver
+    cpanel_ver=$(cat /usr/local/cpanel/version 2>/dev/null || echo "")
+    [[ -n "$cpanel_ver" ]] && OS_PANEL="cpanel/$cpanel_ver"
+  elif [[ -d /usr/local/psa ]]; then
+    OS_PANEL="plesk"
+    local plesk_ver
+    plesk_ver=$(cat /usr/local/psa/version 2>/dev/null | awk '{print $1}' || echo "")
+    [[ -n "$plesk_ver" ]] && OS_PANEL="plesk/$plesk_ver"
+  elif [[ -d /usr/local/directadmin ]]; then
+    OS_PANEL="directadmin"
+  elif [[ -d /usr/share/webmin ]]; then
+    OS_PANEL="webmin"
+  elif [[ -d /usr/local/cwpsrv ]]; then
+    OS_PANEL="cwp"
+  elif [[ -d /usr/local/hestiacp ]]; then
+    OS_PANEL="hestiacp"
+  elif [[ -d /usr/local/vesta ]]; then
+    OS_PANEL="vestacp"
+  elif [[ -d /usr/local/cyberpanel ]]; then
+    OS_PANEL="cyberpanel"
+  elif command -v aapanel &>/dev/null || [[ -d /www/server/panel ]]; then
+    OS_PANEL="aapanel"
+  fi
 }
 
 get_ip_address() {
@@ -1389,7 +1417,8 @@ register_with_api() {
       "distroCodename": "${OS_DISTRO_CODENAME}",
       "kernel": "${OS_KERNEL}",
       "arch": "${OS_ARCH_RAW}",
-      "platform": "${OS_VIRT}"
+      "platform": "${OS_VIRT}",
+      "controlPanel": "${OS_PANEL}"
     },
     "hardware": {
       "cpuModel": "${cpu_model_escaped}",

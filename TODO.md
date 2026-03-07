@@ -142,12 +142,12 @@
 ## Phase 4: Additional Grafana Dashboards
 
 ### 4.1 Dashboards
-- [ ] PostgreSQL overview dashboard (connections, queries, locks, replication)
-- [ ] MongoDB overview dashboard (operations, connections, memory)
-- [ ] Network traffic dashboard (per-server bandwidth, top talkers)
-- [ ] Anomaly detection dashboard (NAR scores, model counts, anomaly events timeline)
-- [ ] NodePrism API self-monitoring dashboard (request rates, latencies, errors)
-- [ ] Container/VM overview dashboard (using PostgreSQL datasource for virtual_containers table)
+- [x] PostgreSQL overview dashboard (connections, queries, locks, replication)
+- [x] MongoDB overview dashboard (operations, connections, memory)
+- [x] Network traffic dashboard (per-server bandwidth, top talkers)
+- [x] Anomaly detection dashboard (NAR scores, model counts, anomaly events timeline)
+- [x] NodePrism API self-monitoring dashboard (request rates, latencies, errors)
+- [x] Container/VM overview dashboard (using PostgreSQL datasource for virtual_containers table)
 
 ---
 

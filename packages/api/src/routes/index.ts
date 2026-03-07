@@ -14,6 +14,9 @@ import { notificationRoutes } from './notifications';
 import { auditRoutes } from './audit';
 import { dashboardRoutes } from './dashboards';
 import { maintenanceWindowRoutes } from './maintenanceWindows';
+import { incidentRoutes } from './incidents';
+import { forecastingRoutes } from './forecasting';
+import { uptimeRoutes } from './uptime';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -46,5 +49,8 @@ router.use('/notifications', optionalAuth, notificationRoutes);
 router.use('/audit', auditRoutes); // auth enforced internally (ADMIN only)
 router.use('/dashboards', optionalAuth, dashboardRoutes);
 router.use('/maintenance-windows', optionalAuth, maintenanceWindowRoutes);
+router.use('/incidents', optionalAuth, incidentRoutes);
+router.use('/forecasting', optionalAuth, forecastingRoutes);
+router.use('/uptime', optionalAuth, uptimeRoutes);
 
 export { router as routes };

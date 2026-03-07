@@ -12,7 +12,7 @@ const router: ExpressRouter = Router();
 // Apply strict rate limiting to auth routes
 router.use(authLimiter);
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'nodeprism-dev-only-secret-do-not-use-in-prod';
 // 7 days in seconds (604800)
 const JWT_EXPIRES_IN = 604800;
 

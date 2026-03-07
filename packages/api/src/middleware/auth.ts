@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
+if (!process.env.JWT_SECRET) {
+  console.warn('WARNING: JWT_SECRET not set. Using insecure default. Set JWT_SECRET in .env for production.');
+}
+const JWT_SECRET = process.env.JWT_SECRET || 'nodeprism-dev-only-secret-do-not-use-in-prod';
 
 export interface AuthUser {
   userId: string;

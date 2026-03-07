@@ -57,6 +57,7 @@ model Server {
   metricHistory      MetricHistory[]
   eventLogs          EventLog[]
   maintenanceWindows MaintenanceWindow[]
+  uptimeMonitors     UptimeMonitor[]
 
   @@map("servers")
 }
@@ -454,6 +455,112 @@ enum EventSeverity {
   INFO
   WARNING
   CRITICAL
+}
+
+// ==================== ANOMALY DETECTION ====================
+
+// ==================== UPTIME MONITORING ====================
+
+model UptimeMonitor {
+  id          String            @id @default(uuid())
+  name        String
+  type        UptimeCheckType   @default(HTTP)
+  target      String            // URL, hostname:port, or IP
+  interval    Int               @default(60) // Check interval in seconds
+  timeout     Int               @default(10) // Timeout in seconds
+  method      String            @default("GET") // HTTP method
+  expectedStatus Int?           @map("expected_status") // Expected HTTP status code
+  keyword     String?           // Keyword to search for in response
+  headers     Json?             // Custom headers for HTTP checks
+  enabled     Boolean           @default(true)
+  serverId    String?           @map("server_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  server Server? @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  checks UptimeCheck[]
+
+  @@map("uptime_monitors")
+}
+
+model UptimeCheck {
+  id          String    @id @default(uuid())
+  monitorId   String    @map("monitor_id")
+  status      UptimeCheckStatus
+  responseTime Int?     @map("response_time") // Response time in ms
+  statusCode  Int?      @map("status_code")
+  message     String?
+  checkedAt   DateTime  @default(now()) @map("checked_at")
+
+  // Relations
+  monitor UptimeMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId, checkedAt])
+  @@index([checkedAt])
+  @@map("uptime_checks")
+}
+
+enum UptimeCheckType {
+  HTTP
+  HTTPS
+  TCP
+  PING
+  DNS
+}
+
+enum UptimeCheckStatus {
+  UP
+  DOWN
+  DEGRADED
+}
+
+// ==================== INCIDENT MANAGEMENT ====================
+
+model Incident {
+  id          String          @id @default(uuid())
+  title       String
+  description String?
+  status      IncidentStatus  @default(INVESTIGATING)
+  severity    AlertSeverity
+  alertId     String?         @map("alert_id")
+  serverId    String?         @map("server_id")
+  assignee    String?
+  startedAt   DateTime        @default(now()) @map("started_at")
+  resolvedAt  DateTime?       @map("resolved_at")
+  createdBy   String?         @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  updates IncidentUpdate[]
+
+  @@index([status])
+  @@index([startedAt])
+  @@map("incidents")
+}
+
+model IncidentUpdate {
+  id          String   @id @default(uuid())
+  incidentId  String   @map("incident_id")
+  message     String
+  status      IncidentStatus?
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, createdAt])
+  @@map("incident_updates")
+}
+
+enum IncidentStatus {
+  INVESTIGATING
+  IDENTIFIED
+  MONITORING
+  RESOLVED
+  POSTMORTEM
 }
 
 // ==================== ANOMALY DETECTION ====================

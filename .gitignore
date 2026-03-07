@@ -58,3 +58,13 @@ agents/downloads/
 # Turbo
 .turbo/
 packages/api/uploads/
+
+# Database backups
+packages/api/backups/
+*.sql.gz
+
+# Playwright MCP screenshots
+.playwright-mcp/
+
+# Claude Code
+.claude/projects/

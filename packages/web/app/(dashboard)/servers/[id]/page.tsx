@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer } from '@/lib/api';
+import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer, forecastApi } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
+import { ServerForecasting } from './forecasting';
 
 const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary'> = {
   ONLINE: 'success',
@@ -883,6 +884,9 @@ export default function ServerDetailPage() {
 
       {/* Bandwidth Summary */}
       <BandwidthSummary serverId={serverId} />
+
+      {/* Resource Forecasting */}
+      <ServerForecasting serverId={serverId} />
 
       {/* Real-time Metrics Charts */}
       <MetricsCharts serverId={serverId} hasMySQLExporter={serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING')} />

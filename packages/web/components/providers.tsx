@@ -1,10 +1,11 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, createContext, useContext, useEffect, useRef } from 'react';
+import { useState, createContext, useContext, useEffect, useRef, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 
 interface WebSocketContextType {
-  socket: WebSocket | null;
+  socket: Socket | null;
   isConnected: boolean;
   subscribe: (event: string, callback: (data: any) => void) => () => void;
   emit: (event: string, data?: any) => void;
@@ -21,68 +22,61 @@ export function useWebSocket() {
 }
 
 function WebSocketProvider({ children }: { children: React.ReactNode }) {
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const listenersRef = useRef<Map<string, Set<(data: any) => void>>>(new Map());
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000';
-    const ws = new WebSocket(wsUrl);
+    // Connect to Socket.IO server (same origin, proxied through Next.js)
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL ||
+      (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:4000` : 'http://localhost:4000');
 
-    ws.onopen = () => {
+    const s = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: Infinity,
+    });
+
+    socketRef.current = s;
+
+    s.on('connect', () => {
       setIsConnected(true);
-      setSocket(ws);
-    };
+      setSocket(s);
+    });
 
-    ws.onclose = () => {
+    s.on('disconnect', () => {
       setIsConnected(false);
-      setSocket(null);
-    };
+    });
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const { event: eventName, data } = JSON.parse(event.data);
-        const listeners = listenersRef.current.get(eventName);
-        if (listeners) {
-          listeners.forEach((callback) => callback(data));
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
-    };
+    s.on('connect_error', (error) => {
+      console.error('Socket.IO connection error:', error.message);
+    });
 
     return () => {
-      ws.close();
+      s.disconnect();
+      socketRef.current = null;
     };
   }, []);
 
-  const subscribe = (event: string, callback: (data: any) => void) => {
-    if (!listenersRef.current.has(event)) {
-      listenersRef.current.set(event, new Set());
+  const subscribe = useCallback((event: string, callback: (data: any) => void) => {
+    const s = socketRef.current;
+    if (s) {
+      s.on(event, callback);
     }
-    listenersRef.current.get(event)!.add(callback);
-
-    // Return unsubscribe function
     return () => {
-      const listeners = listenersRef.current.get(event);
-      if (listeners) {
-        listeners.delete(callback);
-        if (listeners.size === 0) {
-          listenersRef.current.delete(event);
-        }
+      if (s) {
+        s.off(event, callback);
       }
     };
-  };
+  }, []);
 
-  const emit = (event: string, data?: any) => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ event, data }));
+  const emit = useCallback((event: string, data?: any) => {
+    const s = socketRef.current;
+    if (s && s.connected) {
+      s.emit(event, data);
     }
-  };
+  }, []);
 
   const value: WebSocketContextType = {
     socket,
@@ -100,8 +94,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 30 * 1000, // 30 seconds
-            refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
+            staleTime: 30 * 1000,
+            refetchInterval: 30 * 1000,
           },
         },
       })

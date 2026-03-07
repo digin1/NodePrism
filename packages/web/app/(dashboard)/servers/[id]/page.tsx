@@ -16,7 +16,6 @@ const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary
   WARNING: 'warning',
   CRITICAL: 'danger',
   OFFLINE: 'secondary',
-  DEPLOYING: 'warning',
 };
 
 const AGENT_TYPES = [
@@ -151,13 +150,6 @@ export default function ServerDetailPage() {
     },
   });
 
-  const deployMutation = useMutation({
-    mutationFn: () => serverApi.deploy(serverId, ['NODE_EXPORTER']),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['server', serverId] });
-    },
-  });
-
   const registerAgentMutation = useMutation({
     mutationFn: (data: { agentType: string; port: number; version?: string }) =>
       agentApi.register({
@@ -249,13 +241,6 @@ export default function ServerDetailPage() {
           <Badge variant={statusColors[serverData.status]}>{serverData.status}</Badge>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => deployMutation.mutate()}
-            disabled={deployMutation.isPending || serverData.status === 'DEPLOYING'}
-          >
-            {deployMutation.isPending ? 'Deploying...' : 'Deploy Agents'}
-          </Button>
           <Button
             variant="destructive"
             onClick={() => {
@@ -522,14 +507,9 @@ export default function ServerDetailPage() {
             ) : !showRegisterForm ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">No agents installed</p>
-                <div className="flex gap-2 justify-center">
-                  <Button onClick={() => deployMutation.mutate()} disabled={deployMutation.isPending}>
-                    Deploy via SSH
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowRegisterForm(true)}>
-                    Register Existing
-                  </Button>
-                </div>
+                <Button variant="outline" onClick={() => setShowRegisterForm(true)}>
+                  Register Existing
+                </Button>
               </div>
             ) : null}
           </CardContent>

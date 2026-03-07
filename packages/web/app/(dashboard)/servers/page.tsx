@@ -18,7 +18,6 @@ const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary
   WARNING: 'warning',
   CRITICAL: 'danger',
   OFFLINE: 'secondary',
-  DEPLOYING: 'warning',
 };
 
 interface Server {
@@ -44,13 +43,6 @@ export default function ServersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => serverApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['servers'] });
-    },
-  });
-
-  const deployMutation = useMutation({
-    mutationFn: (id: string) => serverApi.deploy(id, ['NODE_EXPORTER']),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['servers'] });
     },
@@ -170,14 +162,6 @@ export default function ServersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => deployMutation.mutate(server.id)}
-                          disabled={deployMutation.isPending || server.status === 'DEPLOYING'}
-                        >
-                          Deploy
-                        </Button>
                         <Link href={`/servers/${server.id}`}>
                           <Button size="sm" variant="ghost">
                             View

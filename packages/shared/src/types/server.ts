@@ -5,7 +5,6 @@ export const ServerStatusSchema = z.enum([
   'offline',
   'warning',
   'critical',
-  'deploying',
 ]);
 
 export type ServerStatus = z.infer<typeof ServerStatusSchema>;

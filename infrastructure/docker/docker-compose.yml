@@ -340,28 +340,6 @@ services:
     depends_on:
       - apache
 
-  # Deployment Worker - Agent Installation Service
-  deployment-worker:
-    build:
-      context: ../..
-      dockerfile: packages/deployment-worker/Dockerfile
-    container_name: nodeprism-deployment-worker
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-nodeprism}:${RABBITMQ_PASSWORD:-nodeprism123}@rabbitmq:5672
-      - API_URL=http://api:${API_PORT:-4000}
-      - SSH_PRIVATE_KEY_PATH=/app/ssh/id_rsa
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-    volumes:
-      - ./ssh:/app/ssh:ro
-      - ../../scripts/agents:/app/scripts:ro
-    networks:
-      - nodeprism-network
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
 networks:
   nodeprism-network:
     driver: bridge

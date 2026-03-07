@@ -138,11 +138,6 @@ export const config = {
     interval: parseInt(process.env.STATUS_SYNC_INTERVAL || '30000', 10),
   },
 
-  // Deployment
-  deployment: {
-    sshTimeout: parseInt(process.env.SSH_TIMEOUT || '30000', 10),
-    defaultSshUser: process.env.DEFAULT_SSH_USER || 'root',
-  },
 };
 
 export default config;

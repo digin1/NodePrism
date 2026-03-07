@@ -14,13 +14,12 @@ THE MOST IMPORTANT RULES ARE:
 **IMPORTANT**: When starting the app, ALWAYS kill any processes using the designated ports first:
 - Port 3000: Web UI (Next.js)
 - Port 4000: API Server
-- Port 4001: Deployment Worker
 - Port 4002: Config Sync
 - Port 4003: Anomaly Detector
 
 Run this command before starting the app:
 ```bash
-lsof -ti:3000,4000,4001,4002,4003 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run dev
+lsof -ti:3000,4000,4002,4003 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run dev
 ```
 
 ## Dev Performance

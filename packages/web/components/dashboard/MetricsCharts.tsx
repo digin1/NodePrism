@@ -107,7 +107,6 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false }: MetricsCha
     });
 
     newSocket.on('connect', () => {
-      console.log('Socket connected for metrics');
       newSocket.emit('subscribe:server', serverId);
     });
 
@@ -139,7 +138,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false }: MetricsCha
     });
 
     newSocket.on('disconnect', () => {
-      console.log('Socket disconnected');
+      // disconnected
     });
 
     setSocket(newSocket);

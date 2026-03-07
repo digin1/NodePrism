@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { serverApi, metricsApi, agentApi, containerApi, VirtualContainer } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -36,6 +37,7 @@ interface Server {
   status: string;
   environment: string;
   region?: string;
+  tags?: string[];
   createdAt: string;
   agents?: Array<{ id: string; type: string; port: number; status: string }>;
   alerts?: Array<{ id: string; message: string; severity: string; startsAt: string }>;
@@ -164,6 +166,11 @@ export default function ServerDetailPage() {
   const [agentVersion, setAgentVersion] = useState('');
   const [registerError, setRegisterError] = useState('');
 
+  // Tag management state
+  const [tagInput, setTagInput] = useState('');
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const tagInputRef = useRef<HTMLInputElement>(null);
+
   const { data: server, isLoading } = useQuery({
     queryKey: ['server', serverId],
     queryFn: () => serverApi.get(serverId),
@@ -184,6 +191,52 @@ export default function ServerDetailPage() {
   });
 
   const containerList = containers as VirtualContainer[] | undefined;
+
+  const { data: allTags } = useQuery({
+    queryKey: ['serverTags'],
+    queryFn: () => serverApi.tags(),
+  });
+
+  const updateTagsMutation = useMutation({
+    mutationFn: (tags: string[]) => serverApi.update(serverId, { tags }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['server', serverId] });
+      queryClient.invalidateQueries({ queryKey: ['serverTags'] });
+    },
+  });
+
+  const addTag = (tag: string) => {
+    const trimmed = tag.trim().toLowerCase();
+    if (!trimmed) return;
+    const current = (server as Server | undefined)?.tags || [];
+    if (current.includes(trimmed)) return;
+    updateTagsMutation.mutate([...current, trimmed]);
+    setTagInput('');
+    setTagSuggestions([]);
+  };
+
+  const removeTag = (tag: string) => {
+    const current = (server as Server | undefined)?.tags || [];
+    updateTagsMutation.mutate(current.filter(t => t !== tag));
+  };
+
+  const handleTagInputChange = (value: string) => {
+    setTagInput(value);
+    const q = value.trim().toLowerCase();
+    const currentTags = (server as Server | undefined)?.tags || [];
+    if (q && allTags) {
+      setTagSuggestions(allTags.filter(t => t.toLowerCase().includes(q) && !currentTags.includes(t)));
+    } else {
+      setTagSuggestions([]);
+    }
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(tagInput);
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: () => serverApi.delete(serverId),
@@ -293,6 +346,46 @@ export default function ServerDetailPage() {
           >
             Delete
           </Button>
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div className="flex flex-wrap items-center gap-2">
+        {serverData.tags?.map(tag => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm bg-blue-100 text-blue-700"
+          >
+            {tag}
+            <button onClick={() => removeTag(tag)} className="hover:text-blue-900 ml-0.5">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </span>
+        ))}
+        <div className="relative">
+          <Input
+            ref={tagInputRef}
+            value={tagInput}
+            onChange={(e) => handleTagInputChange(e.target.value)}
+            onKeyDown={handleTagKeyDown}
+            placeholder="Add tag..."
+            className="w-32 h-8 text-sm"
+          />
+          {tagSuggestions.length > 0 && (
+            <div className="absolute z-10 w-48 mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+              {tagSuggestions.slice(0, 8).map(tag => (
+                <button
+                  key={tag}
+                  className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+                  onClick={() => { addTag(tag); tagInputRef.current?.focus(); }}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

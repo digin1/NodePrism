@@ -19,15 +19,77 @@ const createServerSchema = z.object({
 
 const updateServerSchema = createServerSchema.partial();
 
+// GET /api/servers/tags - Get all unique tags
+router.get('/tags', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const servers = await prisma.server.findMany({
+      select: { tags: true },
+    });
+    const tagSet = new Set<string>();
+    for (const s of servers) {
+      for (const t of s.tags) tagSet.add(t);
+    }
+    const tags = Array.from(tagSet).sort();
+    res.json({ success: true, data: tags });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/servers/tags/bulk - Bulk add/remove tags
+router.put('/tags/bulk', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const schema = z.object({
+      serverIds: z.array(z.string().uuid()).min(1),
+      addTags: z.array(z.string().min(1)).default([]),
+      removeTags: z.array(z.string().min(1)).default([]),
+    });
+    const data = schema.parse(req.body);
+
+    const servers = await prisma.server.findMany({
+      where: { id: { in: data.serverIds } },
+      select: { id: true, tags: true },
+    });
+
+    const updates = servers.map(server => {
+      let tags = [...server.tags];
+      // Add new tags (deduplicate)
+      for (const tag of data.addTags) {
+        if (!tags.includes(tag)) tags.push(tag);
+      }
+      // Remove tags
+      tags = tags.filter(t => !data.removeTags.includes(t));
+
+      return prisma.server.update({
+        where: { id: server.id },
+        data: { tags },
+      });
+    });
+
+    await Promise.all(updates);
+
+    logger.info(`Bulk tag update: ${data.serverIds.length} servers, +${data.addTags.length} -${data.removeTags.length} tags`);
+    audit(req, { action: 'server.update', entityType: 'server', entityId: data.serverIds.join(','), details: { addTags: data.addTags, removeTags: data.removeTags, serverCount: data.serverIds.length } });
+
+    res.json({ success: true, message: `Updated tags on ${servers.length} servers` });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Validation error', details: error.errors });
+    }
+    next(error);
+  }
+});
+
 // GET /api/servers - List all servers
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, environment, search } = req.query;
+    const { status, environment, search, tag } = req.query;
 
     const servers = await prisma.server.findMany({
       where: {
         ...(status && { status: status as any }),
         ...(environment && { environment: environment as any }),
+        ...(tag && { tags: { has: tag as string } }),
         ...(search && {
           OR: [
             { hostname: { contains: search as string, mode: 'insensitive' } },

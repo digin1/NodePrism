@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ interface Server {
   ipAddress: string;
   status: string;
   environment: string;
+  tags?: string[];
   groupId?: string | null;
   group?: { id: string; name: string } | null;
   agents?: Array<{ id: string }>;
@@ -36,6 +37,7 @@ export default function ServersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [envFilter, setEnvFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'groups'>('groups');
 
   // Group management state
@@ -50,9 +52,27 @@ export default function ServersPage() {
   const [movingServer, setMovingServer] = useState<Server | null>(null);
   const [moveTargetGroupId, setMoveTargetGroupId] = useState<string | null>(null);
 
+  // Bulk tag state
+  const [selectedServers, setSelectedServers] = useState<Set<string>>(new Set());
+  const [showBulkTagModal, setShowBulkTagModal] = useState(false);
+  const [bulkTagInput, setBulkTagInput] = useState('');
+  const [bulkTagMode, setBulkTagMode] = useState<'add' | 'remove'>('add');
+  const [bulkTagSuggestions, setBulkTagSuggestions] = useState<string[]>([]);
+  const bulkTagInputRef = useRef<HTMLInputElement>(null);
+
   const { data: servers, isLoading } = useQuery({
-    queryKey: ['servers', { search, status: statusFilter, environment: envFilter }],
-    queryFn: () => serverApi.list({ search: search || undefined, status: statusFilter || undefined, environment: envFilter || undefined }),
+    queryKey: ['servers', { search, status: statusFilter, environment: envFilter, tag: tagFilter }],
+    queryFn: () => serverApi.list({
+      search: search || undefined,
+      status: statusFilter || undefined,
+      environment: envFilter || undefined,
+      tag: tagFilter || undefined,
+    }),
+  });
+
+  const { data: allTags } = useQuery({
+    queryKey: ['serverTags'],
+    queryFn: () => serverApi.tags(),
   });
 
   const { data: groups } = useQuery({
@@ -103,6 +123,27 @@ export default function ServersPage() {
       queryClient.invalidateQueries({ queryKey: ['servers'] });
       queryClient.invalidateQueries({ queryKey: ['serverGroups'] });
       setMovingServer(null);
+    },
+  });
+
+  const updateServerMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      serverApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+      queryClient.invalidateQueries({ queryKey: ['serverTags'] });
+    },
+  });
+
+  const bulkTagMutation = useMutation({
+    mutationFn: (data: { serverIds: string[]; addTags?: string[]; removeTags?: string[] }) =>
+      serverApi.bulkTags(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+      queryClient.invalidateQueries({ queryKey: ['serverTags'] });
+      setShowBulkTagModal(false);
+      setSelectedServers(new Set());
+      setBulkTagInput('');
     },
   });
 
@@ -157,6 +198,59 @@ export default function ServersPage() {
     });
   };
 
+  const toggleServerSelection = (serverId: string) => {
+    setSelectedServers(prev => {
+      const next = new Set(prev);
+      if (next.has(serverId)) next.delete(serverId);
+      else next.add(serverId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!serverList) return;
+    if (selectedServers.size === serverList.length) {
+      setSelectedServers(new Set());
+    } else {
+      setSelectedServers(new Set(serverList.map(s => s.id)));
+    }
+  };
+
+  const removeTagFromServer = (serverId: string, tag: string) => {
+    const server = serverList?.find(s => s.id === serverId);
+    if (!server) return;
+    const newTags = (server.tags || []).filter(t => t !== tag);
+    updateServerMutation.mutate({ id: serverId, data: { tags: newTags } });
+  };
+
+  const handleBulkTagSubmit = () => {
+    const tags = bulkTagInput.split(',').map(t => t.trim()).filter(Boolean);
+    if (tags.length === 0 || selectedServers.size === 0) return;
+    bulkTagMutation.mutate({
+      serverIds: Array.from(selectedServers),
+      addTags: bulkTagMode === 'add' ? tags : undefined,
+      removeTags: bulkTagMode === 'remove' ? tags : undefined,
+    });
+  };
+
+  const handleBulkTagInputChange = (value: string) => {
+    setBulkTagInput(value);
+    const lastTag = value.split(',').pop()?.trim().toLowerCase() || '';
+    if (lastTag && allTags) {
+      setBulkTagSuggestions(allTags.filter(t => t.toLowerCase().includes(lastTag) && !value.split(',').map(v => v.trim()).includes(t)));
+    } else {
+      setBulkTagSuggestions([]);
+    }
+  };
+
+  const applySuggestion = (tag: string) => {
+    const parts = bulkTagInput.split(',');
+    parts[parts.length - 1] = tag;
+    setBulkTagInput(parts.join(', ') + ', ');
+    setBulkTagSuggestions([]);
+    bulkTagInputRef.current?.focus();
+  };
+
   // Get servers for a specific group
   const getServersInGroup = (groupId: string) =>
     serverList?.filter(s => s.groupId === groupId || s.group?.id === groupId) || [];
@@ -166,6 +260,14 @@ export default function ServersPage() {
 
   const renderServerRow = (server: Server) => (
     <TableRow key={server.id}>
+      <TableCell className="w-8">
+        <input
+          type="checkbox"
+          checked={selectedServers.has(server.id)}
+          onChange={() => toggleServerSelection(server.id)}
+          className="rounded border-gray-300"
+        />
+      </TableCell>
       <TableCell>
         <Link href={`/servers/${server.id}`} className="font-medium hover:underline">
           {server.hostname}
@@ -179,6 +281,27 @@ export default function ServersPage() {
       </TableCell>
       <TableCell>
         <Badge variant="outline">{server.environment}</Badge>
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {server.tags?.map(tag => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700"
+            >
+              {tag}
+              <button
+                onClick={(e) => { e.stopPropagation(); removeTagFromServer(server.id, tag); }}
+                className="ml-0.5 hover:text-blue-900"
+              >
+                x
+              </button>
+            </span>
+          ))}
+          {(!server.tags || server.tags.length === 0) && (
+            <span className="text-gray-400 text-xs">-</span>
+          )}
+        </div>
       </TableCell>
       <TableCell>{server.agents?.length || 0}</TableCell>
       <TableCell>
@@ -341,7 +464,7 @@ export default function ServersPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="w-full sm:w-48 sm:shrink-0">
+            <div className="w-full sm:w-40 sm:shrink-0">
               <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                 <option value="">All Status</option>
                 <option value="ONLINE">Online</option>
@@ -350,12 +473,20 @@ export default function ServersPage() {
                 <option value="CRITICAL">Critical</option>
               </Select>
             </div>
-            <div className="w-full sm:w-48 sm:shrink-0">
+            <div className="w-full sm:w-40 sm:shrink-0">
               <Select value={envFilter} onChange={(e) => setEnvFilter(e.target.value)}>
                 <option value="">All Environments</option>
                 <option value="PRODUCTION">Production</option>
                 <option value="STAGING">Staging</option>
                 <option value="DEVELOPMENT">Development</option>
+              </Select>
+            </div>
+            <div className="w-full sm:w-40 sm:shrink-0">
+              <Select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+                <option value="">All Tags</option>
+                {allTags?.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
               </Select>
             </div>
             <div className="flex gap-1 border rounded-lg p-1 sm:shrink-0">
@@ -375,6 +506,21 @@ export default function ServersPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Bulk Actions Bar */}
+      {selectedServers.size > 0 && (
+        <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <span className="text-sm font-medium text-blue-700">
+            {selectedServers.size} server{selectedServers.size !== 1 ? 's' : ''} selected
+          </span>
+          <Button size="sm" variant="outline" onClick={() => setShowBulkTagModal(true)}>
+            Manage Tags
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedServers(new Set())}>
+            Clear Selection
+          </Button>
+        </div>
+      )}
 
       {/* Server List / Group View */}
       <Card>
@@ -408,10 +554,19 @@ export default function ServersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <input
+                      type="checkbox"
+                      checked={serverList.length > 0 && selectedServers.size === serverList.length}
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300"
+                    />
+                  </TableHead>
                   <TableHead>Hostname</TableHead>
                   <TableHead>IP Address</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Environment</TableHead>
+                  <TableHead>Tags</TableHead>
                   <TableHead>Agents</TableHead>
                   <TableHead>Alerts</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -448,7 +603,7 @@ export default function ServersPage() {
               {/* No groups message */}
               {(!groups || groups.length === 0) && ungroupedServers.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
-                  <p>No groups created yet. Click "New Group" to organize your servers.</p>
+                  <p>No groups created yet. Click &quot;New Group&quot; to organize your servers.</p>
                 </div>
               )}
             </div>
@@ -537,6 +692,71 @@ export default function ServersPage() {
                 }}
               >
                 Move
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Tag Modal */}
+      {showBulkTagModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBulkTagModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">Bulk Tag Operations</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {selectedServers.size} server{selectedServers.size !== 1 ? 's' : ''} selected
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Operation</label>
+                <div className="flex gap-2">
+                  <button
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium ${bulkTagMode === 'add' ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 text-gray-600'}`}
+                    onClick={() => setBulkTagMode('add')}
+                  >
+                    Add Tags
+                  </button>
+                  <button
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium ${bulkTagMode === 'remove' ? 'bg-red-50 border-red-300 text-red-700' : 'border-gray-300 text-gray-600'}`}
+                    onClick={() => setBulkTagMode('remove')}
+                  >
+                    Remove Tags
+                  </button>
+                </div>
+              </div>
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tags (comma-separated)
+                </label>
+                <Input
+                  ref={bulkTagInputRef}
+                  value={bulkTagInput}
+                  onChange={(e) => handleBulkTagInputChange(e.target.value)}
+                  placeholder="e.g., web, production, us-east"
+                  autoFocus
+                />
+                {bulkTagSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                    {bulkTagSuggestions.slice(0, 8).map(tag => (
+                      <button
+                        key={tag}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                        onClick={() => applySuggestion(tag)}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setShowBulkTagModal(false)}>Cancel</Button>
+              <Button
+                onClick={handleBulkTagSubmit}
+                disabled={!bulkTagInput.trim() || bulkTagMutation.isPending}
+              >
+                {bulkTagMutation.isPending ? 'Applying...' : `${bulkTagMode === 'add' ? 'Add' : 'Remove'} Tags`}
               </Button>
             </div>
           </div>

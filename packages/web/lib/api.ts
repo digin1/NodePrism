@@ -285,3 +285,41 @@ export const settingsApi = {
   deleteLogo: () => api.delete('/api/settings/logo'),
   getSystemInfo: () => getData(api.get('/api/settings/system-info')),
 };
+
+// Dashboard types
+export interface DashboardPanel {
+  id: string;
+  title: string;
+  type: 'line' | 'area' | 'bar' | 'gauge' | 'stat' | 'table';
+  query: string;
+  span: number;
+  height: number;
+  options?: Record<string, unknown>;
+}
+
+export interface DashboardConfig {
+  panels: DashboardPanel[];
+  refreshInterval?: number;
+  timeRange?: string;
+}
+
+export interface Dashboard {
+  id: string;
+  name: string;
+  description?: string;
+  config: DashboardConfig;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Dashboard API
+export const dashboardApi = {
+  list: () => getData<Dashboard[]>(api.get('/api/dashboards')),
+  get: (id: string) => getData<Dashboard>(api.get(`/api/dashboards/${id}`)),
+  create: (data: { name: string; description?: string; config: DashboardConfig; isDefault?: boolean }) =>
+    getData<Dashboard>(api.post('/api/dashboards', data)),
+  update: (id: string, data: Partial<{ name: string; description: string; config: DashboardConfig; isDefault: boolean }>) =>
+    getData<Dashboard>(api.put(`/api/dashboards/${id}`, data)),
+  delete: (id: string) => api.delete(`/api/dashboards/${id}`),
+};

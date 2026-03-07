@@ -51,10 +51,11 @@
 - [x] Write tests: `autoDiscovery.test.ts`
 
 ### 1.6 Custom Dashboards
-- [ ] Create `packages/api/src/routes/dashboards.ts` with CRUD endpoints
-- [ ] Add `/dashboards` page with dashboard builder UI
-- [ ] Support drag-and-drop metric panels with configurable PromQL queries
-- [ ] Write tests: `dashboards.test.ts`
+- [x] Create `packages/api/src/routes/dashboards.ts` with CRUD endpoints
+- [x] Add `/dashboards` page with dashboard builder UI
+- [x] Support configurable metric panels with PromQL queries, grid layout, preset panels
+- [x] Add Dashboards link to sidebar navigation
+- [x] Write tests: `dashboards.test.ts`
 
 ---
 
@@ -189,7 +190,7 @@
 - [x] `multiStageAlertProcessor.test.ts` — Condition evaluation, hysteresis, PromQL injection (30 tests)
 - [x] `alertTemplates.test.ts` — Alert template config, label matching, validation (19 tests)
 - [x] `autoDiscovery.test.ts` — Target parsing, port mapping, banner parsing (20 tests)
-- [ ] `dashboards.test.ts` — Dashboard CRUD
+- [x] `dashboards.test.ts` — Panel validation, config structure, grid layout (17 tests)
 - [ ] `userManagement.test.ts` — User CRUD and roles
 - [ ] `serverTags.test.ts` — Tag operations
 - [ ] `bandwidth.test.ts` — Bandwidth calculations

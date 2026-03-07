@@ -8,18 +8,18 @@
 ## Phase 1: Fix Broken / Incomplete Features
 
 ### 1.1 Notification System
-- [ ] Create `packages/api/src/routes/notifications.ts` with CRUD endpoints
-- [ ] Create `packages/api/src/services/notificationSender.ts` (dispatch engine)
-- [ ] Implement Email sender (SMTP)
-- [ ] Implement Slack webhook sender
-- [ ] Implement Discord webhook sender
-- [ ] Implement generic Webhook sender
-- [ ] Implement Telegram bot sender
-- [ ] Implement PagerDuty integration
-- [ ] Wire AlertManager webhook handler to trigger notifications
-- [ ] Add notification channel management UI page (`/settings/notifications`)
-- [ ] Add notification history/log
-- [ ] Write tests: `notifications.test.ts`
+- [x] Create `packages/api/src/routes/notifications.ts` with CRUD endpoints
+- [x] Create `packages/api/src/services/notificationSender.ts` (dispatch engine)
+- [x] Implement Email sender (SMTP)
+- [x] Implement Slack webhook sender
+- [x] Implement Discord webhook sender
+- [x] Implement generic Webhook sender
+- [x] Implement Telegram bot sender
+- [x] Implement PagerDuty integration
+- [x] Wire AlertManager webhook handler to trigger notifications
+- [x] Add notification channel management UI page (`/settings/notifications`)
+- [x] Add notification history/log
+- [x] Write tests: `notifications.test.ts`
 
 ### 1.2 Audit Logging
 - [ ] Create `packages/api/src/routes/audit.ts` with query/filter endpoints
@@ -182,7 +182,7 @@
 
 ### Unit Tests
 - [x] `targetGenerator.test.ts` — Prometheus target generation (8 tests)
-- [ ] `notifications.test.ts` — Notification dispatch
+- [x] `notifications.test.ts` — Notification dispatch (24 tests)
 - [ ] `auditLogger.test.ts` — Audit log middleware
 - [ ] `multiStageAlertProcessor.test.ts` — Alert stage evaluation
 - [ ] `alertTemplates.test.ts` — Alert template CRUD and matching

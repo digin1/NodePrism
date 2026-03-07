@@ -36,8 +36,6 @@ AlertTemplate ──── NotificationChannel
 | id | String | ✓ | Primary Key, Default: uuid( |
 | hostname | String | ✓ | - |
 | ipAddress | String | ✓ | - |
-| sshPort | Int | ✓ | Default: 22 |
-| sshUsername | String | - | - |
 | status | ServerStatus | ✓ | Default: OFFLINE |
 | environment | Environment | ✓ | Default: PRODUCTION |
 | region | String | - | - |
@@ -47,7 +45,6 @@ AlertTemplate ──── NotificationChannel
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
 | agents | Agent[] | ✓ | - |
-| deployments | Deployment[] | ✓ | - |
 | alerts | Alert[] | ✓ | - |
 | anomalyEvents | AnomalyEvent[] | ✓ | - |
 | anomalyModels | AnomalyModel[] | ✓ | - |
@@ -70,23 +67,6 @@ AlertTemplate ──── NotificationChannel
 | lastHealthCheck | DateTime | - | - |
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
-| server | Server | ✓ | Relation |
-
----
-
-### Deployment
-
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| id | String | ✓ | Primary Key, Default: uuid( |
-| serverId | String | ✓ | - |
-| agentType | AgentType | ✓ | - |
-| status | DeploymentStatus | ✓ | Default: PENDING |
-| logs | String | - | - |
-| startedAt | DateTime | - | - |
-| finishedAt | DateTime | - | - |
-| error | String | - | - |
-| createdAt | DateTime | ✓ | Default: now( |
 | server | Server | ✓ | Relation |
 
 ---
@@ -215,19 +195,6 @@ AlertTemplate ──── NotificationChannel
 
 ---
 
-### SshCredential
-
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| id | String | ✓ | Primary Key, Default: uuid( |
-| serverId | String | ✓ | Unique |
-| vaultPath | String | ✓ | - |
-| keyType | String | ✓ | Default: "password" |
-| createdAt | DateTime | ✓ | Default: now( |
-| updatedAt | DateTime | ✓ | - |
-
----
-
 ### SystemSettings
 
 | Field | Type | Required | Constraints |
@@ -338,8 +305,6 @@ AlertTemplate ──── NotificationChannel
 | `OFFLINE` | - |
 | `WARNING` | - |
 | `CRITICAL` | - |
-| `DEPLOYING` | - |
-| `MAINTENANCE` | - |
 
 ### Environment
 
@@ -372,16 +337,6 @@ AlertTemplate ──── NotificationChannel
 | `STOPPED` | - |
 | `FAILED` | - |
 | `UPDATING` | - |
-
-### DeploymentStatus
-
-| Value | Description |
-|-------|-------------|
-| `PENDING` | - |
-| `IN_PROGRESS` | - |
-| `COMPLETED` | - |
-| `FAILED` | - |
-| `CANCELLED` | - |
 
 ### AlertSeverity
 
@@ -439,9 +394,6 @@ AlertTemplate ──── NotificationChannel
 | `AGENT_STOPPED` | - |
 | `AGENT_FAILED` | - |
 | `AGENT_UPDATED` | - |
-| `DEPLOYMENT_STARTED` | - |
-| `DEPLOYMENT_COMPLETED` | - |
-| `DEPLOYMENT_FAILED` | - |
 | `ALERT_TRIGGERED` | - |
 | `ALERT_RESOLVED` | - |
 | `ALERT_ACKNOWLEDGED` | - |

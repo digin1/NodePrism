@@ -1,7 +1,6 @@
 'use client';
 
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -37,7 +36,23 @@ function StatCard({
   );
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes.toFixed(0)} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  if (bytes < 1024 * 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  return `${(bytes / 1024 / 1024 / 1024 / 1024).toFixed(2)} TB`;
+}
+
+function formatRate(bytesPerSec: number): string {
+  if (bytesPerSec < 1024) return `${bytesPerSec.toFixed(0)} B/s`;
+  if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`;
+  return `${(bytesPerSec / 1024 / 1024).toFixed(2)} MB/s`;
+}
+
 export default function DashboardPage() {
+  const [bwPeriod, setBwPeriod] = useState<string>('day');
+
   const { data: serverStats, isLoading: serversLoading } = useQuery({
     queryKey: ['serverStats'],
     queryFn: () => serverApi.stats(),
@@ -56,6 +71,12 @@ export default function DashboardPage() {
   const { data: servers } = useQuery({
     queryKey: ['servers'],
     queryFn: () => serverApi.list(),
+  });
+
+  const { data: topBandwidth, isLoading: bwLoading } = useQuery({
+    queryKey: ['bandwidthTop', bwPeriod],
+    queryFn: () => metricsApi.bandwidthTop({ period: bwPeriod, limit: 10 }),
+    refetchInterval: 60000,
   });
 
   const isLoading = serversLoading || alertsLoading || targetsLoading;
@@ -236,6 +257,78 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Network Traffic - Top Servers by Bandwidth */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Top Servers by Bandwidth</CardTitle>
+            <div className="flex gap-1">
+              {['hour', 'day', 'week', 'month'].map(p => (
+                <button
+                  key={p}
+                  className={`px-2.5 py-1 rounded text-xs font-medium ${bwPeriod === p ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  onClick={() => setBwPeriod(p)}
+                >
+                  {p === 'hour' ? '1h' : p === 'day' ? '24h' : p === 'week' ? '7d' : '30d'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {bwLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : (topBandwidth as any[])?.length > 0 ? (
+            <div className="space-y-2">
+              {(topBandwidth as any[]).map((server: any, i: number) => {
+                const maxBw = (topBandwidth as any[])[0]?.totalBandwidth || 1;
+                const pct = (server.totalBandwidth / maxBw) * 100;
+                return (
+                  <div key={server.id} className="relative">
+                    <div
+                      className="absolute inset-0 bg-blue-50 rounded"
+                      style={{ width: `${pct}%` }}
+                    />
+                    <div className="relative flex items-center justify-between p-2.5 rounded">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono text-gray-400 w-5">#{i + 1}</span>
+                        <div>
+                          <a href={`/servers/${server.id}`} className="text-sm font-medium hover:underline">
+                            {server.hostname}
+                          </a>
+                          <p className="text-xs text-muted-foreground">{server.ipAddress}</p>
+                        </div>
+                      </div>
+                      <div className="text-right text-xs">
+                        <div className="flex items-center gap-3">
+                          <span className="text-green-600">
+                            ↓ {formatBytes(server.totalIn)}
+                          </span>
+                          <span className="text-blue-600">
+                            ↑ {formatBytes(server.totalOut)}
+                          </span>
+                        </div>
+                        <div className="text-muted-foreground mt-0.5">
+                          avg: {formatRate(server.avgIn + server.avgOut)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No bandwidth data available yet
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Quick Links */}
       <Card>

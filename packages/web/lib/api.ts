@@ -138,6 +138,8 @@ export const metricsApi = {
   serverMetrics: (serverId: string) => getData(api.get(`/api/metrics/server/${serverId}`)),
   targets: () => getData(api.get('/api/metrics/targets')),
   rules: () => getData(api.get('/api/metrics/rules')),
+  bandwidthTop: (params?: { period?: string; limit?: number }) =>
+    getData(api.get('/api/metrics/bandwidth/top', { params })),
 };
 
 // Health API

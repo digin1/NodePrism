@@ -84,7 +84,7 @@ export default function AlertRulesPage() {
             </Button>
           </Link>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Alert Rules</h2>
+            <h2 className="text-2xl font-bold text-foreground">Alert Rules</h2>
             <p className="text-muted-foreground">Configure alerting conditions</p>
           </div>
         </div>
@@ -195,18 +195,18 @@ export default function AlertRulesPage() {
             </div>
           ) : !ruleList?.length ? (
             <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="mx-auto h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No alert rules</h3>
-              <p className="mt-1 text-sm text-gray-500">Create your first alert rule to get started.</p>
+              <h3 className="mt-2 text-sm font-medium text-foreground">No alert rules</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Create your first alert rule to get started.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {ruleList?.map((rule) => (
                 <div
                   key={rule.id}
-                  className="flex items-start justify-between p-4 bg-gray-50 rounded-lg"
+                  className="flex items-start justify-between p-4 bg-muted/50 rounded-lg"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ export default function AlertRulesPage() {
                     {rule.description && (
                       <p className="text-sm text-muted-foreground mt-1">{rule.description}</p>
                     )}
-                    <p className="text-xs font-mono text-muted-foreground mt-2 bg-gray-100 p-2 rounded">
+                    <p className="text-xs font-mono text-muted-foreground mt-2 bg-muted p-2 rounded">
                       {rule.query}
                     </p>
                     <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -297,7 +297,7 @@ export default function AlertRulesPage() {
                   });
                   setShowCreate(true);
                 }}
-                className="text-left p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                className="text-left p-4 border rounded-lg hover:bg-muted/50 transition-colors"
               >
                 <p className="font-medium">{template.name}</p>
                 <p className="text-xs font-mono text-muted-foreground mt-1 truncate">

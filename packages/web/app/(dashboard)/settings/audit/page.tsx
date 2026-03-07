@@ -36,7 +36,7 @@ function getActionColor(action: string): string {
   for (const [key, color] of Object.entries(ACTION_COLORS)) {
     if (action.includes(key)) return color;
   }
-  return 'bg-gray-500/20 text-gray-400';
+  return 'bg-muted text-muted-foreground';
 }
 
 function formatAction(action: string): string {
@@ -88,7 +88,7 @@ export default function AuditPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold">Audit Log</h1>
-            <p className="text-sm text-gray-400">Track all changes made to the system</p>
+            <p className="text-sm text-muted-foreground">Track all changes made to the system</p>
           </div>
         </div>
       </div>
@@ -98,19 +98,19 @@ export default function AuditPage() {
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="py-4">
-              <p className="text-sm text-gray-400">Total Events</p>
+              <p className="text-sm text-muted-foreground">Total Events</p>
               <p className="text-2xl font-bold">{(stats as any).total}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="py-4">
-              <p className="text-sm text-gray-400">Last 24 Hours</p>
+              <p className="text-sm text-muted-foreground">Last 24 Hours</p>
               <p className="text-2xl font-bold">{(stats as any).last24h}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="py-4">
-              <p className="text-sm text-gray-400">Top Action</p>
+              <p className="text-sm text-muted-foreground">Top Action</p>
               <p className="text-2xl font-bold">
                 {(stats as any).byAction?.[0]?.action
                   ? formatAction((stats as any).byAction[0].action)
@@ -123,7 +123,7 @@ export default function AuditPage() {
 
       {/* Filter */}
       <div className="flex gap-4 items-center">
-        <label className="text-sm text-gray-400">Filter by type:</label>
+        <label className="text-sm text-muted-foreground">Filter by type:</label>
         <Select
           value={entityType}
           onChange={e => { setEntityType(e.target.value); setPage(0); }}
@@ -146,13 +146,13 @@ export default function AuditPage() {
               {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12" />)}
             </div>
           ) : !logList?.length ? (
-            <p className="text-center text-gray-400 py-8">No audit events found</p>
+            <p className="text-center text-muted-foreground py-8">No audit events found</p>
           ) : (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-gray-400 border-b border-gray-700">
+                    <tr className="text-left text-muted-foreground border-b border-border">
                       <th className="pb-2 pr-4">Time</th>
                       <th className="pb-2 pr-4">User</th>
                       <th className="pb-2 pr-4">Action</th>
@@ -163,8 +163,8 @@ export default function AuditPage() {
                   </thead>
                   <tbody>
                     {logList.map((log) => (
-                      <tr key={log.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                        <td className="py-2.5 pr-4 text-gray-400 whitespace-nowrap">
+                      <tr key={log.id} className="border-b border-border hover:bg-muted/50">
+                        <td className="py-2.5 pr-4 text-muted-foreground whitespace-nowrap">
                           {new Date(log.createdAt).toLocaleString()}
                         </td>
                         <td className="py-2.5 pr-4 whitespace-nowrap">
@@ -175,18 +175,18 @@ export default function AuditPage() {
                             {formatAction(log.action)}
                           </span>
                         </td>
-                        <td className="py-2.5 pr-4 text-gray-300 whitespace-nowrap">
+                        <td className="py-2.5 pr-4 text-foreground whitespace-nowrap">
                           {log.entityType}
                           {log.entityId && (
-                            <span className="text-gray-500 ml-1 text-xs">
+                            <span className="text-muted-foreground ml-1 text-xs">
                               {log.entityId.substring(0, 8)}...
                             </span>
                           )}
                         </td>
-                        <td className="py-2.5 pr-4 text-gray-400 max-w-xs truncate">
+                        <td className="py-2.5 pr-4 text-muted-foreground max-w-xs truncate">
                           {formatDetails(log.details)}
                         </td>
-                        <td className="py-2.5 text-gray-500 text-xs">
+                        <td className="py-2.5 text-muted-foreground text-xs">
                           {log.ipAddress || '-'}
                         </td>
                       </tr>
@@ -196,7 +196,7 @@ export default function AuditPage() {
               </div>
 
               {/* Pagination */}
-              <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+              <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -205,7 +205,7 @@ export default function AuditPage() {
                 >
                   Previous
                 </Button>
-                <span className="text-sm text-gray-400">Page {page + 1}</span>
+                <span className="text-sm text-muted-foreground">Page {page + 1}</span>
                 <Button
                   variant="ghost"
                   size="sm"

@@ -180,7 +180,7 @@ export default function NotificationsPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold">Notification Channels</h1>
-            <p className="text-sm text-gray-400">Configure where alerts are sent</p>
+            <p className="text-sm text-muted-foreground">Configure where alerts are sent</p>
           </div>
         </div>
         <Button onClick={() => { resetForm(); setShowCreate(true); }}>
@@ -198,7 +198,7 @@ export default function NotificationsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-300 mb-1 block">Name</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-1 block">Name</label>
                   <Input
                     placeholder="My Slack Channel"
                     value={formData.name}
@@ -206,7 +206,7 @@ export default function NotificationsPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-300 mb-1 block">Type</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-1 block">Type</label>
                   <Select
                     value={formData.type}
                     onChange={e => setFormData(d => ({ ...d, type: e.target.value, config: {} }))}
@@ -218,8 +218,8 @@ export default function NotificationsPage() {
                 </div>
               </div>
 
-              <div className="border-t border-gray-700 pt-4">
-                <h3 className="text-sm font-medium text-gray-300 mb-3">{TYPE_LABELS[formData.type]} Configuration</h3>
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">{TYPE_LABELS[formData.type]} Configuration</h3>
                 <div className="grid grid-cols-2 gap-4">
                   {CONFIG_FIELDS[formData.type]?.map(field => (
                     <div key={field.key} className={field.type === 'checkbox' ? 'flex items-center gap-2 col-span-2' : ''}>
@@ -232,13 +232,13 @@ export default function NotificationsPage() {
                               ...d,
                               config: { ...d.config, [field.key]: e.target.checked },
                             }))}
-                            className="rounded border-gray-600"
+                            className="rounded border-border"
                           />
-                          <label className="text-sm text-gray-300">{field.label}</label>
+                          <label className="text-sm text-muted-foreground">{field.label}</label>
                         </>
                       ) : (
                         <>
-                          <label className="text-sm font-medium text-gray-300 mb-1 block">
+                          <label className="text-sm font-medium text-muted-foreground mb-1 block">
                             {field.label} {field.required && <span className="text-red-400">*</span>}
                           </label>
                           <Input
@@ -278,7 +278,7 @@ export default function NotificationsPage() {
         </div>
       ) : !channelList?.length ? (
         <Card>
-          <CardContent className="py-12 text-center text-gray-400">
+          <CardContent className="py-12 text-center text-muted-foreground">
             <p className="text-lg mb-2">No notification channels configured</p>
             <p className="text-sm">Add a channel to start receiving alert notifications via Slack, Email, Discord, etc.</p>
           </CardContent>
@@ -301,7 +301,7 @@ export default function NotificationsPage() {
                           <Badge variant="secondary">Disabled</Badge>
                         )}
                       </div>
-                      <p className="text-sm text-gray-400 mt-0.5">
+                      <p className="text-sm text-muted-foreground mt-0.5">
                         {channel._count?.logs || 0} notifications sent
                       </p>
                     </div>
@@ -333,7 +333,7 @@ export default function NotificationsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-400 hover:text-red-300"
+                      className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
                       onClick={() => {
                         if (confirm(`Delete channel "${channel.name}"?`)) {
                           deleteMutation.mutate(channel.id);
@@ -360,7 +360,7 @@ export default function NotificationsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-gray-400 border-b border-gray-700">
+                  <tr className="text-left text-muted-foreground border-b border-border">
                     <th className="pb-2">Time</th>
                     <th className="pb-2">Channel</th>
                     <th className="pb-2">Status</th>
@@ -369,8 +369,8 @@ export default function NotificationsPage() {
                 </thead>
                 <tbody>
                   {(logs as any[]).map((log: any) => (
-                    <tr key={log.id} className="border-b border-gray-800">
-                      <td className="py-2 text-gray-400">
+                    <tr key={log.id} className="border-b border-border">
+                      <td className="py-2 text-muted-foreground">
                         {new Date(log.createdAt).toLocaleString()}
                       </td>
                       <td className="py-2">
@@ -381,7 +381,7 @@ export default function NotificationsPage() {
                           {log.status}
                         </Badge>
                       </td>
-                      <td className="py-2 text-gray-400 max-w-xs truncate">
+                      <td className="py-2 text-muted-foreground max-w-xs truncate">
                         {log.message || '-'}
                       </td>
                     </tr>

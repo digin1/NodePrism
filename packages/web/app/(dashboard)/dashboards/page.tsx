@@ -120,7 +120,7 @@ export default function DashboardsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Dashboards</h2>
+          <h2 className="text-2xl font-bold text-foreground">Dashboards</h2>
           <p className="text-muted-foreground">Custom metric dashboards with configurable panels</p>
         </div>
         <Button onClick={() => { setShowCreate(!showCreate); setViewingId(null); }}>
@@ -156,7 +156,7 @@ export default function DashboardsPage() {
               {panels.length > 0 && (
                 <div className="space-y-2 mb-4">
                   {panels.map((panel, idx) => (
-                    <div key={panel.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={panel.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div className="flex-1">
                         <span className="font-medium">{panel.title}</span>
                         <span className="text-xs text-muted-foreground ml-2">
@@ -282,7 +282,7 @@ export default function DashboardsPage() {
               {(viewingDashboard.config as DashboardConfig).panels.map((panel) => (
                 <div
                   key={panel.id}
-                  className="bg-gray-50 rounded-lg p-4"
+                  className="bg-muted/50 rounded-lg p-4"
                   style={{
                     gridColumn: `span ${panel.span}`,
                     minHeight: `${panel.height}px`,
@@ -326,18 +326,18 @@ export default function DashboardsPage() {
             </div>
           ) : !dashboardList?.length ? (
             <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="mx-auto h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No dashboards yet</h3>
-              <p className="mt-1 text-sm text-gray-500">Create a dashboard with custom metric panels.</p>
+              <h3 className="mt-2 text-sm font-medium text-foreground">No dashboards yet</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Create a dashboard with custom metric panels.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {dashboardList.map((dashboard) => (
                 <div
                   key={dashboard.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
                 >
                   <div>
                     <div className="flex items-center gap-2">

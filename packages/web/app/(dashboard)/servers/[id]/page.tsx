@@ -237,7 +237,7 @@ function MetricCard({
   decimals?: number;
 }) {
   return (
-    <div className="p-4 bg-gray-50 rounded-lg">
+    <div className="p-4 bg-muted/50 rounded-lg">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className="text-2xl font-bold mt-1">
         {value !== null ? `${value.toFixed(decimals)}${unit || ''}` : 'N/A'}
@@ -431,7 +431,7 @@ export default function ServerDetailPage() {
             </Button>
           </Link>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{serverData.hostname}</h2>
+            <h2 className="text-2xl font-bold text-foreground">{serverData.hostname}</h2>
             <p className="text-muted-foreground font-mono">{serverData.ipAddress}</p>
           </div>
           <Badge variant={statusColors[serverData.status]}>{serverData.status}</Badge>
@@ -458,7 +458,7 @@ export default function ServerDetailPage() {
         {serverData.tags?.map(tag => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm bg-blue-100 text-blue-700"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300"
           >
             {tag}
             <button onClick={() => removeTag(tag)} className="hover:text-blue-900 ml-0.5">
@@ -478,11 +478,11 @@ export default function ServerDetailPage() {
             className="w-32 h-8 text-sm"
           />
           {tagSuggestions.length > 0 && (
-            <div className="absolute z-10 w-48 mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+            <div className="absolute z-10 w-48 mt-1 bg-card border rounded-lg shadow-lg max-h-40 overflow-y-auto">
               {tagSuggestions.slice(0, 8).map(tag => (
                 <button
                   key={tag}
-                  className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+                  className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted/50"
                   onClick={() => { addTag(tag); tagInputRef.current?.focus(); }}
                 >
                   {tag}
@@ -514,12 +514,12 @@ export default function ServerDetailPage() {
           decimals={2}
           subtext={metricsData?.load5 != null && metricsData?.load15 != null ? `5m: ${metricsData.load5.toFixed(2)} / 15m: ${metricsData.load15.toFixed(2)}` : undefined}
         />
-        <div className="p-4 bg-gray-50 rounded-lg">
+        <div className="p-4 bg-muted/50 rounded-lg">
           <p className="text-sm text-muted-foreground">Network In</p>
           <p className="text-2xl font-bold mt-1 text-green-600">{formatNetworkSpeed(metricsData?.networkIn ?? null)}</p>
           <p className="text-xs text-muted-foreground mt-1">Download</p>
         </div>
-        <div className="p-4 bg-gray-50 rounded-lg">
+        <div className="p-4 bg-muted/50 rounded-lg">
           <p className="text-sm text-muted-foreground">Network Out</p>
           <p className="text-2xl font-bold mt-1 text-blue-600">{formatNetworkSpeed(metricsData?.networkOut ?? null)}</p>
           <p className="text-xs text-muted-foreground mt-1">Upload</p>
@@ -539,7 +539,7 @@ export default function ServerDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-7">
-              <div className="p-4 bg-orange-50 rounded-lg">
+              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">Connections</p>
                 <p className="text-2xl font-bold mt-1 text-orange-600">
                   {metricsData?.mysqlConnections ?? 'N/A'}
@@ -548,20 +548,20 @@ export default function ServerDetailPage() {
                   Max: {metricsData?.mysqlMaxConnections ?? 'N/A'}
                 </p>
               </div>
-              <div className="p-4 bg-orange-50 rounded-lg">
+              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">Queries/sec</p>
                 <p className="text-2xl font-bold mt-1 text-orange-600">
                   {metricsData?.mysqlQueriesPerSec?.toFixed(1) ?? 'N/A'}
                 </p>
               </div>
-              <div className="p-4 bg-orange-50 rounded-lg">
+              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">Slow Queries</p>
                 <p className="text-2xl font-bold mt-1 text-orange-600">
                   {metricsData?.mysqlSlowQueries ?? 'N/A'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Total</p>
               </div>
-              <div className="p-4 bg-orange-50 rounded-lg">
+              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">Buffer Pool</p>
                 <p className="text-2xl font-bold mt-1 text-orange-600">
                   {metricsData?.mysqlBufferPoolSize && metricsData?.mysqlBufferPoolUsed
@@ -574,7 +574,7 @@ export default function ServerDetailPage() {
                     : ''}
                 </p>
               </div>
-              <div className="p-4 bg-orange-50 rounded-lg">
+              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">Uptime</p>
                 <p className="text-2xl font-bold mt-1 text-orange-600">
                   {formatUptime(metricsData?.mysqlUptime ?? null)}
@@ -703,27 +703,27 @@ export default function ServerDetailPage() {
           <CardContent>
             {/* Manual Registration Form */}
             {showRegisterForm && (
-              <form onSubmit={handleRegisterAgent} className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <h4 className="font-medium text-blue-900 mb-3">Register Existing Exporter</h4>
-                <p className="text-sm text-blue-700 mb-4">
+              <form onSubmit={handleRegisterAgent} className="mb-6 p-4 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg border border-blue-500/20">
+                <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-3">Register Existing Exporter</h4>
+                <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
                   Use this to register an exporter that is already installed and running on the server.
                 </p>
 
                 {registerError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                  <div className="mb-4 p-3 bg-red-500/10 dark:bg-red-500/20 border border-red-500/20 rounded text-red-700 dark:text-red-400 text-sm">
                     {registerError}
                   </div>
                 )}
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
                       Exporter Type
                     </label>
                     <select
                       value={agentType}
                       onChange={(e) => handleAgentTypeChange(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
                     >
                       {AGENT_TYPES.map((type) => (
                         <option key={type.value} value={type.value}>
@@ -734,7 +734,7 @@ export default function ServerDetailPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
                       Port
                     </label>
                     <input
@@ -743,16 +743,16 @@ export default function ServerDetailPage() {
                       onChange={(e) => setAgentPort(parseInt(e.target.value, 10))}
                       min={1}
                       max={65535}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       The port where the exporter is listening (e.g., 9100 for node_exporter)
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
                       Version (Optional)
                     </label>
                     <input
@@ -760,7 +760,7 @@ export default function ServerDetailPage() {
                       value={agentVersion}
                       onChange={(e) => setAgentVersion(e.target.value)}
                       placeholder="e.g., 1.6.1"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
                     />
                   </div>
 
@@ -778,7 +778,7 @@ export default function ServerDetailPage() {
             {serverData.agents && serverData.agents.length > 0 ? (
               <div className="space-y-3">
                 {serverData.agents.map((agent) => (
-                  <div key={agent.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={agent.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <div>
                       <p className="font-medium">{agent.type.replace('_', ' ')}</p>
                       <p className="text-sm text-muted-foreground">Port: {agent.port}</p>
@@ -790,7 +790,7 @@ export default function ServerDetailPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
                         onClick={() => {
                           if (confirm('Are you sure you want to unregister this agent?')) {
                             unregisterAgentMutation.mutate(agent.id);
@@ -866,7 +866,7 @@ export default function ServerDetailPage() {
           <CardContent>
             <div className="space-y-3">
               {serverData.alerts.map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                <div key={alert.id} className="flex items-center justify-between p-3 bg-red-500/10 dark:bg-red-500/20 rounded-lg border border-red-500/20">
                   <div>
                     <p className="font-medium text-red-800">{alert.message}</p>
                     <p className="text-sm text-red-600">

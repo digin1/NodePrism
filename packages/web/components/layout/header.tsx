@@ -41,57 +41,64 @@ export function Header({ onMenuToggle }: HeaderProps) {
   const healthData = health as Health | undefined;
   const firingCount = stats?.firing ?? 0;
   const systemName = settings?.systemName || 'NodePrism';
+  const isHealthy = healthData?.status === 'ok';
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-white dark:bg-gray-900 dark:border-gray-800 px-4 md:px-6">
+    <header className="flex h-14 items-center justify-between border-b bg-card px-4 md:px-6">
       <div className="flex items-center gap-3">
-        {/* Mobile menu button */}
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
-            className="md:hidden p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+            className="md:hidden p-1.5 -ml-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         )}
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{systemName}</h1>
+        <h1 className="text-sm font-semibold">{systemName}</h1>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-4">
-        {firingCount > 0 && (
-          <Badge variant="danger" className="flex items-center gap-1">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-            <span className="hidden sm:inline">{firingCount} Active Alert{firingCount !== 1 ? 's' : ''}</span>
-            <span className="sm:hidden">{firingCount}</span>
-          </Badge>
-        )}
-
-        <div className="hidden sm:flex items-center gap-2">
+      <div className="flex items-center gap-2 md:gap-3">
+        {/* System Health Indicator */}
+        <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-md bg-muted/50">
           <div
             className={`h-2 w-2 rounded-full ${
-              healthData?.status === 'ok' ? 'bg-green-500' : 'bg-red-500'
+              isHealthy
+                ? 'bg-green-500 animate-pulse-dot'
+                : 'bg-red-500 animate-status-glow'
             }`}
           />
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            {healthData?.status === 'ok' ? 'System Healthy' : 'System Error'}
+          <span className="text-xs font-medium text-muted-foreground">
+            {isHealthy ? 'Healthy' : 'Degraded'}
           </span>
         </div>
 
-        {/* User Menu */}
-        <div className="flex items-center gap-2 md:gap-3 ml-2 md:ml-4 pl-2 md:pl-4 border-l dark:border-gray-700">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.name}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{user?.role}</p>
+        {/* Firing Alerts */}
+        {firingCount > 0 && (
+          <a href="/alerts" className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/20 dark:hover:bg-red-500/30 transition-colors">
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <span className="text-xs font-semibold">{firingCount}</span>
+            <span className="hidden sm:inline text-xs">alert{firingCount !== 1 ? 's' : ''}</span>
+          </a>
+        )}
+
+        {/* User */}
+        <div className="flex items-center gap-2 ml-1 pl-3 border-l">
+          <div className="hidden sm:block text-right">
+            <p className="text-xs font-medium leading-tight">{user?.name}</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{user?.role}</p>
           </div>
           <button
             onClick={logout}
-            className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+            title="Logout"
           >
-            Logout
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
           </button>
         </div>
       </div>

@@ -61,7 +61,7 @@ export default function MetricsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Metrics Explorer</h2>
+        <h2 className="text-2xl font-bold">Metrics Explorer</h2>
         <p className="text-muted-foreground">Query Prometheus metrics directly</p>
       </div>
 
@@ -94,7 +94,7 @@ export default function MetricsPage() {
                     setQuery(ex.query);
                     setSubmittedQuery(ex.query);
                   }}
-                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                  className="px-3 py-1 text-sm bg-muted hover:bg-muted/80 rounded-full transition-colors text-muted-foreground hover:text-foreground"
                 >
                   {ex.label}
                 </button>
@@ -111,7 +111,7 @@ export default function MetricsPage() {
         </CardHeader>
         <CardContent>
           {error ? (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400">
               Error executing query: {(error as Error)?.message || 'Unknown error'}
             </div>
           ) : isLoading ? (
@@ -131,9 +131,9 @@ export default function MetricsPage() {
                   </thead>
                   <tbody>
                     {queryResult.data.result.map((item, i) => (
-                      <tr key={i} className="border-b hover:bg-gray-50">
+                      <tr key={i} className="border-b hover:bg-muted/50">
                         <td className="p-2">
-                          <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          <code className="text-xs bg-muted px-2 py-1 rounded">
                             {JSON.stringify(item.metric)}
                           </code>
                         </td>
@@ -176,42 +176,42 @@ export default function MetricsPage() {
               href={process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
             >
-              <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold">
+              <div className="h-10 w-10 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center text-orange-500 font-bold text-sm">
                 G
               </div>
               <div>
-                <p className="font-medium">Grafana</p>
-                <p className="text-sm text-muted-foreground">Advanced dashboards</p>
+                <p className="font-medium text-sm">Grafana</p>
+                <p className="text-xs text-muted-foreground">Advanced dashboards</p>
               </div>
             </a>
             <a
               href={process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
             >
-              <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold">
+              <div className="h-10 w-10 rounded-lg bg-red-500/10 dark:bg-red-500/20 flex items-center justify-center text-red-500 font-bold text-sm">
                 P
               </div>
               <div>
-                <p className="font-medium">Prometheus</p>
-                <p className="text-sm text-muted-foreground">Native query UI</p>
+                <p className="font-medium text-sm">Prometheus</p>
+                <p className="text-xs text-muted-foreground">Native query UI</p>
               </div>
             </a>
             <a
               href={process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
             >
-              <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold">
+              <div className="h-10 w-10 rounded-lg bg-yellow-500/10 dark:bg-yellow-500/20 flex items-center justify-center text-yellow-500 font-bold text-sm">
                 A
               </div>
               <div>
-                <p className="font-medium">AlertManager</p>
-                <p className="text-sm text-muted-foreground">Alert routing</p>
+                <p className="font-medium text-sm">AlertManager</p>
+                <p className="text-xs text-muted-foreground">Alert routing</p>
               </div>
             </a>
           </div>

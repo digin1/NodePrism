@@ -37,10 +37,10 @@ interface EventStats {
 }
 
 const severityColors: Record<string, string> = {
-  CRITICAL: 'bg-red-100 text-red-800 border-red-200',
-  WARNING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  INFO: 'bg-blue-100 text-blue-800 border-blue-200',
-  DEBUG: 'bg-gray-100 text-gray-800 border-gray-200',
+  CRITICAL: 'bg-red-500/10 dark:bg-red-500/20 text-red-800 dark:text-red-300 border-red-500/20',
+  WARNING: 'bg-yellow-500/10 dark:bg-yellow-500/20 text-yellow-800 dark:text-yellow-300 border-yellow-500/20',
+  INFO: 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-800 dark:text-blue-300 border-blue-500/20',
+  DEBUG: 'bg-muted text-muted-foreground border-border',
 };
 
 const severityBadgeColors: Record<string, string> = {
@@ -169,7 +169,7 @@ export default function EventsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Event Log</h2>
+          <h2 className="text-2xl font-bold text-foreground">Event Log</h2>
           <p className="text-muted-foreground">Monitor server and system events</p>
         </div>
         <div className="flex gap-2">
@@ -215,8 +215,8 @@ export default function EventsPage() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-sm text-gray-600">Debug</div>
-              <div className="text-2xl font-bold text-gray-600">{stats.bySeverity?.DEBUG || 0}</div>
+              <div className="text-sm text-muted-foreground">Debug</div>
+              <div className="text-2xl font-bold text-muted-foreground">{stats.bySeverity?.DEBUG || 0}</div>
             </CardContent>
           </Card>
         </div>
@@ -227,7 +227,7 @@ export default function EventsPage() {
         <CardContent className="p-4">
           <div className="grid gap-4 md:grid-cols-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Search</label>
+              <label className="text-sm font-medium text-muted-foreground mb-1 block">Search</label>
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -235,7 +235,7 @@ export default function EventsPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Severity</label>
+              <label className="text-sm font-medium text-muted-foreground mb-1 block">Severity</label>
               <Select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
                 <option value="all">All Severities</option>
                 <option value="CRITICAL">Critical</option>
@@ -245,7 +245,7 @@ export default function EventsPage() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Event Type</label>
+              <label className="text-sm font-medium text-muted-foreground mb-1 block">Event Type</label>
               <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                 <option value="all">All Types</option>
                 <optgroup label="Server">
@@ -272,7 +272,7 @@ export default function EventsPage() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Time Range</label>
+              <label className="text-sm font-medium text-muted-foreground mb-1 block">Time Range</label>
               <Select value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
                 <option value="1h">Last 1 hour</option>
                 <option value="6h">Last 6 hours</option>
@@ -292,7 +292,7 @@ export default function EventsPage() {
               {isLoading ? 'Loading...' : `${filteredEvents.length} Events`}
             </span>
             {realtimeEvents.length > 0 && (
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
+              <Badge variant="secondary" className="bg-green-500/10 dark:bg-green-500/20 text-green-800 dark:text-green-300">
                 {realtimeEvents.length} new
               </Badge>
             )}
@@ -307,20 +307,20 @@ export default function EventsPage() {
             </div>
           ) : filteredEvents.length === 0 ? (
             <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="mx-auto h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No events found</h3>
-              <p className="mt-1 text-sm text-gray-500">Events will appear here as they occur.</p>
+              <h3 className="mt-2 text-sm font-medium text-foreground">No events found</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Events will appear here as they occur.</p>
             </div>
           ) : (
             <div className="divide-y">
               {filteredEvents.map((event) => (
                 <div
                   key={event.id}
-                  className={`p-4 hover:bg-gray-50 transition-colors ${
-                    event.severity === 'CRITICAL' ? 'bg-red-50' :
-                    event.severity === 'WARNING' ? 'bg-yellow-50' : ''
+                  className={`p-4 hover:bg-muted/50 transition-colors ${
+                    event.severity === 'CRITICAL' ? 'bg-red-500/10 dark:bg-red-500/20' :
+                    event.severity === 'WARNING' ? 'bg-yellow-500/10 dark:bg-yellow-500/20' : ''
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -332,18 +332,18 @@ export default function EventsPage() {
                         <Badge className={`${severityBadgeColors[event.severity]} text-white text-xs`}>
                           {event.severity}
                         </Badge>
-                        <span className="font-medium text-gray-900">{event.title}</span>
+                        <span className="font-medium text-foreground">{event.title}</span>
                         {event.serverHostname && (
                           <Badge variant="outline" className="text-xs">
                             {event.serverHostname}
                           </Badge>
                         )}
                         {event.source && (
-                          <span className="text-xs text-gray-400">{event.source}</span>
+                          <span className="text-xs text-muted-foreground">{event.source}</span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{event.message}</p>
-                      <div className="text-xs text-gray-400 mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">{event.message}</p>
+                      <div className="text-xs text-muted-foreground mt-1">
                         {new Date(event.createdAt).toLocaleString()}
                       </div>
                     </div>

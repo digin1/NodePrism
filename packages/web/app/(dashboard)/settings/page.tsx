@@ -144,14 +144,14 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+        <h2 className="text-2xl font-bold text-foreground">Settings</h2>
         <p className="text-muted-foreground">System configuration and branding</p>
       </div>
 
       {message && (
         <div
           className={`p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            message.type === 'success' ? 'bg-green-500/10 dark:bg-green-500/20 text-green-800 dark:text-green-300' : 'bg-red-500/10 dark:bg-red-500/20 text-red-800 dark:text-red-300'
           }`}
         >
           {message.text}
@@ -168,7 +168,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-6">
             {/* Logo Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Logo</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Logo</label>
               <div className="flex items-center gap-4">
                 <div className="rounded-lg flex items-center justify-center bg-white overflow-hidden py-2 px-4" style={{ minHeight: '80px' }}>
                   {logoUrl ? (
@@ -217,7 +217,7 @@ export default function SettingsPage() {
 
             {/* System Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">System Name</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">System Name</label>
               <input
                 type="text"
                 value={systemName}
@@ -232,7 +232,7 @@ export default function SettingsPage() {
 
             {/* Primary Color */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Primary Color</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Primary Color</label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -252,7 +252,7 @@ export default function SettingsPage() {
 
             {/* Timezone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Timezone</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Timezone</label>
               <Select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
                 {[
                   'UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
@@ -271,7 +271,7 @@ export default function SettingsPage() {
 
             {/* Date Format */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date Format</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Date Format</label>
               <Select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)}>
                 {[
                   { value: 'YYYY-MM-DD HH:mm:ss', label: 'YYYY-MM-DD HH:mm:ss (2026-03-07 14:30:00)' },
@@ -418,7 +418,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-6">
             {/* Export */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Export Configuration</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Export Configuration</h4>
               <p className="text-xs text-muted-foreground mb-3">
                 Download a JSON file containing all your alert rules, templates, dashboards, notification channels, and settings.
               </p>
@@ -448,7 +448,7 @@ export default function SettingsPage() {
 
             {/* Import */}
             <div className="border-t pt-6">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Import Configuration</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Import Configuration</h4>
               <p className="text-xs text-muted-foreground mb-3">
                 Upload a previously exported JSON file to restore configuration.
               </p>
@@ -515,7 +515,7 @@ export default function SettingsPage() {
             {services.map((service) => (
               <div
                 key={service.name}
-                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
               >
                 <div>
                   <p className="font-medium">{service.name}</p>
@@ -573,9 +573,9 @@ export default function SettingsPage() {
               href={process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
             >
-              <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xl">
+              <div className="h-12 w-12 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center text-orange-600 font-bold text-xl">
                 G
               </div>
               <div>
@@ -588,9 +588,9 @@ export default function SettingsPage() {
               href={process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
             >
-              <div className="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center text-red-600 font-bold text-xl">
+              <div className="h-12 w-12 rounded-lg bg-red-500/10 dark:bg-red-500/20 flex items-center justify-center text-red-600 font-bold text-xl">
                 P
               </div>
               <div>
@@ -602,9 +602,9 @@ export default function SettingsPage() {
               href={process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
             >
-              <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold text-xl">
+              <div className="h-12 w-12 rounded-lg bg-yellow-500/10 dark:bg-yellow-500/20 flex items-center justify-center text-yellow-600 font-bold text-xl">
                 A
               </div>
               <div>

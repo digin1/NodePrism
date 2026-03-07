@@ -38,6 +38,24 @@ interface Server {
   createdAt: string;
   agents?: Array<{ id: string; type: string; port: number; status: string }>;
   alerts?: Array<{ id: string; message: string; severity: string; startsAt: string }>;
+  metadata?: {
+    os?: {
+      distro?: string;
+      distroId?: string;
+      distroVersion?: string;
+      distroCodename?: string;
+      kernel?: string;
+      arch?: string;
+      platform?: string;
+    };
+    hardware?: {
+      cpuModel?: string;
+      cpuCores?: number;
+      memoryTotal?: number;
+    };
+    lastBootUptime?: number;
+    [key: string]: unknown;
+  };
 }
 
 interface Metrics {
@@ -90,6 +108,13 @@ function formatUptime(seconds: number | null): string {
   if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${mins}m`;
   return `${mins}m`;
+}
+
+function formatMemoryKB(kb: number): string {
+  const gb = kb / (1024 * 1024);
+  if (gb >= 1) return `${gb.toFixed(1)} GB`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(0)} MB`;
 }
 
 function MetricCard({
@@ -372,9 +397,74 @@ export default function ServerDetailPage() {
                 <dt className="text-muted-foreground">Created</dt>
                 <dd>{new Date(serverData.createdAt).toLocaleDateString()}</dd>
               </div>
+              {serverData.metadata?.lastBootUptime != null && (
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Uptime</dt>
+                  <dd>{formatUptime(serverData.metadata.lastBootUptime as number)}</dd>
+                </div>
+              )}
             </dl>
           </CardContent>
         </Card>
+
+        {/* OS & Hardware Info */}
+        {(serverData.metadata?.os || serverData.metadata?.hardware) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                System Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="space-y-4">
+                {serverData.metadata.os?.distro && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">OS</dt>
+                    <dd className="font-medium text-right">{serverData.metadata.os.distro}</dd>
+                  </div>
+                )}
+                {serverData.metadata.os?.kernel && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Kernel</dt>
+                    <dd className="font-mono text-sm">{serverData.metadata.os.kernel}</dd>
+                  </div>
+                )}
+                {serverData.metadata.os?.arch && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Architecture</dt>
+                    <dd>{serverData.metadata.os.arch}</dd>
+                  </div>
+                )}
+                {serverData.metadata.os?.platform && serverData.metadata.os.platform !== 'Unknown' && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Platform</dt>
+                    <dd>{serverData.metadata.os.platform}</dd>
+                  </div>
+                )}
+                {serverData.metadata.hardware?.cpuModel && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">CPU</dt>
+                    <dd className="text-right text-sm max-w-[60%]">
+                      {serverData.metadata.hardware.cpuModel}
+                      {serverData.metadata.hardware.cpuCores && (
+                        <span className="text-muted-foreground ml-1">({serverData.metadata.hardware.cpuCores} cores)</span>
+                      )}
+                    </dd>
+                  </div>
+                )}
+                {serverData.metadata.hardware?.memoryTotal != null && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Total Memory</dt>
+                    <dd className="font-medium">{formatMemoryKB(serverData.metadata.hardware.memoryTotal)}</dd>
+                  </div>
+                )}
+              </dl>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Agents */}
         <Card>

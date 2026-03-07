@@ -124,6 +124,19 @@ Base path: `/api/metrics`
 | GET | `/metrics/server/:serverId/aggregate` | - | localhost:9090'; |
 | GET | `/metrics/server/:serverId/chart-data` | - | localhost:9090'; |
 
+## ServerGroups
+
+Base path: `/api/serverGroups`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/serverGroups` | - | Helper: build nested tree from flat list |
+| GET | `/serverGroups/:id` | - | Helper: build nested tree from flat list |
+| POST | `/serverGroups` | - | Helper: build nested tree from flat list |
+| PUT | `/serverGroups/:id` | - | Helper: build nested tree from flat list |
+| DELETE | `/serverGroups/:id` | - | Helper: build nested tree from flat list |
+| POST | `/serverGroups/move-servers` | - | Helper: build nested tree from flat list |
+
 ## Servers
 
 Base path: `/api/servers`

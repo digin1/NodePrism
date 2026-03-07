@@ -70,27 +70,31 @@ export default function ServersPage() {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 min-w-0">
               <Input
                 placeholder="Search by hostname or IP..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All Status</option>
-              <option value="ONLINE">Online</option>
-              <option value="OFFLINE">Offline</option>
-              <option value="WARNING">Warning</option>
-              <option value="CRITICAL">Critical</option>
-            </Select>
-            <Select value={envFilter} onChange={(e) => setEnvFilter(e.target.value)}>
-              <option value="">All Environments</option>
-              <option value="PRODUCTION">Production</option>
-              <option value="STAGING">Staging</option>
-              <option value="DEVELOPMENT">Development</option>
-            </Select>
+            <div className="w-full sm:w-48 sm:shrink-0">
+              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="">All Status</option>
+                <option value="ONLINE">Online</option>
+                <option value="OFFLINE">Offline</option>
+                <option value="WARNING">Warning</option>
+                <option value="CRITICAL">Critical</option>
+              </Select>
+            </div>
+            <div className="w-full sm:w-48 sm:shrink-0">
+              <Select value={envFilter} onChange={(e) => setEnvFilter(e.target.value)}>
+                <option value="">All Environments</option>
+                <option value="PRODUCTION">Production</option>
+                <option value="STAGING">Staging</option>
+                <option value="DEVELOPMENT">Development</option>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>

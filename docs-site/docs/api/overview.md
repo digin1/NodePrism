@@ -17,7 +17,6 @@ The NodePrism API is a RESTful service that provides:
 ## Quick Links
 
 - [API Endpoints](./endpoints.md) - All available endpoints
-- [Authentication](./authentication.md) - Auth flow and JWT tokens
 - [WebSocket Events](./endpoints.md#websocket-events) - Real-time updates
 
 ## Base URL

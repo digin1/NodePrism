@@ -10,6 +10,7 @@ import { eventRoutes } from './events';
 import { settingsRoutes } from './settings';
 import { serverGroupRoutes } from './serverGroups';
 import { containerRoutes } from './containers';
+import { notificationRoutes } from './notifications';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -38,5 +39,6 @@ router.use('/metrics', optionalAuth, metricRoutes);
 router.use('/anomalies', optionalAuth, anomalyRoutes);
 router.use('/logs', optionalAuth, logRoutes);
 router.use('/events', optionalAuth, eventRoutes);
+router.use('/notifications', optionalAuth, notificationRoutes);
 
 export { router as routes };

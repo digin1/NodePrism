@@ -189,6 +189,46 @@ export const agentApi = {
   unregister: (agentId: string) => api.post('/api/agents/unregister', { agentId }),
 };
 
+// Notification types
+export interface NotificationChannel {
+  id: string;
+  name: string;
+  type: 'EMAIL' | 'SLACK' | 'DISCORD' | 'WEBHOOK' | 'TELEGRAM' | 'PAGERDUTY';
+  config: Record<string, unknown>;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { logs: number };
+}
+
+export interface NotificationLog {
+  id: string;
+  channelId: string;
+  alertId: string;
+  status: string;
+  message: string | null;
+  createdAt: string;
+  channel?: { name: string; type: string };
+}
+
+// Notification API
+export const notificationApi = {
+  listChannels: () =>
+    getData<NotificationChannel[]>(api.get('/api/notifications/channels')),
+  getChannel: (id: string) =>
+    getData<NotificationChannel>(api.get(`/api/notifications/channels/${id}`)),
+  createChannel: (data: { name: string; type: string; config: Record<string, unknown>; enabled?: boolean }) =>
+    getData<NotificationChannel>(api.post('/api/notifications/channels', data)),
+  updateChannel: (id: string, data: Partial<{ name: string; type: string; config: Record<string, unknown>; enabled: boolean }>) =>
+    getData<NotificationChannel>(api.put(`/api/notifications/channels/${id}`, data)),
+  deleteChannel: (id: string) =>
+    api.delete(`/api/notifications/channels/${id}`),
+  testChannel: (id: string) =>
+    getData<{ message: string }>(api.post(`/api/notifications/channels/${id}/test`)),
+  logs: (params?: { channelId?: string; status?: string; limit?: number }) =>
+    getData<NotificationLog[]>(api.get('/api/notifications/logs', { params })),
+};
+
 // Settings types
 export interface SystemSettings {
   systemName: string;

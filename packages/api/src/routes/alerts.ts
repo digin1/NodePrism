@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { AlertTemplateService } from '../services/alertTemplateService';
+import { dispatchNotifications } from '../services/notificationSender';
 
 const router: ExpressRouter = Router();
 
@@ -431,7 +432,7 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
       }
 
       // Upsert the alert
-      await prisma.alert.upsert({
+      const upsertedAlert = await prisma.alert.upsert({
         where: { fingerprint },
         create: {
           fingerprint,
@@ -450,7 +451,22 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
           endsAt: alert.endsAt ? new Date(alert.endsAt) : null,
           ...(serverId && { serverId }),
         },
+        include: { server: { select: { hostname: true, ipAddress: true } } },
       });
+
+      // Dispatch notifications (non-blocking)
+      dispatchNotifications({
+        id: upsertedAlert.id,
+        status: upsertedAlert.status,
+        severity: upsertedAlert.severity,
+        message: upsertedAlert.message,
+        labels: (upsertedAlert.labels as Record<string, string>) || {},
+        annotations: (upsertedAlert.annotations as Record<string, string>) || undefined,
+        startsAt: upsertedAlert.startsAt,
+        endsAt: upsertedAlert.endsAt,
+        serverHostname: upsertedAlert.server?.hostname,
+        serverIp: upsertedAlert.server?.ipAddress,
+      }).catch(err => logger.error('Notification dispatch error', { error: err.message }));
     }
 
     // Emit real-time update

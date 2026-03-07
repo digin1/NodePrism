@@ -285,6 +285,34 @@ export const notificationApi = {
     getData<NotificationLog[]>(api.get('/api/notifications/logs', { params })),
 };
 
+// Maintenance Window types
+export interface MaintenanceWindow {
+  id: string;
+  serverId: string;
+  reason: string;
+  startTime: string;
+  endTime: string;
+  createdBy: string | null;
+  createdAt: string;
+  server?: { id: string; hostname: string; ipAddress: string };
+}
+
+// Maintenance Window API
+export const maintenanceApi = {
+  list: (params?: { serverId?: string; active?: string }) =>
+    getData<MaintenanceWindow[]>(api.get('/api/maintenance-windows', { params })),
+  get: (id: string) =>
+    getData<MaintenanceWindow>(api.get(`/api/maintenance-windows/${id}`)),
+  create: (data: { serverId: string; reason: string; startTime: string; endTime: string }) =>
+    getData<MaintenanceWindow>(api.post('/api/maintenance-windows', data)),
+  update: (id: string, data: Partial<{ reason: string; startTime: string; endTime: string }>) =>
+    getData<MaintenanceWindow>(api.put(`/api/maintenance-windows/${id}`, data)),
+  delete: (id: string) =>
+    api.delete(`/api/maintenance-windows/${id}`),
+  serverActive: (serverId: string) =>
+    getData<{ inMaintenance: boolean; window: MaintenanceWindow | null }>(api.get(`/api/maintenance-windows/server/${serverId}/active`)),
+};
+
 // Settings types
 export interface SystemSettings {
   systemName: string;

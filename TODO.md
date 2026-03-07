@@ -117,11 +117,11 @@
 - [x] Write tests: `apiMetrics.test.ts`
 
 ### 3.3 Scheduled Maintenance Windows
-- [ ] Add `MaintenanceWindow` model to Prisma schema (serverId, startTime, endTime, reason)
-- [ ] Create CRUD routes for maintenance windows
-- [ ] Suppress alerts for servers in maintenance window
-- [ ] Show maintenance indicator on server cards and detail page
-- [ ] Write tests: `maintenanceWindows.test.ts`
+- [x] Add `MaintenanceWindow` model to Prisma schema (serverId, startTime, endTime, reason)
+- [x] Create CRUD routes for maintenance windows
+- [x] Suppress alerts for servers in maintenance window
+- [x] Show maintenance indicator on server cards and detail page
+- [x] Write tests: `maintenanceWindows.test.ts`
 
 ### 3.4 Graceful Degradation
 - [ ] Anomaly detector: fallback to DB-only mode if Redis is down
@@ -198,7 +198,7 @@
 - [x] `configExportImport.test.ts` — Config export/import validation and conflict resolution (32 tests)
 - [x] `healthCheck.test.ts` — Health endpoint enrichment and dependency checks (23 tests)
 - [x] `apiMetrics.test.ts` — Prometheus self-metrics, route normalization, error classification (26 tests)
-- [ ] `maintenanceWindows.test.ts` — Maintenance window logic
+- [x] `maintenanceWindows.test.ts` — Maintenance window validation, suppression, overlap detection (23 tests)
 - [ ] `gracefulDegradation.test.ts` — Fallback behavior
 - [ ] `dbBackup.test.ts` — Backup scheduling
 - [x] `housekeeping.test.ts` — Disk-aware cleanup logic (11 tests)

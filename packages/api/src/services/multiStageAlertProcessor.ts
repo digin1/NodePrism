@@ -148,6 +148,7 @@ export class MultiStageAlertProcessor {
 
   /**
    * Create or update an alert for a template+server, and dispatch notifications.
+   * Suppresses alerts if the server is in a maintenance window.
    */
   private async upsertAlert(
     template: AlertTemplateConfig,
@@ -156,6 +157,21 @@ export class MultiStageAlertProcessor {
     value: number
   ): Promise<void> {
     try {
+      // Check if server is in a maintenance window — suppress alert if so
+      const now = new Date();
+      const activeWindow = await prisma.maintenanceWindow.findFirst({
+        where: {
+          serverId,
+          startTime: { lte: now },
+          endTime: { gte: now },
+        },
+      });
+
+      if (activeWindow) {
+        logger.debug(`Alert suppressed for server ${serverId}: in maintenance window until ${activeWindow.endTime.toISOString()}`);
+        return;
+      }
+
       const fingerprint = `template-${template.id}-${serverId}`;
 
       const alert = await prisma.alert.upsert({

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { serverApi, serverGroupApi, ServerGroup } from '@/lib/api';
+import { serverApi, serverGroupApi, maintenanceApi, ServerGroup, MaintenanceWindow } from '@/lib/api';
 
 const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary'> = {
   ONLINE: 'success',
@@ -81,6 +81,16 @@ export default function ServersPage() {
     queryKey: ['serverGroups'],
     queryFn: () => serverGroupApi.list(),
   });
+
+  const { data: activeMaintenanceWindows } = useQuery({
+    queryKey: ['activeMaintenanceWindows'],
+    queryFn: () => maintenanceApi.list({ active: 'true' }),
+    refetchInterval: 60000,
+  });
+
+  const maintenanceServerIds = new Set(
+    (activeMaintenanceWindows as MaintenanceWindow[] | undefined)?.map(w => w.serverId) || []
+  );
 
   const { data: flatGroups } = useQuery({
     queryKey: ['serverGroups', 'flat'],
@@ -298,9 +308,14 @@ export default function ServersPage() {
       </TableCell>
       <TableCell className="font-mono text-sm">{server.ipAddress}</TableCell>
       <TableCell>
-        <Badge variant={statusColors[server.status] || 'secondary'}>
-          {server.status}
-        </Badge>
+        <div className="flex items-center gap-1">
+          <Badge variant={statusColors[server.status] || 'secondary'}>
+            {server.status}
+          </Badge>
+          {maintenanceServerIds.has(server.id) && (
+            <Badge variant="warning" className="text-xs">Maint</Badge>
+          )}
+        </div>
       </TableCell>
       <TableCell>
         <Badge variant="outline">{server.environment}</Badge>

@@ -154,6 +154,27 @@ export const anomalyApi = {
   stats: () => getData(api.get('/api/anomalies/stats')),
 };
 
+// Container API
+export interface VirtualContainer {
+  id: string;
+  serverId: string;
+  containerId: string;
+  name: string;
+  type: string;
+  status: string;
+  ipAddress: string | null;
+  hostname: string | null;
+  networkRxBytes: string;
+  networkTxBytes: string;
+  metadata: Record<string, unknown> | null;
+  lastSeen: string | null;
+}
+
+export const containerApi = {
+  listByServer: (serverId: string) =>
+    getData<VirtualContainer[]>(api.get(`/api/containers/server/${serverId}`)),
+};
+
 // Agent API
 export const agentApi = {
   list: (params?: { serverId?: string; type?: string; status?: string }) =>

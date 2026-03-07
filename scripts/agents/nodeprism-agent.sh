@@ -362,6 +362,165 @@ gather_system_info() {
   fi
 }
 
+# Gather container/VM list from host (KVM, OpenVZ, Virtuozzo)
+# Outputs JSON array to stdout
+gather_containers() {
+  local containers="[]"
+  local virt_type=""
+
+  # Detect what virtualization host tools are available
+  if command -v virsh &>/dev/null; then
+    virt_type="kvm"
+  elif command -v prlctl &>/dev/null; then
+    virt_type="virtuozzo"
+  elif command -v vzlist &>/dev/null; then
+    virt_type="openvz"
+  fi
+
+  [[ -z "$virt_type" ]] && echo "$containers" && return
+
+  local json_entries=()
+
+  case "$virt_type" in
+    kvm)
+      # List all KVM domains
+      while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local vm_id vm_name vm_state
+        vm_id=$(echo "$line" | awk '{print $1}')
+        vm_name=$(echo "$line" | awk '{print $2}')
+        vm_state=$(echo "$line" | awk '{$1=""; $2=""; print}' | sed 's/^ *//')
+
+        [[ -z "$vm_name" || "$vm_name" == "Name" ]] && continue
+
+        local status="stopped"
+        case "$vm_state" in
+          *running*)  status="running" ;;
+          *paused*)   status="paused" ;;
+          *shut*)     status="stopped" ;;
+          *crashed*)  status="crashed" ;;
+        esac
+
+        # Get VM UUID as containerId
+        local vm_uuid
+        vm_uuid=$(virsh domuuid "$vm_name" 2>/dev/null || echo "$vm_id")
+
+        # Get IP address (requires guest agent or DHCP lease)
+        local vm_ip=""
+        if [[ "$status" == "running" ]]; then
+          vm_ip=$(virsh domifaddr "$vm_name" 2>/dev/null | grep -oP '\d+\.\d+\.\d+\.\d+' | head -1 || echo "")
+        fi
+
+        # Get network stats from host-side interfaces
+        local rx_bytes=0 tx_bytes=0
+        local ifaces
+        ifaces=$(virsh domiflist "$vm_name" 2>/dev/null | awk 'NR>2 && $1!="" {print $1}')
+        for iface in $ifaces; do
+          local stats
+          stats=$(virsh domifstat "$vm_name" "$iface" 2>/dev/null || echo "")
+          local rx tx
+          rx=$(echo "$stats" | grep 'rx_bytes' | awk '{print $2}')
+          tx=$(echo "$stats" | grep 'tx_bytes' | awk '{print $2}')
+          rx_bytes=$((rx_bytes + ${rx:-0}))
+          tx_bytes=$((tx_bytes + ${tx:-0}))
+        done
+
+        # Get VM metadata (vCPUs, memory)
+        local vcpus mem_kb
+        vcpus=$(virsh vcpucount "$vm_name" --current 2>/dev/null || echo "0")
+        mem_kb=$(virsh dominfo "$vm_name" 2>/dev/null | grep 'Max memory' | awk '{print $3}' || echo "0")
+
+        local name_escaped
+        name_escaped=$(echo "$vm_name" | sed 's/"/\\"/g')
+
+        json_entries+=("{\"containerId\":\"${vm_uuid}\",\"name\":\"${name_escaped}\",\"type\":\"kvm\",\"status\":\"${status}\",\"ipAddress\":$([ -n "$vm_ip" ] && echo "\"$vm_ip\"" || echo "null"),\"hostname\":null,\"networkRxBytes\":${rx_bytes},\"networkTxBytes\":${tx_bytes},\"metadata\":{\"vcpus\":${vcpus:-0},\"memoryKB\":${mem_kb:-0}}}")
+      done < <(virsh list --all 2>/dev/null | tail -n +3)
+      ;;
+
+    openvz)
+      # List all OpenVZ containers
+      while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local ctid ct_hostname ct_ip ct_status
+        ctid=$(echo "$line" | awk '{print $1}')
+        ct_ip=$(echo "$line" | awk '{print $2}')
+        ct_hostname=$(echo "$line" | awk '{print $3}')
+        ct_status=$(echo "$line" | awk '{print $4}')
+
+        [[ -z "$ctid" || "$ctid" == "CTID" ]] && continue
+
+        local status="stopped"
+        [[ "$ct_status" == "running" ]] && status="running"
+
+        [[ "$ct_ip" == "-" ]] && ct_ip=""
+        [[ "$ct_hostname" == "-" ]] && ct_hostname=""
+
+        # Get network stats from host-side veth interface
+        local rx_bytes=0 tx_bytes=0
+        local veth_if="veth${ctid}.0"
+        if [[ -d "/sys/class/net/${veth_if}/statistics" ]]; then
+          rx_bytes=$(cat "/sys/class/net/${veth_if}/statistics/rx_bytes" 2>/dev/null || echo "0")
+          tx_bytes=$(cat "/sys/class/net/${veth_if}/statistics/tx_bytes" 2>/dev/null || echo "0")
+        fi
+
+        local hostname_escaped
+        hostname_escaped=$(echo "$ct_hostname" | sed 's/"/\\"/g')
+
+        json_entries+=("{\"containerId\":\"${ctid}\",\"name\":\"CT${ctid}\",\"type\":\"openvz\",\"status\":\"${status}\",\"ipAddress\":$([ -n "$ct_ip" ] && echo "\"$ct_ip\"" || echo "null"),\"hostname\":$([ -n "$ct_hostname" ] && echo "\"$hostname_escaped\"" || echo "null"),\"networkRxBytes\":${rx_bytes},\"networkTxBytes\":${tx_bytes},\"metadata\":{}}")
+      done < <(vzlist -a -o ctid,ip,hostname,status -H 2>/dev/null)
+      ;;
+
+    virtuozzo)
+      # List all Virtuozzo containers/VMs
+      while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local ct_uuid ct_status ct_ip ct_name
+        ct_uuid=$(echo "$line" | awk '{print $1}')
+        ct_status=$(echo "$line" | awk '{print $2}')
+        ct_ip=$(echo "$line" | awk '{print $3}')
+        ct_name=$(echo "$line" | awk '{$1=""; $2=""; $3=""; print}' | sed 's/^ *//')
+
+        [[ -z "$ct_uuid" || "$ct_uuid" == "UUID" ]] && continue
+
+        local status="stopped"
+        [[ "$ct_status" == "running" ]] && status="running"
+        [[ "$ct_status" == "suspended" ]] && status="paused"
+
+        [[ "$ct_ip" == "-" ]] && ct_ip=""
+        [[ "$ct_name" == "-" ]] && ct_name="$ct_uuid"
+
+        # Get network stats from host-side veth
+        local rx_bytes=0 tx_bytes=0
+        local short_uuid="${ct_uuid:0:8}"
+        for netdir in /sys/class/net/veth*; do
+          local ifname
+          ifname=$(basename "$netdir" 2>/dev/null)
+          if [[ "$ifname" == *"$short_uuid"* ]]; then
+            local rx tx
+            rx=$(cat "$netdir/statistics/rx_bytes" 2>/dev/null || echo "0")
+            tx=$(cat "$netdir/statistics/tx_bytes" 2>/dev/null || echo "0")
+            rx_bytes=$((rx_bytes + rx))
+            tx_bytes=$((tx_bytes + tx))
+          fi
+        done
+
+        local name_escaped
+        name_escaped=$(echo "$ct_name" | sed 's/"/\\"/g')
+
+        json_entries+=("{\"containerId\":\"${ct_uuid}\",\"name\":\"${name_escaped}\",\"type\":\"virtuozzo\",\"status\":\"${status}\",\"ipAddress\":$([ -n "$ct_ip" ] && echo "\"$ct_ip\"" || echo "null"),\"hostname\":null,\"networkRxBytes\":${rx_bytes},\"networkTxBytes\":${tx_bytes},\"metadata\":{}}")
+      done < <(prlctl list -a -o uuid,status,ip,name --no-header 2>/dev/null)
+      ;;
+  esac
+
+  # Build JSON array
+  if [[ ${#json_entries[@]} -gt 0 ]]; then
+    local IFS=','
+    containers="[${json_entries[*]}]"
+  fi
+
+  echo "$containers"
+}
+
 get_ip_address() {
   local ip=""
   if command -v hostname &>/dev/null; then
@@ -1449,11 +1608,72 @@ EOF
 
   if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then
     log_info "Registered successfully with NodePrism"
+    # Extract serverId for container reporting
+    local body
+    body=$(echo "$response" | sed '$d')
+    REGISTERED_SERVER_ID=$(echo "$body" | grep -oP '"serverId"\s*:\s*"[^"]*"' | head -1 | grep -oP '"[^"]*"$' | tr -d '"')
   elif [[ "$http_code" == "409" ]]; then
     log_warn "Agent already registered (updating)"
   else
     log_error "Registration failed (HTTP $http_code)"
     log_warn "You can register manually in the NodePrism web UI"
+  fi
+}
+
+report_containers() {
+  if [[ "$SKIP_REGISTER" == "true" || -z "$API_URL" ]]; then
+    return 0
+  fi
+
+  # Only report if virtualization tools are available
+  if ! command -v virsh &>/dev/null && ! command -v vzlist &>/dev/null && ! command -v prlctl &>/dev/null; then
+    return 0
+  fi
+
+  log_info "Gathering container/VM inventory..."
+
+  # Extract serverId from registration response
+  local server_id="$REGISTERED_SERVER_ID"
+  if [[ -z "$server_id" ]]; then
+    log_warn "No server ID available, skipping container report"
+    return 0
+  fi
+
+  local container_json
+  container_json=$(gather_containers)
+
+  if [[ "$container_json" == "[]" ]]; then
+    log_info "No containers/VMs found on this host"
+    return 0
+  fi
+
+  local count
+  count=$(echo "$container_json" | grep -o '"containerId"' | wc -l)
+  log_info "Found ${count} container(s)/VM(s), reporting to NodePrism..."
+
+  local payload
+  payload="{\"serverId\":\"${server_id}\",\"containers\":${container_json}}"
+
+  local response http_code
+  if [[ -n "$API_TOKEN" ]]; then
+    response=$(curl -s -w "\n%{http_code}" -X POST \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer ${API_TOKEN}" \
+      -d "$payload" \
+      "${API_URL}/api/agents/containers" 2>&1) || true
+  else
+    response=$(curl -s -w "\n%{http_code}" -X POST \
+      -H "Content-Type: application/json" \
+      -d "$payload" \
+      "${API_URL}/api/agents/containers" 2>&1) || true
+  fi
+
+  http_code=$(echo "$response" | tail -n1)
+
+  if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then
+    log_info "Container report sent successfully (${count} containers)"
+  else
+    log_warn "Container report failed (HTTP $http_code)"
   fi
 }
 
@@ -1505,6 +1725,7 @@ do_install() {
   start_service
   verify_installation
   register_with_api
+  report_containers
   print_summary
 }
 

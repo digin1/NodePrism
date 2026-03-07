@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { serverApi, metricsApi, agentApi } from '@/lib/api';
+import { serverApi, metricsApi, agentApi, containerApi, VirtualContainer } from '@/lib/api';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
 
 const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary'> = {
@@ -118,6 +119,14 @@ function formatMemoryKB(kb: number): string {
   return `${mb.toFixed(0)} MB`;
 }
 
+function formatTraffic(bytesStr: string): string {
+  const bytes = Number(bytesStr);
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
 function MetricCard({
   label,
   value,
@@ -166,6 +175,15 @@ export default function ServerDetailPage() {
     enabled: !!server,
     refetchInterval: 5000, // Refresh every 5 seconds
   });
+
+  const { data: containers } = useQuery({
+    queryKey: ['serverContainers', serverId],
+    queryFn: () => containerApi.listByServer(serverId),
+    enabled: !!server,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const containerList = containers as VirtualContainer[] | undefined;
 
   const deleteMutation = useMutation({
     mutationFn: () => serverApi.delete(serverId),
@@ -602,6 +620,61 @@ export default function ServerDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Virtual Containers / VMs */}
+      {containerList && containerList.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Virtual Machines / Containers
+              <span className="text-sm font-normal text-muted-foreground">
+                ({containerList.length})
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>IP Address</TableHead>
+                  <TableHead>Hostname</TableHead>
+                  <TableHead className="text-right">RX</TableHead>
+                  <TableHead className="text-right">TX</TableHead>
+                  <TableHead>Last Seen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {containerList.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{c.type.toUpperCase()}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={c.status === 'running' ? 'success' : c.status === 'paused' ? 'warning' : 'secondary'}>
+                        {c.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{c.ipAddress || '—'}</TableCell>
+                    <TableCell>{c.hostname || '—'}</TableCell>
+                    <TableCell className="text-right text-green-600">{formatTraffic(c.networkRxBytes)}</TableCell>
+                    <TableCell className="text-right text-blue-600">{formatTraffic(c.networkTxBytes)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {c.lastSeen ? new Date(c.lastSeen).toLocaleString() : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Active Alerts */}
       {serverData.alerts && serverData.alerts.length > 0 && (

@@ -47,6 +47,7 @@ interface Server {
       kernel?: string;
       arch?: string;
       platform?: string;
+      controlPanel?: string;
     };
     hardware?: {
       cpuModel?: string;
@@ -442,6 +443,12 @@ export default function ServerDetailPage() {
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Platform</dt>
                     <dd>{serverData.metadata.os.platform}</dd>
+                  </div>
+                )}
+                {serverData.metadata.os?.controlPanel && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Control Panel</dt>
+                    <dd className="font-medium">{serverData.metadata.os.controlPanel}</dd>
                   </div>
                 )}
                 {serverData.metadata.hardware?.cpuModel && (

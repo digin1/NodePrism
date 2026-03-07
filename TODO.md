@@ -124,11 +124,11 @@
 - [x] Write tests: `maintenanceWindows.test.ts`
 
 ### 3.4 Graceful Degradation
-- [ ] Anomaly detector: fallback to DB-only mode if Redis is down
-- [ ] Config sync: retry with backoff if Prometheus is unreachable
-- [ ] API: return cached data if Prometheus query times out
-- [ ] Log degraded state and emit WebSocket event
-- [ ] Write tests: `gracefulDegradation.test.ts`
+- [x] Anomaly detector: fallback to DB-only mode if Redis is down
+- [x] Config sync: retry with backoff if Prometheus is unreachable
+- [x] API: return cached data if Prometheus query times out
+- [x] Log degraded state and emit WebSocket event
+- [x] Write tests: `gracefulDegradation.test.ts`
 
 ### 3.5 Database Backup & Restore
 - [ ] Add scheduled PostgreSQL backup (`pg_dump`) to housekeeping service
@@ -199,7 +199,7 @@
 - [x] `healthCheck.test.ts` — Health endpoint enrichment and dependency checks (23 tests)
 - [x] `apiMetrics.test.ts` — Prometheus self-metrics, route normalization, error classification (26 tests)
 - [x] `maintenanceWindows.test.ts` — Maintenance window validation, suppression, overlap detection (23 tests)
-- [ ] `gracefulDegradation.test.ts` — Fallback behavior
+- [x] `gracefulDegradation.test.ts` — Redis fallback, retry backoff, metric cache, status events (22 tests)
 - [ ] `dbBackup.test.ts` — Backup scheduling
 - [x] `housekeeping.test.ts` — Disk-aware cleanup logic (11 tests)
 - [ ] `heartbeatCleanup.test.ts` — Agent health monitoring

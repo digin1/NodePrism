@@ -31,9 +31,11 @@ class AnomalyDetectorService {
     logger.info('Starting Anomaly Detector Service...');
 
     try {
-      // Connect to Redis
+      // Connect to Redis (will fall back to DB-only mode if unavailable)
       await this.redis.connect();
-      logger.info('Connected to Redis');
+      if (!this.redis.isConnected) {
+        logger.warn('Running in degraded mode: Redis unavailable, using DB-only fallback');
+      }
 
       this.isRunning = true;
 

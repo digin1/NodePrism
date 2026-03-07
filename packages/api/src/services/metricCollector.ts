@@ -43,8 +43,13 @@ const METRIC_QUERIES: Record<string, (serverId: string) => string> = {
   ...NODE_METRIC_QUERIES,
 };
 
+// In-memory cache of last successful metric values per server
+const metricCache = new Map<string, { value: number; timestamp: number }>();
+const CACHE_TTL_MS = 120_000; // 2 minutes
+
 /**
- * Query a single metric from Prometheus
+ * Query a single metric from Prometheus.
+ * On failure, returns cached value if available within TTL.
  */
 async function queryMetric(query: string): Promise<number | null> {
   try {
@@ -53,8 +58,19 @@ async function queryMetric(query: string): Promise<number | null> {
       timeout: 5000,
     });
     const data = response.data?.data?.result?.[0]?.value;
-    return data ? parseFloat(data[1]) : null;
+    if (data) {
+      const value = parseFloat(data[1]);
+      metricCache.set(query, { value, timestamp: Date.now() });
+      return value;
+    }
+    return null;
   } catch {
+    // Return cached value if still fresh
+    const cached = metricCache.get(query);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      logger.debug('Serving cached metric value (Prometheus unavailable)', { query });
+      return cached.value;
+    }
     return null;
   }
 }

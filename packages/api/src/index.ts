@@ -111,6 +111,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Track last known health status for degraded state notifications
+let lastHealthStatus = 'ok';
+
 // Enriched health check endpoint with dependency checks
 app.get('/health', async (req, res) => {
   const start = Date.now();
@@ -158,6 +161,13 @@ app.get('/health', async (req, res) => {
   const allOk = Object.values(dependencies).every(d => d.status === 'ok');
   const anyDown = Object.values(dependencies).some(d => d.status === 'down');
   const overallStatus = allOk ? 'ok' : anyDown ? 'degraded' : 'ok';
+
+  // Emit WebSocket event on status change
+  if (overallStatus !== lastHealthStatus) {
+    logger.warn(`System health changed: ${lastHealthStatus} → ${overallStatus}`, { dependencies });
+    io.emit('system:health', { status: overallStatus, dependencies });
+    lastHealthStatus = overallStatus;
+  }
 
   const statusCode = overallStatus === 'ok' ? 200 : 503;
   res.status(statusCode).json({

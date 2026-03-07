@@ -64,11 +64,37 @@ AlertTemplate ──── NotificationChannel
 | updatedAt | DateTime | ✓ | - |
 | group | ServerGroup | - | Relation |
 | agents | Agent[] | ✓ | - |
+| virtualContainers | VirtualContainer[] | ✓ | - |
 | alerts | Alert[] | ✓ | - |
 | anomalyEvents | AnomalyEvent[] | ✓ | - |
 | anomalyModels | AnomalyModel[] | ✓ | - |
 | metricHistory | MetricHistory[] | ✓ | - |
 | eventLogs | EventLog[] | ✓ | - |
+
+---
+
+### VirtualContainer
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| serverId | String | ✓ | - |
+| containerId | String | ✓ | - |
+| name | String | ✓ | - |
+| type | String | ✓ | - |
+| status | String | ✓ | Default: "unknown" |
+| ipAddress | String | - | - |
+| hostname | String | - | - |
+| networkRxBytes | BigInt | ✓ | Default: 0 |
+| networkTxBytes | BigInt | ✓ | Default: 0 |
+| metadata | Json | - | - |
+| lastSeen | DateTime | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| server | Server | ✓ | Relation |
+
+**Indexes:**
+- `@@index([serverId])`
 
 ---
 

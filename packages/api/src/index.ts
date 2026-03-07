@@ -13,6 +13,7 @@ import { generalLimiter, initRateLimiting } from './middleware/rateLimit';
 import { routes } from './routes';
 import { startHeartbeatCleanup, stopHeartbeatCleanup } from './services/heartbeatCleanup';
 import { startMetricCollector, stopMetricCollector } from './services/metricCollector';
+import { startHousekeeping, stopHousekeeping } from './services/housekeeping';
 import { setEventLoggerSocket, logSystemStartup } from './services/eventLogger';
 
 // Load environment variables from root .env
@@ -161,6 +162,9 @@ server.listen(PORT, async () => {
   // Start metric collector service with Socket.IO for real-time updates
   startMetricCollector(io);
 
+  // Start housekeeping (log rotation, DB pruning, disk monitoring)
+  startHousekeeping();
+
   // Log system startup event
   logSystemStartup();
 });
@@ -170,6 +174,7 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   stopHeartbeatCleanup();
   stopMetricCollector();
+  stopHousekeeping();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);

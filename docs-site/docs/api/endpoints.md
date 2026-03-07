@@ -84,6 +84,15 @@ Base path: `/api/auth`
 | POST | `/auth/logout` | - | Apply strict rate limiting to auth routes |
 | GET | `/auth/users` | - | Apply strict rate limiting to auth routes |
 
+## Containers
+
+Base path: `/api/containers`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/containers` | - | Validation schemas |
+| GET | `/containers/server/:serverId` | - | Validation schemas |
+
 ## Events
 
 Base path: `/api/events`

@@ -7,6 +7,7 @@ import fs from 'fs';
 import os from 'os';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { getDiskUsage } from '../services/housekeeping';
 
 const router: ExpressRouter = Router();
 const prisma = new PrismaClient();
@@ -314,6 +315,8 @@ router.get('/system-info', requireAuth, async (req: Request, res: Response) => {
       }
     }
 
+    const disk = getDiskUsage();
+
     res.json({
       success: true,
       data: {
@@ -322,6 +325,12 @@ router.get('/system-info', requireAuth, async (req: Request, res: Response) => {
         platform: os.platform(),
         release: os.release(),
         uptime: os.uptime(),
+        memory: {
+          totalGB: Math.round(os.totalmem() / (1024 * 1024 * 1024) * 10) / 10,
+          freeGB: Math.round(os.freemem() / (1024 * 1024 * 1024) * 10) / 10,
+          usedPercent: Math.round((1 - os.freemem() / os.totalmem()) * 100),
+        },
+        disk,
       },
     });
   } catch (error) {

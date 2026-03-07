@@ -43,7 +43,7 @@ async function getRaw<T>(promise: Promise<AxiosResponse<T>>): Promise<T> {
 
 // Server API
 export const serverApi = {
-  list: (params?: { status?: string; environment?: string; search?: string }) =>
+  list: (params?: { status?: string; environment?: string; search?: string; tag?: string }) =>
     getData(api.get('/api/servers', { params })),
   get: (id: string) => getData(api.get(`/api/servers/${id}`)),
   create: (data: {
@@ -57,6 +57,9 @@ export const serverApi = {
   update: (id: string, data: Record<string, unknown>) => api.put(`/api/servers/${id}`, data),
   delete: (id: string) => api.delete(`/api/servers/${id}`),
   stats: () => getData(api.get('/api/servers/stats/overview')),
+  tags: () => getData<string[]>(api.get('/api/servers/tags')),
+  bulkTags: (data: { serverIds: string[]; addTags?: string[]; removeTags?: string[] }) =>
+    api.put('/api/servers/tags/bulk', data),
 };
 
 // Server Group API

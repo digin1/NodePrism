@@ -71,11 +71,11 @@
 - [x] Write tests: `userManagement.test.ts`
 
 ### 2.2 Server Tags UI
-- [ ] Add tag management component on server list page (add/remove tags)
-- [ ] Add tag filter dropdown to server list
-- [ ] Bulk tag operations (select multiple servers, apply/remove tags)
-- [ ] Tag auto-complete from existing tags
-- [ ] Write tests: `serverTags.test.ts`
+- [x] Add tag management component on server list page (add/remove tags)
+- [x] Add tag filter dropdown to server list
+- [x] Bulk tag operations (select multiple servers, apply/remove tags)
+- [x] Tag auto-complete from existing tags
+- [x] Write tests: `serverTags.test.ts`
 
 ### 2.3 Bandwidth / Traffic Dashboard
 - [ ] Add bandwidth summary cards to server detail page
@@ -192,7 +192,7 @@
 - [x] `autoDiscovery.test.ts` — Target parsing, port mapping, banner parsing (20 tests)
 - [x] `dashboards.test.ts` — Panel validation, config structure, grid layout (17 tests)
 - [x] `userManagement.test.ts` — User CRUD, roles, and permission hierarchy (19 tests)
-- [ ] `serverTags.test.ts` — Tag operations
+- [x] `serverTags.test.ts` — Tag filtering, bulk ops, autocomplete (25 tests)
 - [ ] `bandwidth.test.ts` — Bandwidth calculations
 - [ ] `bulkOperations.test.ts` — Bulk server/alert operations
 - [ ] `configExportImport.test.ts` — Config export/import

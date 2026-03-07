@@ -16,6 +16,7 @@ import { startMetricCollector, stopMetricCollector } from './services/metricColl
 import { startHousekeeping, stopHousekeeping } from './services/housekeeping';
 import { startAutoDiscovery, stopAutoDiscovery } from './services/autoDiscoveryService';
 import { setEventLoggerSocket, logSystemStartup } from './services/eventLogger';
+import { prisma } from './lib/prisma';
 
 // Load environment variables from root .env
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -100,12 +101,61 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
+// Enriched health check endpoint with dependency checks
+app.get('/health', async (req, res) => {
+  const start = Date.now();
+  const dependencies: Record<string, { status: string; responseTime: number; error?: string }> = {};
+
+  // Check PostgreSQL via Prisma
+  const dbStart = Date.now();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dependencies.database = { status: 'ok', responseTime: Date.now() - dbStart };
+  } catch (err: any) {
+    dependencies.database = { status: 'down', responseTime: Date.now() - dbStart, error: err.message };
+  }
+
+  // Check Redis
+  const redisStart = Date.now();
+  const redisHost = process.env.REDIS_HOST || 'localhost';
+  const redisPort = parseInt(process.env.REDIS_PORT || '6379', 10);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const net = require('net');
+      const sock = net.createConnection({ host: redisHost, port: redisPort, timeout: 2000 }, () => {
+        sock.end();
+        resolve();
+      });
+      sock.on('error', (err: Error) => { sock.destroy(); reject(err); });
+      sock.on('timeout', () => { sock.destroy(); reject(new Error('timeout')); });
+    });
+    dependencies.redis = { status: 'ok', responseTime: Date.now() - redisStart };
+  } catch (err: any) {
+    dependencies.redis = { status: 'down', responseTime: Date.now() - redisStart, error: err.message };
+  }
+
+  // Check Prometheus
+  const promStart = Date.now();
+  const prometheusUrl = process.env.PROMETHEUS_URL || 'http://localhost:9090';
+  try {
+    const axios = require('axios');
+    await axios.get(`${prometheusUrl}/-/ready`, { timeout: 3000 });
+    dependencies.prometheus = { status: 'ok', responseTime: Date.now() - promStart };
+  } catch (err: any) {
+    dependencies.prometheus = { status: 'down', responseTime: Date.now() - promStart, error: err.message };
+  }
+
+  const allOk = Object.values(dependencies).every(d => d.status === 'ok');
+  const anyDown = Object.values(dependencies).some(d => d.status === 'down');
+  const overallStatus = allOk ? 'ok' : anyDown ? 'degraded' : 'ok';
+
+  const statusCode = overallStatus === 'ok' ? 200 : 503;
+  res.status(statusCode).json({
+    status: overallStatus,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    responseTime: Date.now() - start,
+    dependencies,
   });
 });
 

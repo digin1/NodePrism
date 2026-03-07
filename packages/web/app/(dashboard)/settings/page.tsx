@@ -10,9 +10,21 @@ import { Select } from '@/components/ui/select';
 import { healthApi, metricsApi, settingsApi, SystemSettings } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface DependencyHealth {
+  status: string;
+  responseTime: number;
+  error?: string;
+}
+
 interface Health {
   status: string;
   uptime?: number;
+  responseTime?: number;
+  dependencies?: {
+    database?: DependencyHealth;
+    redis?: DependencyHealth;
+    prometheus?: DependencyHealth;
+  };
 }
 
 export default function SettingsPage() {
@@ -105,11 +117,17 @@ export default function SettingsPage() {
 
   const healthData = health as Health | undefined;
 
+  const depStatus = (dep?: DependencyHealth) =>
+    dep ? (dep.status === 'ok' ? 'running' : 'down') : 'unknown';
+
+  const depDetail = (dep?: DependencyHealth) =>
+    dep ? `${dep.responseTime}ms` : undefined;
+
   const services = [
-    { name: 'API Gateway', port: 4000, status: healthData?.status === 'ok' ? 'running' : 'unknown' },
-    { name: 'PostgreSQL', port: 5432, status: 'running' },
-    { name: 'Redis', port: 6379, status: 'running' },
-    { name: 'Prometheus', port: 9090, status: targets ? 'running' : 'unknown' },
+    { name: 'API Gateway', port: 4000, status: healthData?.status === 'ok' || healthData?.status === 'degraded' ? 'running' : 'unknown', detail: healthData?.responseTime ? `${healthData.responseTime}ms` : undefined },
+    { name: 'PostgreSQL', port: 5432, status: depStatus(healthData?.dependencies?.database), detail: depDetail(healthData?.dependencies?.database) },
+    { name: 'Redis', port: 6379, status: depStatus(healthData?.dependencies?.redis), detail: depDetail(healthData?.dependencies?.redis) },
+    { name: 'Prometheus', port: 9090, status: depStatus(healthData?.dependencies?.prometheus), detail: depDetail(healthData?.dependencies?.prometheus) },
     { name: 'Grafana', port: 3030, status: 'running' },
     { name: 'AlertManager', port: 9093, status: 'running' },
     { name: 'Loki', port: 3100, status: 'running' },
@@ -423,9 +441,12 @@ export default function SettingsPage() {
               >
                 <div>
                   <p className="font-medium">{service.name}</p>
-                  <p className="text-sm text-muted-foreground">Port {service.port}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Port {service.port}
+                    {service.detail && <span className="ml-2 text-xs">({service.detail})</span>}
+                  </p>
                 </div>
-                <Badge variant={service.status === 'running' ? 'success' : 'secondary'}>
+                <Badge variant={service.status === 'running' ? 'success' : service.status === 'down' ? 'danger' : 'secondary'}>
                   {service.status}
                 </Badge>
               </div>

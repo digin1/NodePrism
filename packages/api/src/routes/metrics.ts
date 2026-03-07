@@ -422,4 +422,56 @@ router.get('/server/:serverId/chart-data', async (req: Request, res: Response, n
   }
 });
 
+// Get top-N servers by bandwidth usage
+router.get('/bandwidth/top', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { period = 'day', limit: limitStr = '10' } = req.query as { period?: string; limit?: string };
+    const limit = Math.min(parseInt(limitStr, 10) || 10, 50);
+
+    const periodMs: Record<string, number> = {
+      hour: 60 * 60 * 1000,
+      day: 24 * 60 * 60 * 1000,
+      week: 7 * 24 * 60 * 60 * 1000,
+      month: 30 * 24 * 60 * 60 * 1000,
+    };
+
+    const ms = periodMs[period] || periodMs['day'];
+    const startTime = new Date(Date.now() - ms);
+
+    // Get all servers with their bandwidth data
+    const servers = await prisma.server.findMany({
+      select: { id: true, hostname: true, ipAddress: true, status: true },
+    });
+
+    const results = await Promise.all(
+      servers.map(async (server) => {
+        const summary = await getBandwidthSummary(server.id, (period as 'hour' | 'day' | 'week' | 'month') || 'day');
+        return {
+          ...server,
+          totalIn: summary.totalIn,
+          totalOut: summary.totalOut,
+          totalBandwidth: summary.totalIn + summary.totalOut,
+          avgIn: summary.avgIn,
+          avgOut: summary.avgOut,
+        };
+      })
+    );
+
+    // Sort by total bandwidth descending and take top N
+    results.sort((a, b) => b.totalBandwidth - a.totalBandwidth);
+    const topServers = results.slice(0, limit).filter(s => s.totalBandwidth > 0);
+
+    res.json({
+      success: true,
+      data: topServers,
+    });
+  } catch (error: any) {
+    logger.error('Top bandwidth error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch top bandwidth servers',
+    });
+  }
+});
+
 export { router as metricRoutes };

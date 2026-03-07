@@ -78,11 +78,11 @@
 - [x] Write tests: `serverTags.test.ts`
 
 ### 2.3 Bandwidth / Traffic Dashboard
-- [ ] Add bandwidth summary cards to server detail page
-- [ ] Show hourly/daily/weekly/monthly traffic breakdown
-- [ ] Add network traffic panel to main dashboard
-- [ ] Top-N servers by bandwidth widget
-- [ ] Write tests: `bandwidth.test.ts`
+- [x] Add bandwidth summary cards to server detail page
+- [x] Show hourly/daily/weekly/monthly traffic breakdown
+- [x] Add network traffic panel to main dashboard
+- [x] Top-N servers by bandwidth widget
+- [x] Write tests: `bandwidth.test.ts`
 
 ### 2.4 Bulk Operations
 - [ ] Bulk delete servers
@@ -193,7 +193,7 @@
 - [x] `dashboards.test.ts` — Panel validation, config structure, grid layout (17 tests)
 - [x] `userManagement.test.ts` — User CRUD, roles, and permission hierarchy (19 tests)
 - [x] `serverTags.test.ts` — Tag filtering, bulk ops, autocomplete (25 tests)
-- [ ] `bandwidth.test.ts` — Bandwidth calculations
+- [x] `bandwidth.test.ts` — Bandwidth formatting, ranking, and visualization (14 tests)
 - [ ] `bulkOperations.test.ts` — Bulk server/alert operations
 - [ ] `configExportImport.test.ts` — Config export/import
 - [ ] `healthCheck.test.ts` — Health endpoint

@@ -215,14 +215,14 @@
 ### Integration Tests
 - [x] `integration-test.sh` — End-to-end service health and API tests
 - [x] `health-check.sh` — Quick service port checks
-- [ ] Agent registration flow (script -> API -> Prometheus targets -> scraping)
-- [ ] Alert flow (Prometheus rule fires -> AlertManager -> webhook -> EventLog -> WebSocket)
-- [ ] Anomaly detection flow (Prometheus data -> training -> scoring -> WebSocket)
-- [ ] Config sync flow (Prometheus targets -> DB status update -> EventLog)
-- [ ] Container reporting flow (agent script -> API -> DB -> UI)
+- [x] Agent registration flow (script -> API -> Prometheus targets -> scraping) (17 tests)
+- [x] Alert flow (Prometheus rule fires -> AlertManager -> webhook -> EventLog -> WebSocket) (19 tests)
+- [x] Anomaly detection flow (Prometheus data -> training -> scoring -> WebSocket) (16 tests)
+- [x] Config sync flow (Prometheus targets -> DB status update -> EventLog) (15 tests)
+- [x] Container reporting flow (agent script -> API -> DB -> UI) (18 tests)
 
 ### Load / Stress Tests
-- [ ] API rate limiting validation (general, auth, agent, metrics limiters)
-- [ ] WebSocket connection scaling (100+ concurrent connections)
-- [ ] Metric collection under high server count (50+ servers)
-- [ ] Housekeeping performance with large tables (100k+ rows)
+- [x] API rate limiting validation (general, auth, agent, metrics limiters) (30 tests)
+- [x] WebSocket connection scaling (100+ concurrent connections) (21 tests)
+- [x] Metric collection under high server count (50+ servers) (26 tests)
+- [x] Housekeeping performance with large tables (100k+ rows) (24 tests)

@@ -129,6 +129,100 @@ function formatTraffic(bytesStr: string): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
+function ContainerRow({ container: c }: { container: VirtualContainer }) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = c.metadata as Record<string, unknown> | null;
+
+  return (
+    <>
+      <TableRow
+        className="cursor-pointer hover:bg-muted/50"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <TableCell className="w-8 text-center">
+          <span className="text-muted-foreground text-xs">{expanded ? '▼' : '▶'}</span>
+        </TableCell>
+        <TableCell className="font-medium">{c.name}</TableCell>
+        <TableCell>
+          <Badge variant="outline">{c.type.toUpperCase()}</Badge>
+        </TableCell>
+        <TableCell>
+          <Badge variant={c.status === 'running' ? 'success' : c.status === 'paused' ? 'warning' : 'secondary'}>
+            {c.status}
+          </Badge>
+        </TableCell>
+        <TableCell className="font-mono text-sm">{c.ipAddress || '—'}</TableCell>
+        <TableCell>{c.hostname || '—'}</TableCell>
+        <TableCell className="text-right text-green-600">{formatTraffic(c.networkRxBytes)}</TableCell>
+        <TableCell className="text-right text-blue-600">{formatTraffic(c.networkTxBytes)}</TableCell>
+        <TableCell className="text-sm text-muted-foreground">
+          {c.lastSeen ? new Date(c.lastSeen).toLocaleString() : '—'}
+        </TableCell>
+      </TableRow>
+      {expanded && (
+        <TableRow>
+          <TableCell colSpan={9} className="bg-muted/30 p-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Container ID</p>
+                <p className="font-mono text-sm">{c.containerId}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Type</p>
+                <p className="text-sm">{c.type}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Network RX</p>
+                <p className="text-sm text-green-600 font-medium">{formatTraffic(c.networkRxBytes)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Network TX</p>
+                <p className="text-sm text-blue-600 font-medium">{formatTraffic(c.networkTxBytes)}</p>
+              </div>
+              {meta && Object.keys(meta).length > 0 && (
+                <>
+                  {meta.vCPUs !== undefined && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">vCPUs</p>
+                      <p className="text-sm">{String(meta.vCPUs)}</p>
+                    </div>
+                  )}
+                  {meta.memory !== undefined && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Memory</p>
+                      <p className="text-sm">{String(meta.memory)}</p>
+                    </div>
+                  )}
+                  {meta.disk !== undefined && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Disk</p>
+                      <p className="text-sm">{String(meta.disk)}</p>
+                    </div>
+                  )}
+                  {meta.interfaces !== undefined && (
+                    <div className="col-span-2">
+                      <p className="text-xs text-muted-foreground mb-1">Network Interfaces</p>
+                      <p className="text-sm font-mono">{JSON.stringify(meta.interfaces)}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            {c.lastSeen && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  Status history: Container was last seen {new Date(c.lastSeen).toLocaleString()}.
+                  {c.status === 'running' ? ' Currently active.' : ` Currently ${c.status}.`}
+                </p>
+              </div>
+            )}
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
+
 function MetricCard({
   label,
   value,
@@ -742,6 +836,7 @@ export default function ServerDetailPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
@@ -754,24 +849,7 @@ export default function ServerDetailPage() {
               </TableHeader>
               <TableBody>
                 {containerList.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{c.type.toUpperCase()}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={c.status === 'running' ? 'success' : c.status === 'paused' ? 'warning' : 'secondary'}>
-                        {c.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{c.ipAddress || '—'}</TableCell>
-                    <TableCell>{c.hostname || '—'}</TableCell>
-                    <TableCell className="text-right text-green-600">{formatTraffic(c.networkRxBytes)}</TableCell>
-                    <TableCell className="text-right text-blue-600">{formatTraffic(c.networkTxBytes)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {c.lastSeen ? new Date(c.lastSeen).toLocaleString() : '—'}
-                    </TableCell>
-                  </TableRow>
+                  <ContainerRow key={c.id} container={c} />
                 ))}
               </TableBody>
             </Table>

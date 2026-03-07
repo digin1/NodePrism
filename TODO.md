@@ -154,14 +154,14 @@
 ## Phase 5: Nice-to-Have Enhancements
 
 ### 5.1 Agent Auto-Update
-- [ ] Add version check endpoint to API (`GET /api/agents/latest-version/:type`)
-- [ ] Agent script: `update` command that checks version and re-downloads if newer
-- [ ] Optional auto-update via cron job
+- [x] Add version check endpoint to API (`GET /api/agents/latest-version/:type`)
+- [x] Agent script: `update` command that checks version and re-downloads if newer
+- [x] Optional auto-update via cron job
 
 ### 5.2 Container Detail View
-- [ ] Click-through from container list to detail panel
-- [ ] Show resource usage trends (network RX/TX over time)
-- [ ] Container status history
+- [x] Click-through from container list to detail panel
+- [x] Show resource usage trends (network RX/TX over time)
+- [x] Container status history
 
 ### 5.3 SSL/TLS for Agent Communication
 - [ ] Integrate `generate-certs.sh` into agent setup flow
@@ -175,9 +175,9 @@
 - [ ] In-app documentation page (instead of redirect to external docs)
 
 ### 5.5 Cleanup
-- [ ] Remove `zustand` from web package.json (unused dependency)
-- [ ] Fix health-check.sh to use correct API port (shows 3002, should be 4000)
-- [ ] Fix integration-test.sh API_URL default (shows 3002, should be 4000)
+- [x] Remove `zustand` from web package.json (unused dependency)
+- [x] Fix health-check.sh to use correct API port (shows 3002, should be 4000)
+- [x] Fix integration-test.sh API_URL default (shows 3002, should be 4000)
 
 ---
 
@@ -202,7 +202,7 @@
 - [x] `gracefulDegradation.test.ts` — Redis fallback, retry backoff, metric cache, status events (22 tests)
 - [x] `dbBackup.test.ts` — Backup filename, retention, scheduling, filtering (23 tests)
 - [x] `housekeeping.test.ts` — Disk-aware cleanup logic (11 tests)
-- [ ] `heartbeatCleanup.test.ts` — Agent health monitoring
+- [x] `heartbeatCleanup.test.ts` — Agent health monitoring (30 tests)
 - [x] `metricCollector.test.ts` — Metric collection and storage (12 tests)
 - [x] `eventLogger.test.ts` — Event logging (11 tests)
 - [x] `containers.test.ts` — Container CRUD and BigInt serialization (11 tests)

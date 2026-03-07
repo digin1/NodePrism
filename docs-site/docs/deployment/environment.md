@@ -82,15 +82,6 @@ cp .env.example .env
 | `REDIS_PORT` | `6379` | - |
 | `REDIS_PASSWORD` | `-` | - |
 
-## RabbitMQ
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RABBITMQ_HOST` | `rabbitmq` | - |
-| `RABBITMQ_PORT` | `5672` | - |
-| `RABBITMQ_USER` | `nodeprism` | - |
-| `RABBITMQ_PASSWORD` | `nodeprism123` | - |
-
 ## Prometheus
 
 | Variable | Default | Description |

@@ -16,8 +16,6 @@ model Server {
   id          String       @id @default(uuid())
   hostname    String
   ipAddress   String       @map("ip_address")
-  sshPort     Int          @default(22) @map("ssh_port")
-  sshUsername String?      @map("ssh_username")
   status      ServerStatus @default(OFFLINE)
   environment Environment  @default(PRODUCTION)
   region      String?
@@ -29,7 +27,6 @@ model Server {
 
   // Relations
   agents         Agent[]
-  deployments    Deployment[]
   alerts         Alert[]
   anomalyEvents  AnomalyEvent[]
   anomalyModels  AnomalyModel[]
@@ -44,8 +41,6 @@ enum ServerStatus {
   OFFLINE
   WARNING
   CRITICAL
-  DEPLOYING
-  MAINTENANCE
 }
 
 enum Environment {
@@ -93,33 +88,6 @@ enum AgentStatus {
   STOPPED
   FAILED
   UPDATING
-}
-
-// ==================== DEPLOYMENT HISTORY ====================
-
-model Deployment {
-  id         String           @id @default(uuid())
-  serverId   String           @map("server_id")
-  agentType  AgentType        @map("agent_type")
-  status     DeploymentStatus @default(PENDING)
-  logs       String?          @db.Text
-  startedAt  DateTime?        @map("started_at")
-  finishedAt DateTime?        @map("finished_at")
-  error      String?
-  createdAt  DateTime         @default(now()) @map("created_at")
-
-  // Relations
-  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
-
-  @@map("deployments")
-}
-
-enum DeploymentStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  FAILED
-  CANCELLED
 }
 
 // ==================== ALERT MANAGEMENT ====================
@@ -297,19 +265,6 @@ model Dashboard {
   @@map("dashboards")
 }
 
-// ==================== SSH CREDENTIALS (encrypted in Vault) ====================
-
-model SshCredential {
-  id         String   @id @default(uuid())
-  serverId   String   @unique @map("server_id")
-  vaultPath  String   @map("vault_path") // Path to encrypted credential in Vault
-  keyType    String   @default("password") @map("key_type") // password, key
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  @@map("ssh_credentials")
-}
-
 // ==================== SYSTEM SETTINGS ====================
 
 model SystemSettings {
@@ -356,7 +311,7 @@ model EventLog {
   title      String
   message    String
   metadata   Json?         // Additional context (metrics, thresholds, etc.)
-  source     String?       // Where the event originated (heartbeat, alert, deployment, etc.)
+  source     String?       // Where the event originated (heartbeat, alert, agent, etc.)
   createdAt  DateTime      @default(now()) @map("created_at")
 
   // Relations
@@ -383,11 +338,6 @@ enum EventType {
   AGENT_STOPPED
   AGENT_FAILED
   AGENT_UPDATED
-
-  // Deployment events
-  DEPLOYMENT_STARTED
-  DEPLOYMENT_COMPLETED
-  DEPLOYMENT_FAILED
 
   // Alert events
   ALERT_TRIGGERED

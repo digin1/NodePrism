@@ -330,7 +330,7 @@ export default function SettingsPage() {
               <div>
                 <p className="font-medium">Grafana</p>
                 <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}</p>
-                <p className="text-xs text-muted-foreground mt-1">admin / admin123</p>
+                <p className="text-xs text-muted-foreground mt-1">Default credentials configured in .env</p>
               </div>
             </a>
             <a

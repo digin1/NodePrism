@@ -35,6 +35,8 @@ export default function SettingsPage() {
 
   const [systemName, setSystemName] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#3B82F6');
+  const [timezone, setTimezone] = useState('UTC');
+  const [dateFormat, setDateFormat] = useState('YYYY-MM-DD HH:mm:ss');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [importMode, setImportMode] = useState<'skip' | 'overwrite'>('skip');
@@ -60,6 +62,8 @@ export default function SettingsPage() {
     if (settings) {
       setSystemName(settings.systemName || 'NodePrism');
       setPrimaryColor(settings.primaryColor || '#3B82F6');
+      setTimezone(settings.timezone || 'UTC');
+      setDateFormat(settings.dateFormat || 'YYYY-MM-DD HH:mm:ss');
     }
   }, [settings]);
 
@@ -104,7 +108,7 @@ export default function SettingsPage() {
 
   const handleSaveSettings = async () => {
     setSaving(true);
-    await updateSettingsMutation.mutateAsync({ systemName, primaryColor });
+    await updateSettingsMutation.mutateAsync({ systemName, primaryColor, timezone, dateFormat });
     setSaving(false);
   };
 
@@ -140,7 +144,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
         <p className="text-muted-foreground">System configuration and branding</p>
       </div>
 
@@ -164,7 +168,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-6">
             {/* Logo Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Logo</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Logo</label>
               <div className="flex items-center gap-4">
                 <div className="rounded-lg flex items-center justify-center bg-white overflow-hidden py-2 px-4" style={{ minHeight: '80px' }}>
                   {logoUrl ? (
@@ -213,7 +217,7 @@ export default function SettingsPage() {
 
             {/* System Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">System Name</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">System Name</label>
               <input
                 type="text"
                 value={systemName}
@@ -228,7 +232,7 @@ export default function SettingsPage() {
 
             {/* Primary Color */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Primary Color</label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -246,8 +250,48 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* Timezone */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Timezone</label>
+              <Select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                {[
+                  'UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+                  'America/Toronto', 'America/Vancouver', 'America/Sao_Paulo', 'America/Argentina/Buenos_Aires',
+                  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow', 'Europe/Istanbul',
+                  'Asia/Dubai', 'Asia/Kolkata', 'Asia/Shanghai', 'Asia/Tokyo', 'Asia/Seoul', 'Asia/Singapore',
+                  'Australia/Sydney', 'Australia/Melbourne', 'Pacific/Auckland', 'Africa/Cairo', 'Africa/Johannesburg',
+                ].map((tz) => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Used for displaying timestamps throughout the application
+              </p>
+            </div>
+
+            {/* Date Format */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date Format</label>
+              <Select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)}>
+                {[
+                  { value: 'YYYY-MM-DD HH:mm:ss', label: 'YYYY-MM-DD HH:mm:ss (2026-03-07 14:30:00)' },
+                  { value: 'DD/MM/YYYY HH:mm:ss', label: 'DD/MM/YYYY HH:mm:ss (07/03/2026 14:30:00)' },
+                  { value: 'MM/DD/YYYY HH:mm:ss', label: 'MM/DD/YYYY HH:mm:ss (03/07/2026 14:30:00)' },
+                  { value: 'DD-MM-YYYY HH:mm:ss', label: 'DD-MM-YYYY HH:mm:ss (07-03-2026 14:30:00)' },
+                  { value: 'YYYY/MM/DD HH:mm:ss', label: 'YYYY/MM/DD HH:mm:ss (2026/03/07 14:30:00)' },
+                  { value: 'MMM DD, YYYY HH:mm', label: 'MMM DD, YYYY HH:mm (Mar 07, 2026 14:30)' },
+                  { value: 'DD MMM YYYY HH:mm', label: 'DD MMM YYYY HH:mm (07 Mar 2026 14:30)' },
+                ].map((fmt) => (
+                  <option key={fmt.value} value={fmt.value}>{fmt.label}</option>
+                ))}
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Format used when displaying dates and times
+              </p>
+            </div>
+
             <Button onClick={handleSaveSettings} disabled={saving}>
-              {saving ? 'Saving...' : 'Save Branding Settings'}
+              {saving ? 'Saving...' : 'Save Settings'}
             </Button>
           </CardContent>
         </Card>
@@ -272,6 +316,10 @@ export default function SettingsPage() {
             <div className="flex justify-between py-2 border-b">
               <dt className="text-muted-foreground">Timezone</dt>
               <dd className="font-mono text-sm">{settings?.timezone || 'UTC'}</dd>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <dt className="text-muted-foreground">Date Format</dt>
+              <dd className="font-mono text-sm">{settings?.dateFormat || 'YYYY-MM-DD HH:mm:ss'}</dd>
             </div>
           </dl>
         </CardContent>
@@ -370,7 +418,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-6">
             {/* Export */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Export Configuration</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Export Configuration</h4>
               <p className="text-xs text-muted-foreground mb-3">
                 Download a JSON file containing all your alert rules, templates, dashboards, notification channels, and settings.
               </p>
@@ -400,7 +448,7 @@ export default function SettingsPage() {
 
             {/* Import */}
             <div className="border-t pt-6">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Import Configuration</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Import Configuration</h4>
               <p className="text-xs text-muted-foreground mb-3">
                 Upload a previously exported JSON file to restore configuration.
               </p>
@@ -467,7 +515,7 @@ export default function SettingsPage() {
             {services.map((service) => (
               <div
                 key={service.name}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
               >
                 <div>
                   <p className="font-medium">{service.name}</p>
@@ -525,7 +573,7 @@ export default function SettingsPage() {
               href={process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xl">
                 G
@@ -540,7 +588,7 @@ export default function SettingsPage() {
               href={process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               <div className="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center text-red-600 font-bold text-xl">
                 P
@@ -554,7 +602,7 @@ export default function SettingsPage() {
               href={process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold text-xl">
                 A

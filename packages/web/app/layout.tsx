@@ -9,13 +9,27 @@ export const metadata: Metadata = {
   description: 'Advanced server monitoring system',
 };
 
+const themeScript = `
+(function() {
+  try {
+    var theme = localStorage.getItem('nodeprism_theme');
+    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  } catch(e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className={inter.className}>{children}</body>
     </html>
   );

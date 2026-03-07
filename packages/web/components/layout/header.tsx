@@ -43,20 +43,20 @@ export function Header({ onMenuToggle }: HeaderProps) {
   const systemName = settings?.systemName || 'NodePrism';
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-white px-4 md:px-6">
+    <header className="flex h-16 items-center justify-between border-b bg-white dark:bg-gray-900 dark:border-gray-800 px-4 md:px-6">
       <div className="flex items-center gap-3">
         {/* Mobile menu button */}
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
-            className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
+            className="md:hidden p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         )}
-        <h1 className="text-lg font-semibold text-gray-900">{systemName}</h1>
+        <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{systemName}</h1>
       </div>
 
       <div className="flex items-center gap-2 md:gap-4">
@@ -76,20 +76,20 @@ export function Header({ onMenuToggle }: HeaderProps) {
               healthData?.status === 'ok' ? 'bg-green-500' : 'bg-red-500'
             }`}
           />
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
             {healthData?.status === 'ok' ? 'System Healthy' : 'System Error'}
           </span>
         </div>
 
         {/* User Menu */}
-        <div className="flex items-center gap-2 md:gap-3 ml-2 md:ml-4 pl-2 md:pl-4 border-l">
+        <div className="flex items-center gap-2 md:gap-3 ml-2 md:ml-4 pl-2 md:pl-4 border-l dark:border-gray-700">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-            <p className="text-xs text-gray-500">{user?.role}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.name}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{user?.role}</p>
           </div>
           <button
             onClick={logout}
-            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
           >
             Logout
           </button>

@@ -32,6 +32,7 @@ Base path: `/api/agents`
 | POST | `/agents/heartbeat` | - | Apply lenient rate limiting for agent heartbeats/registrations |
 | POST | `/agents/unregister` | - | Apply lenient rate limiting for agent heartbeats/registrations |
 | GET | `/agents` | - | Apply lenient rate limiting for agent heartbeats/registrations |
+| GET | `/agents/latest-version/:type` | - | Apply lenient rate limiting for agent heartbeats/registrations |
 
 ## Alerts
 
@@ -106,6 +107,7 @@ Base path: `/api/containers`
 |--------|----------|------|-------------|
 | POST | `/containers` | - | Validation schemas |
 | GET | `/containers/server/:serverId` | - | Validation schemas |
+| GET | `/containers/:id` | - | Validation schemas |
 
 ## Dashboards
 

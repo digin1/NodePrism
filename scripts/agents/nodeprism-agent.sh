@@ -33,6 +33,14 @@ API_URL=""
 API_TOKEN=""
 SKIP_REGISTER=false
 
+# SSL/TLS
+SSL_ENABLED=false
+MTLS_ENABLED=false
+SSL_CERT_DIR="/etc/nodeprism/certs"
+CA_CERT_PATH=""
+CLIENT_CERT_PATH=""
+CLIENT_KEY_PATH=""
+
 # Pre-set values (for non-interactive mode)
 PRESET_TYPE=""
 PRESET_PORT=""
@@ -140,6 +148,11 @@ parse_args() {
       --api-url)         API_URL="$2"; shift 2 ;;
       --api-token)       API_TOKEN="$2"; shift 2 ;;
       --skip-register)   SKIP_REGISTER=true; shift ;;
+      --enable-ssl)      SSL_ENABLED=true; shift ;;
+      --mtls)            SSL_ENABLED=true; MTLS_ENABLED=true; shift ;;
+      --ca-cert)         CA_CERT_PATH="$2"; shift 2 ;;
+      --client-cert)     CLIENT_CERT_PATH="$2"; shift 2 ;;
+      --client-key)      CLIENT_KEY_PATH="$2"; shift 2 ;;
       --help|-h)
         print_help
         exit 0
@@ -170,6 +183,11 @@ print_help() {
   echo "  --api-url URL        NodePrism manager URL for auto-registration"
   echo "  --api-token TOKEN    Auth token for API"
   echo "  --skip-register      Skip API registration"
+  echo "  --enable-ssl         Use HTTPS for API communication (generates certs if needed)"
+  echo "  --mtls               Enable mutual TLS (implies --enable-ssl, sends client cert)"
+  echo "  --ca-cert PATH       Path to CA certificate for server verification"
+  echo "  --client-cert PATH   Path to client certificate (for mTLS)"
+  echo "  --client-key PATH    Path to client private key (for mTLS)"
   echo ""
   echo "Options (uninstall):"
   echo "  --type TYPE          Agent to remove (or 'all')"
@@ -191,6 +209,8 @@ print_help() {
   echo "  sudo $0 uninstall --type node_exporter                 # Remove specific agent"
   echo "  sudo $0 uninstall --type all                           # Remove all agents"
   echo "  sudo $0 status                                         # Show all agent status"
+  echo "  sudo $0 install --type node_exporter --enable-ssl --api-url https://manager:4000"
+  echo "  sudo $0 install --type node_exporter --mtls --api-url https://manager:4000"
 }
 
 # ─── Helpers ──────────────────────────────────────────────────────────
@@ -532,6 +552,115 @@ gather_containers() {
   echo "$containers"
 }
 
+generate_agent_certs() {
+  if [[ "$SSL_ENABLED" != "true" ]]; then
+    return 0
+  fi
+
+  if [[ -n "$CA_CERT_PATH" && -f "$CA_CERT_PATH" ]]; then
+    log_info "Using provided CA certificate: $CA_CERT_PATH"
+    if [[ "$MTLS_ENABLED" == "true" && -n "$CLIENT_CERT_PATH" && -f "$CLIENT_CERT_PATH" ]]; then
+      log_info "Using provided client certificate: $CLIENT_CERT_PATH"
+      return 0
+    elif [[ "$MTLS_ENABLED" != "true" ]]; then
+      return 0
+    fi
+  fi
+
+  if ! command -v openssl &>/dev/null; then
+    log_error "openssl is required for SSL certificate generation"
+    return 1
+  fi
+
+  log_info "Generating SSL certificates in ${SSL_CERT_DIR}..."
+  mkdir -p "$SSL_CERT_DIR"
+
+  local hostname_label="${HOSTNAME_LABEL:-$(hostname)}"
+  local ip_addr
+  ip_addr=$(get_ip_address)
+
+  openssl genrsa -out "${SSL_CERT_DIR}/ca.key" 2048 2>/dev/null
+  openssl req -new -x509 \
+    -key "${SSL_CERT_DIR}/ca.key" \
+    -out "${SSL_CERT_DIR}/ca.crt" \
+    -days 365 \
+    -subj "/C=US/ST=State/L=City/O=NodePrism/OU=Agent/CN=NodePrism Agent CA" 2>/dev/null
+
+  CA_CERT_PATH="${SSL_CERT_DIR}/ca.crt"
+
+  if [[ "$MTLS_ENABLED" == "true" ]]; then
+    openssl genrsa -out "${SSL_CERT_DIR}/client.key" 2048 2>/dev/null
+    openssl req -new \
+      -key "${SSL_CERT_DIR}/client.key" \
+      -out "${SSL_CERT_DIR}/client.csr" \
+      -subj "/C=US/ST=State/L=City/O=NodePrism/OU=Agent/CN=${hostname_label}" 2>/dev/null
+
+    cat > "${SSL_CERT_DIR}/client.ext" << EXTEOF
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = ${hostname_label}
+DNS.2 = localhost
+IP.1 = ${ip_addr}
+IP.2 = 127.0.0.1
+EXTEOF
+
+    openssl x509 -req \
+      -in "${SSL_CERT_DIR}/client.csr" \
+      -CA "${SSL_CERT_DIR}/ca.crt" \
+      -CAkey "${SSL_CERT_DIR}/ca.key" \
+      -CAcreateserial \
+      -out "${SSL_CERT_DIR}/client.crt" \
+      -days 365 \
+      -extfile "${SSL_CERT_DIR}/client.ext" 2>/dev/null
+
+    rm -f "${SSL_CERT_DIR}/client.csr" "${SSL_CERT_DIR}/client.ext"
+    chmod 600 "${SSL_CERT_DIR}/client.key"
+    chmod 644 "${SSL_CERT_DIR}/client.crt"
+
+    CLIENT_CERT_PATH="${SSL_CERT_DIR}/client.crt"
+    CLIENT_KEY_PATH="${SSL_CERT_DIR}/client.key"
+    log_info "Client certificate generated: ${CLIENT_CERT_PATH}"
+  fi
+
+  chmod 600 "${SSL_CERT_DIR}/ca.key"
+  chmod 644 "${SSL_CERT_DIR}/ca.crt"
+  log_info "CA certificate generated: ${CA_CERT_PATH}"
+}
+
+build_curl_ssl_opts() {
+  local opts=""
+  if [[ "$SSL_ENABLED" == "true" ]]; then
+    if [[ -n "$CA_CERT_PATH" && -f "$CA_CERT_PATH" ]]; then
+      opts="--cacert ${CA_CERT_PATH}"
+    else
+      opts="--insecure"
+    fi
+    if [[ "$MTLS_ENABLED" == "true" && -n "$CLIENT_CERT_PATH" && -n "$CLIENT_KEY_PATH" ]]; then
+      opts="${opts} --cert ${CLIENT_CERT_PATH} --key ${CLIENT_KEY_PATH}"
+    fi
+  fi
+  echo "$opts"
+}
+
+build_wget_ssl_opts() {
+  local opts=""
+  if [[ "$SSL_ENABLED" == "true" ]]; then
+    if [[ -n "$CA_CERT_PATH" && -f "$CA_CERT_PATH" ]]; then
+      opts="--ca-certificate=${CA_CERT_PATH}"
+    else
+      opts="--no-check-certificate"
+    fi
+    if [[ "$MTLS_ENABLED" == "true" && -n "$CLIENT_CERT_PATH" && -n "$CLIENT_KEY_PATH" ]]; then
+      opts="${opts} --certificate=${CLIENT_CERT_PATH} --private-key=${CLIENT_KEY_PATH}"
+    fi
+  fi
+  echo "$opts"
+}
+
 get_ip_address() {
   local ip=""
   if command -v hostname &>/dev/null; then
@@ -683,11 +812,15 @@ get_latest_version_from_api() {
     return
   fi
 
+  local curl_ssl_opts wget_ssl_opts
+  curl_ssl_opts=$(build_curl_ssl_opts)
+  wget_ssl_opts=$(build_wget_ssl_opts)
+
   local response
   if command -v curl &>/dev/null; then
-    response=$(curl -sL -H "Authorization: Bearer $API_TOKEN" "${API_URL}/api/agents/latest-version/${api_type}" 2>/dev/null)
+    response=$(curl -sL $curl_ssl_opts -H "Authorization: Bearer $API_TOKEN" "${API_URL}/api/agents/latest-version/${api_type}" 2>/dev/null)
   elif command -v wget &>/dev/null; then
-    response=$(wget -qO- --header="Authorization: Bearer $API_TOKEN" "${API_URL}/api/agents/latest-version/${api_type}" 2>/dev/null)
+    response=$(wget -qO- $wget_ssl_opts --header="Authorization: Bearer $API_TOKEN" "${API_URL}/api/agents/latest-version/${api_type}" 2>/dev/null)
   fi
 
   if [[ -n "$response" ]]; then
@@ -841,6 +974,18 @@ setup_auto_update_cron() {
   fi
   if [[ -n "$API_TOKEN" ]]; then
     cron_cmd="${cron_cmd} --api-token ${API_TOKEN}"
+  fi
+  if [[ "$SSL_ENABLED" == "true" ]]; then
+    cron_cmd="${cron_cmd} --enable-ssl"
+    if [[ -n "$CA_CERT_PATH" ]]; then
+      cron_cmd="${cron_cmd} --ca-cert ${CA_CERT_PATH}"
+    fi
+    if [[ "$MTLS_ENABLED" == "true" ]]; then
+      cron_cmd="${cron_cmd} --mtls"
+      if [[ -n "$CLIENT_CERT_PATH" ]]; then
+        cron_cmd="${cron_cmd} --client-cert ${CLIENT_CERT_PATH} --client-key ${CLIENT_KEY_PATH}"
+      fi
+    fi
   fi
   cron_cmd="${cron_cmd} >> /var/log/nodeprism-agent-update.log 2>&1"
 
@@ -1482,6 +1627,10 @@ configure_registration() {
 
   if [[ -n "$API_URL" ]]; then
     log_info "Manager URL: $API_URL"
+    if [[ "$SSL_ENABLED" == "true" ]]; then
+      log_info "SSL/TLS: enabled"
+      [[ "$MTLS_ENABLED" == "true" ]] && log_info "Mutual TLS: enabled"
+    fi
     return
   fi
 
@@ -1492,13 +1641,21 @@ configure_registration() {
   fi
 
   if prompt_yn "Register this agent with a NodePrism manager?" "y"; then
-    prompt API_URL "Manager URL (e.g. http://manager:4000)" ""
+    prompt API_URL "Manager URL (e.g. https://manager:4000)" ""
     if [[ -z "$API_URL" ]]; then
       log_warn "No URL provided, skipping registration"
       SKIP_REGISTER=true
     else
       if prompt_yn "Use an auth token?" "n"; then
         prompt API_TOKEN "Auth token" ""
+      fi
+      if [[ "$SSL_ENABLED" != "true" ]]; then
+        if prompt_yn "Enable SSL/TLS for API communication?" "n"; then
+          SSL_ENABLED=true
+          if prompt_yn "Enable mutual TLS (client certificate auth)?" "n"; then
+            MTLS_ENABLED=true
+          fi
+        fi
       fi
     fi
   else
@@ -1535,6 +1692,13 @@ review_config() {
     echo -e "  ${BOLD}Register:${NC}  ${API_URL}"
   else
     echo -e "  ${BOLD}Register:${NC}  Skipped"
+  fi
+
+  if [[ "$SSL_ENABLED" == "true" ]]; then
+    echo -e "  ${BOLD}SSL/TLS:${NC}   Enabled"
+    if [[ "$MTLS_ENABLED" == "true" ]]; then
+      echo -e "  ${BOLD}mTLS:${NC}      Enabled"
+    fi
   fi
 
   echo ""
@@ -1990,15 +2154,18 @@ register_with_api() {
 EOF
 )
 
+  local ssl_opts
+  ssl_opts=$(build_curl_ssl_opts)
+
   local response http_code
   if [[ -n "$API_TOKEN" ]]; then
-    response=$(curl -s -w "\n%{http_code}" -X POST \
+    response=$(curl -s -w "\n%{http_code}" $ssl_opts -X POST \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer ${API_TOKEN}" \
       -d "$payload" \
       "${API_URL}/api/agents/register" 2>&1) || true
   else
-    response=$(curl -s -w "\n%{http_code}" -X POST \
+    response=$(curl -s -w "\n%{http_code}" $ssl_opts -X POST \
       -H "Content-Type: application/json" \
       -d "$payload" \
       "${API_URL}/api/agents/register" 2>&1) || true
@@ -2054,15 +2221,18 @@ report_containers() {
   local payload
   payload="{\"serverId\":\"${server_id}\",\"containers\":${container_json}}"
 
+  local ssl_opts
+  ssl_opts=$(build_curl_ssl_opts)
+
   local response http_code
   if [[ -n "$API_TOKEN" ]]; then
-    response=$(curl -s -w "\n%{http_code}" -X POST \
+    response=$(curl -s -w "\n%{http_code}" $ssl_opts -X POST \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer ${API_TOKEN}" \
       -d "$payload" \
       "${API_URL}/api/agents/containers" 2>&1) || true
   else
-    response=$(curl -s -w "\n%{http_code}" -X POST \
+    response=$(curl -s -w "\n%{http_code}" $ssl_opts -X POST \
       -H "Content-Type: application/json" \
       -d "$payload" \
       "${API_URL}/api/agents/containers" 2>&1) || true
@@ -2110,6 +2280,16 @@ print_summary() {
       echo -e "    Config:   ${CYAN}${PROMTAIL_CONFIG_DIR}/config.yml${NC}" ;;
   esac
 
+  if [[ "$SSL_ENABLED" == "true" ]]; then
+    echo ""
+    echo -e "  ${BOLD}SSL/TLS:${NC}"
+    echo -e "    CA cert:  ${CYAN}${CA_CERT_PATH}${NC}"
+    if [[ "$MTLS_ENABLED" == "true" ]]; then
+      echo -e "    Client:   ${CYAN}${CLIENT_CERT_PATH}${NC}"
+      echo -e "    Key:      ${CYAN}${CLIENT_KEY_PATH}${NC}"
+    fi
+  fi
+
   echo ""
 }
 
@@ -2124,6 +2304,7 @@ do_install() {
   create_systemd_service
   start_service
   verify_installation
+  generate_agent_certs
   register_with_api
   report_containers
   print_summary

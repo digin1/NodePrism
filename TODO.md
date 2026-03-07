@@ -164,15 +164,15 @@
 - [x] Container status history
 
 ### 5.3 SSL/TLS for Agent Communication
-- [ ] Integrate `generate-certs.sh` into agent setup flow
-- [ ] Support HTTPS for agent registration and heartbeat
-- [ ] Mutual TLS option for high-security environments
+- [x] Integrate `generate-certs.sh` into agent setup flow
+- [x] Support HTTPS for agent registration and heartbeat
+- [x] Mutual TLS option for high-security environments
 
 ### 5.4 UI Enhancements
-- [ ] Dark/light theme toggle (currently dark-only)
-- [ ] Timezone and date format editable in settings UI
-- [ ] Keyboard shortcuts for common actions
-- [ ] In-app documentation page (instead of redirect to external docs)
+- [x] Dark/light theme toggle (currently dark-only)
+- [x] Timezone and date format editable in settings UI
+- [x] Keyboard shortcuts for common actions
+- [x] In-app documentation page (instead of redirect to external docs)
 
 ### 5.5 Cleanup
 - [x] Remove `zustand` from web package.json (unused dependency)

@@ -57,3 +57,15 @@
     @apply bg-background text-foreground;
   }
 }
+
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="search"],
+.dark select,
+.dark textarea {
+  background-color: hsl(217.2 32.6% 12%);
+  color: hsl(210 40% 98%);
+  border-color: hsl(217.2 32.6% 22%);
+}

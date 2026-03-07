@@ -4,8 +4,6 @@ import { z } from 'zod';
 const createServerSchema = z.object({
   hostname: z.string().min(1),
   ipAddress: z.string().ip(),
-  sshPort: z.number().int().min(1).max(65535).default(22),
-  sshUsername: z.string().min(1).optional(),
   environment: z.enum(['DEVELOPMENT', 'STAGING', 'PRODUCTION']).default('PRODUCTION'),
   region: z.string().optional(),
   tags: z.array(z.string()).default([]),
@@ -24,7 +22,6 @@ describe('Server Validation', () => {
       if (result.success) {
         expect(result.data.hostname).toBe('web-server-01');
         expect(result.data.ipAddress).toBe('192.168.1.100');
-        expect(result.data.sshPort).toBe(22); // default
         expect(result.data.environment).toBe('PRODUCTION'); // default
         expect(result.data.tags).toEqual([]); // default
       }
@@ -34,8 +31,6 @@ describe('Server Validation', () => {
       const result = createServerSchema.safeParse({
         hostname: 'db-server-01',
         ipAddress: '10.0.0.50',
-        sshPort: 2222,
-        sshUsername: 'admin',
         environment: 'STAGING',
         region: 'us-east-1',
         tags: ['database', 'postgres'],
@@ -44,8 +39,6 @@ describe('Server Validation', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.sshPort).toBe(2222);
-        expect(result.data.sshUsername).toBe('admin');
         expect(result.data.environment).toBe('STAGING');
         expect(result.data.region).toBe('us-east-1');
         expect(result.data.tags).toContain('database');
@@ -65,16 +58,6 @@ describe('Server Validation', () => {
       const result = createServerSchema.safeParse({
         hostname: '',
         ipAddress: '192.168.1.1',
-      });
-
-      expect(result.success).toBe(false);
-    });
-
-    it('should reject invalid SSH port', () => {
-      const result = createServerSchema.safeParse({
-        hostname: 'server-01',
-        ipAddress: '192.168.1.1',
-        sshPort: 70000, // out of range
       });
 
       expect(result.success).toBe(false);

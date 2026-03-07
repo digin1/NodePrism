@@ -13,7 +13,6 @@ export const ServerSchema = z.object({
   id: z.string().uuid(),
   hostname: z.string().min(1),
   ipAddress: z.string().ip(),
-  sshPort: z.number().int().min(1).max(65535).default(22),
   tags: z.array(z.string()).default([]),
   environment: z.enum(['development', 'staging', 'production']).default('production'),
   region: z.string().optional(),
@@ -32,10 +31,6 @@ export const CreateServerSchema = ServerSchema.omit({
   createdAt: true,
   updatedAt: true,
   lastSeen: true,
-}).extend({
-  sshUsername: z.string().min(1),
-  sshPassword: z.string().min(1).optional(),
-  sshKeyPath: z.string().optional(),
 });
 
 export type CreateServerInput = z.infer<typeof CreateServerSchema>;

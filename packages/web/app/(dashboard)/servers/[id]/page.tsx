@@ -32,8 +32,6 @@ interface Server {
   id: string;
   hostname: string;
   ipAddress: string;
-  sshPort: number;
-  sshUsername?: string;
   status: string;
   environment: string;
   region?: string;
@@ -361,14 +359,6 @@ export default function ServerDetailPage() {
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">IP Address</dt>
                 <dd className="font-mono">{serverData.ipAddress}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">SSH Port</dt>
-                <dd className="font-mono">{serverData.sshPort}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">SSH User</dt>
-                <dd>{serverData.sshUsername || 'Not set'}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Environment</dt>

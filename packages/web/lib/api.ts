@@ -49,8 +49,6 @@ export const serverApi = {
   create: (data: {
     hostname: string;
     ipAddress: string;
-    sshPort?: number;
-    sshUsername?: string;
     environment?: string;
     region?: string;
     tags?: string[];

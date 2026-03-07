@@ -1,6 +1,10 @@
+---
+sidebar_position: 1
+title: Services
+---
+
 # Services
 
-> Auto-generated on 2026-03-07
 
 ## Overview
 

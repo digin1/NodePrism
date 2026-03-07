@@ -14,7 +14,7 @@ if echo "$CHANGED_FILES" | grep -qE "$DOC_PATTERNS"; then
   pnpm docs:generate
 
   # Stage updated docs
-  git add docs/
+  git add docs-site/docs/
 
   echo "✅ Documentation updated and staged"
 fi

@@ -340,6 +340,18 @@ services:
     depends_on:
       - apache
 
+  # Docusaurus - Documentation Site
+  docs:
+    build:
+      context: ../../docs-site
+      dockerfile: Dockerfile
+    container_name: nodeprism-docs
+    restart: unless-stopped
+    ports:
+      - '${DOCS_PORT:-3080}:3080'
+    networks:
+      - nodeprism-network
+
 networks:
   nodeprism-network:
     driver: bridge

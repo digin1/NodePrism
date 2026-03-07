@@ -15,7 +15,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
-const DOCS_DIR = path.resolve(__dirname, '..');
+const DOCS_DIR = path.resolve(ROOT_DIR, 'docs-site/docs');
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -27,10 +27,25 @@ function ensureDir(dir: string): void {
   }
 }
 
+// Docusaurus frontmatter for auto-generated pages
+const FRONTMATTER: Record<string, string> = {
+  'api/endpoints.md': '---\nsidebar_position: 2\ntitle: API Endpoints\n---\n\n',
+  'api/overview.md': '---\nsidebar_position: 1\ntitle: API Overview\n---\n\n',
+  'database/schema.md': '---\nsidebar_position: 2\ntitle: Database Schema\n---\n\n',
+  'database/overview.md': '---\nsidebar_position: 1\ntitle: Database Overview\n---\n\n',
+  'deployment/environment.md': '---\nsidebar_position: 2\ntitle: Environment Variables\n---\n\n',
+  'deployment/guide.md': '---\nsidebar_position: 1\ntitle: Deployment Guide\n---\n\n',
+  'services/overview.md': '---\nsidebar_position: 1\ntitle: Services\n---\n\n',
+  'frontend/overview.md': '---\nsidebar_position: 1\ntitle: Frontend\n---\n\n',
+  'architecture/overview.md': '---\nsidebar_position: 1\ntitle: Architecture Overview\n---\n\n',
+  'monitoring/overview.md': '---\nsidebar_position: 1\ntitle: Monitoring\n---\n\n',
+};
+
 function writeDoc(filePath: string, content: string): void {
   const fullPath = path.join(DOCS_DIR, filePath);
   ensureDir(path.dirname(fullPath));
-  fs.writeFileSync(fullPath, content);
+  const frontmatter = FRONTMATTER[filePath] || '';
+  fs.writeFileSync(fullPath, frontmatter + content);
   console.log(`  Generated: ${filePath}`);
 }
 
@@ -115,7 +130,6 @@ function generateApiDocs(): void {
   // Generate endpoints.md
   let content = `# API Endpoints
 
-> Auto-generated on ${getTimestamp()}
 
 ## Base URL
 
@@ -183,7 +197,6 @@ Connect to \`http://localhost:4000\` with Socket.IO client.
   // Generate API README
   const apiReadme = `# API Documentation
 
-> Auto-generated on ${getTimestamp()}
 
 The NodePrism API is a RESTful service that provides:
 
@@ -196,7 +209,6 @@ The NodePrism API is a RESTful service that provides:
 ## Quick Links
 
 - [API Endpoints](./endpoints.md) - All available endpoints
-- [Authentication](./authentication.md) - Auth flow and JWT tokens
 - [WebSocket Events](./endpoints.md#websocket-events) - Real-time updates
 
 ## Base URL
@@ -227,7 +239,7 @@ Error responses:
 \`\`\`
 `;
 
-  writeDoc('api/README.md', apiReadme);
+  writeDoc('api/overview.md', apiReadme);
 }
 
 // ============================================================================
@@ -325,7 +337,6 @@ function generateDatabaseDocs(): void {
 
   let content = `# Database Schema
 
-> Auto-generated on ${getTimestamp()}
 
 NodePrism uses PostgreSQL with Prisma ORM.
 
@@ -397,7 +408,6 @@ AlertTemplate ──── NotificationChannel
   // Generate database README
   const dbReadme = `# Database Documentation
 
-> Auto-generated on ${getTimestamp()}
 
 ## Overview
 
@@ -438,7 +448,7 @@ pnpm prisma migrate reset
 | User | Authentication and authorization |
 `;
 
-  writeDoc('database/README.md', dbReadme);
+  writeDoc('database/overview.md', dbReadme);
 }
 
 // ============================================================================
@@ -495,7 +505,6 @@ function generateEnvDocs(): void {
 
   let content = `# Environment Variables
 
-> Auto-generated on ${getTimestamp()}
 
 ## Configuration
 
@@ -583,7 +592,6 @@ function generateServicesDocs(): void {
 
   let content = `# Services
 
-> Auto-generated on ${getTimestamp()}
 
 ## Overview
 
@@ -612,7 +620,7 @@ NodePrism services handle background processing, data collection, and system coo
     content += '\n---\n\n';
   }
 
-  writeDoc('services/README.md', content);
+  writeDoc('services/overview.md', content);
 }
 
 // ============================================================================
@@ -663,7 +671,6 @@ function generateFrontendDocs(): void {
 
   let content = `# Frontend Pages
 
-> Auto-generated on ${getTimestamp()}
 
 ## Technology Stack
 
@@ -711,7 +718,7 @@ function generateFrontendDocs(): void {
 | \`Sidebar\` | Navigation menu |
 `;
 
-  writeDoc('frontend/README.md', content);
+  writeDoc('frontend/overview.md', content);
 }
 
 // ============================================================================
@@ -723,7 +730,6 @@ function generateArchitectureDocs(): void {
 
   const content = `# Architecture Overview
 
-> Auto-generated on ${getTimestamp()}
 
 ## System Architecture
 
@@ -851,7 +857,6 @@ function generateDeploymentDocs(): void {
 
   const content = `# Deployment Guide
 
-> Auto-generated on ${getTimestamp()}
 
 ## Quick Start
 
@@ -1333,7 +1338,7 @@ curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets'
 \`\`\`
 `;
 
-  writeDoc('deployment/README.md', content);
+  writeDoc('deployment/guide.md', content);
 }
 
 // ============================================================================
@@ -1345,7 +1350,6 @@ function generateMonitoringDocs(): void {
 
   const content = `# Monitoring
 
-> Auto-generated on ${getTimestamp()}
 
 ## Overview
 
@@ -1434,7 +1438,7 @@ Default credentials:
 - Password: \`admin123\`
 `;
 
-  writeDoc('monitoring/README.md', content);
+  writeDoc('monitoring/overview.md', content);
 }
 
 // ============================================================================
@@ -1446,7 +1450,6 @@ function generateIndex(): void {
 
   const content = `# NodePrism Documentation
 
-> Auto-generated on ${getTimestamp()}
 
 NodePrism is a server monitoring and management platform.
 
@@ -1481,7 +1484,7 @@ pnpm docs:generate
 Documentation is auto-generated from source code. Run this command after making changes.
 `;
 
-  writeDoc('README.md', content);
+  // Skip writing README.md - intro.md is maintained manually for Docusaurus
 }
 
 // ============================================================================

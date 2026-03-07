@@ -10,6 +10,7 @@ const createServerSchema = z.object({
   hostname: z.string().min(1),
   ipAddress: z.string().ip(),
   environment: z.enum(['DEVELOPMENT', 'STAGING', 'PRODUCTION']).default('PRODUCTION'),
+  groupId: z.string().uuid().nullable().optional(),
   region: z.string().optional(),
   tags: z.array(z.string()).default([]),
   metadata: z.record(z.string(), z.any()).optional(),
@@ -35,6 +36,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       },
       include: {
         agents: true,
+        group: { select: { id: true, name: true } },
         _count: {
           select: { alerts: { where: { status: 'FIRING' } } },
         },
@@ -106,6 +108,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
         hostname: data.hostname,
         ipAddress: data.ipAddress,
         environment: data.environment,
+        groupId: data.groupId ?? null,
         region: data.region,
         tags: data.tags,
         metadata: data.metadata,

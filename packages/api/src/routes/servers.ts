@@ -9,8 +9,6 @@ const router: ExpressRouter = Router();
 const createServerSchema = z.object({
   hostname: z.string().min(1),
   ipAddress: z.string().ip(),
-  sshPort: z.number().int().min(1).max(65535).default(22),
-  sshUsername: z.string().min(1).optional(),
   environment: z.enum(['DEVELOPMENT', 'STAGING', 'PRODUCTION']).default('PRODUCTION'),
   region: z.string().optional(),
   tags: z.array(z.string()).default([]),
@@ -107,8 +105,6 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       data: {
         hostname: data.hostname,
         ipAddress: data.ipAddress,
-        sshPort: data.sshPort,
-        sshUsername: data.sshUsername,
         environment: data.environment,
         region: data.region,
         tags: data.tags,

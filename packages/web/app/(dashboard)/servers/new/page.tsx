@@ -15,8 +15,6 @@ export default function NewServerPage() {
   const [formData, setFormData] = useState({
     hostname: '',
     ipAddress: '',
-    sshPort: 22,
-    sshUsername: 'root',
     environment: 'PRODUCTION',
     region: '',
   });
@@ -38,6 +36,8 @@ export default function NewServerPage() {
     createMutation.mutate();
   };
 
+  const managerUrl = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:4000` : 'http://<manager-ip>:4000';
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
@@ -49,7 +49,7 @@ export default function NewServerPage() {
         <CardHeader>
           <CardTitle>Server Details</CardTitle>
           <CardDescription>
-            Enter the connection details for the server you want to monitor
+            Enter the hostname and IP address of the server you want to monitor
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -77,26 +77,6 @@ export default function NewServerPage() {
                   onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
                   placeholder="192.168.1.100"
                   required
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">SSH Port</label>
-                <Input
-                  type="number"
-                  value={formData.sshPort}
-                  onChange={(e) => setFormData({ ...formData, sshPort: parseInt(e.target.value) || 22 })}
-                  placeholder="22"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">SSH Username</label>
-                <Input
-                  value={formData.sshUsername}
-                  onChange={(e) => setFormData({ ...formData, sshUsername: e.target.value })}
-                  placeholder="root"
                 />
               </div>
             </div>
@@ -132,6 +112,30 @@ export default function NewServerPage() {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Agent Install Instructions */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Next Step: Install Agent</CardTitle>
+          <CardDescription>
+            After creating the server, run this command on the target server to install the monitoring agent
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+            <pre>{`# Download and run the agent installer on the target server
+curl -sO ${managerUrl}/agent/nodeprism-agent.sh
+chmod +x nodeprism-agent.sh
+sudo ./nodeprism-agent.sh install`}</pre>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            The agent script will guide you through selecting which exporters to install (node_exporter, mysql_exporter, etc.) and automatically register with this NodePrism instance.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Alternatively, servers are auto-registered when agents connect — you can skip this form and just run the agent script directly on the target server.
+          </p>
         </CardContent>
       </Card>
     </div>

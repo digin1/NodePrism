@@ -187,6 +187,25 @@ AlertTemplate ──── NotificationChannel
 | enabled | Boolean | ✓ | Default: true |
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
+| logs | NotificationLog[] | ✓ | - |
+
+---
+
+### NotificationLog
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| channelId | String | ✓ | - |
+| alertId | String | ✓ | - |
+| status | String | ✓ | - |
+| message | String | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| channel | NotificationChannel | ✓ | Relation |
+
+**Indexes:**
+- `@@index([channelId])`
+- `@@index([createdAt])`
 
 ---
 

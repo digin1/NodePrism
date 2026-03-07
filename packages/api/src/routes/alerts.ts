@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { AlertTemplateService } from '../services/alertTemplateService';
 import { dispatchNotifications } from '../services/notificationSender';
+import { audit } from '../services/auditLogger';
 
 const router: ExpressRouter = Router();
 
@@ -186,6 +187,7 @@ router.put('/templates/:id', async (req: Request, res: Response, next: NextFunct
     });
 
     logger.info(`Alert template updated: ${template.name}`);
+    audit(req, { action: 'alert_template.update', entityType: 'alert_template', entityId: req.params.id, details: { name: template.name } });
 
     res.json({
       success: true,
@@ -213,6 +215,7 @@ router.delete('/templates/:id', async (req: Request, res: Response, next: NextFu
     });
 
     logger.info(`Alert template deleted: ${id}`);
+    audit(req, { action: 'alert_template.delete', entityType: 'alert_template', entityId: id });
 
     res.json({
       success: true,
@@ -256,6 +259,7 @@ router.post('/rules', async (req: Request, res: Response, next: NextFunction) =>
     });
 
     logger.info(`Alert rule created: ${rule.name}`);
+    audit(req, { action: 'alert_rule.create', entityType: 'alert_rule', entityId: rule.id, details: { name: rule.name, severity: rule.severity } });
 
     res.status(201).json({
       success: true,
@@ -285,6 +289,7 @@ router.put('/rules/:id', async (req: Request, res: Response, next: NextFunction)
     });
 
     logger.info(`Alert rule updated: ${rule.name}`);
+    audit(req, { action: 'alert_rule.update', entityType: 'alert_rule', entityId: req.params.id, details: { name: rule.name } });
 
     res.json({
       success: true,
@@ -305,6 +310,7 @@ router.delete('/rules/:id', async (req: Request, res: Response, next: NextFuncti
     });
 
     logger.info(`Alert rule deleted: ${id}`);
+    audit(req, { action: 'alert_rule.delete', entityType: 'alert_rule', entityId: id });
 
     res.json({
       success: true,
@@ -331,6 +337,7 @@ router.post('/:id/acknowledge', async (req: Request, res: Response, next: NextFu
     });
 
     logger.info(`Alert acknowledged: ${id}`);
+    audit(req, { action: 'alert.acknowledge', entityType: 'alert', entityId: id });
 
     const io = req.app.get('io');
     if (io) {
@@ -365,6 +372,7 @@ router.post('/:id/silence', async (req: Request, res: Response, next: NextFuncti
     });
 
     logger.info(`Alert silenced: ${id}`, { duration, silencedUntil });
+    audit(req, { action: 'alert.silence', entityType: 'alert', entityId: id, details: { duration, silencedUntil } });
 
     const io = req.app.get('io');
     if (io) {

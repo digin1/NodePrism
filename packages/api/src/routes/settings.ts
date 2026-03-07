@@ -8,6 +8,7 @@ import os from 'os';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { getDiskUsage } from '../services/housekeeping';
+import { audit } from '../services/auditLogger';
 
 const router: ExpressRouter = Router();
 const prisma = new PrismaClient();
@@ -181,6 +182,7 @@ router.put('/', requireAuth, requireRole('ADMIN'), async (req: Request, res: Res
     });
 
     logger.info('System settings updated', { userId: req.user?.userId });
+    audit(req, { action: 'settings.update', entityType: 'settings', details: req.body });
 
     res.json({
       success: true,
@@ -231,6 +233,7 @@ router.post(
       });
 
       logger.info('Logo uploaded', { userId: req.user?.userId, filename: req.file.filename });
+      audit(req, { action: 'settings.logo_upload', entityType: 'settings' });
 
       res.json({
         success: true,
@@ -279,6 +282,7 @@ router.delete('/logo', requireAuth, requireRole('ADMIN'), async (req: Request, r
     });
 
     logger.info('Logo deleted', { userId: req.user?.userId });
+    audit(req, { action: 'settings.logo_delete', entityType: 'settings' });
 
     res.json({
       success: true,

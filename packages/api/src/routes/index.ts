@@ -11,6 +11,7 @@ import { settingsRoutes } from './settings';
 import { serverGroupRoutes } from './serverGroups';
 import { containerRoutes } from './containers';
 import { notificationRoutes } from './notifications';
+import { auditRoutes } from './audit';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -40,5 +41,6 @@ router.use('/anomalies', optionalAuth, anomalyRoutes);
 router.use('/logs', optionalAuth, logRoutes);
 router.use('/events', optionalAuth, eventRoutes);
 router.use('/notifications', optionalAuth, notificationRoutes);
+router.use('/audit', auditRoutes); // auth enforced internally (ADMIN only)
 
 export { router as routes };

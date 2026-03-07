@@ -29,6 +29,7 @@ title: Frontend
 | `/servers/:id` | `(dashboard)/servers/[id]/page.tsx` | Server details and metrics |
 | `/servers/new` | `(dashboard)/servers/new/page.tsx` | Add new server |
 | `/servers` | `(dashboard)/servers/page.tsx` | Server list and management |
+| `/settings/notifications` | `(dashboard)/settings/notifications/page.tsx` | - |
 | `/settings` | `(dashboard)/settings/page.tsx` | System settings |
 | `/` | `page.tsx` | Home page / redirect |
 

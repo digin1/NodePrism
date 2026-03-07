@@ -189,6 +189,31 @@ export const agentApi = {
   unregister: (agentId: string) => api.post('/api/agents/unregister', { agentId }),
 };
 
+// Audit types
+export interface AuditLogEntry {
+  id: string;
+  userId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  details: Record<string, unknown> | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  user?: { id: string; name: string; email: string } | null;
+}
+
+// Audit API
+export const auditApi = {
+  list: (params?: { action?: string; entityType?: string; userId?: string; limit?: number; offset?: number }) =>
+    getData<AuditLogEntry[]>(api.get('/api/audit', { params })),
+  entityTrail: (entityType: string, entityId: string) =>
+    getData<AuditLogEntry[]>(api.get(`/api/audit/entity/${entityType}/${entityId}`)),
+  stats: () => getData<{ total: number; last24h: number; byAction: { action: string; count: number }[] }>(
+    api.get('/api/audit/stats')
+  ),
+};
+
 // Notification types
 export interface NotificationChannel {
   id: string;

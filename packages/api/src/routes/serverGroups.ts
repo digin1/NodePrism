@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction, type Router as ExpressRouter }
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
+import { audit } from '../services/auditLogger';
 
 const router: ExpressRouter = Router();
 
@@ -137,6 +138,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     });
 
     logger.info(`Server group created: ${group.name}`);
+    audit(req, { action: 'server_group.create', entityType: 'server_group', entityId: group.id, details: { name: group.name } });
 
     res.status(201).json({ success: true, data: group });
   } catch (error) {
@@ -176,6 +178,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
     });
 
     logger.info(`Server group updated: ${group.name}`);
+    audit(req, { action: 'server_group.update', entityType: 'server_group', entityId: group.id, details: { name: group.name } });
 
     res.json({ success: true, data: group });
   } catch (error) {
@@ -211,6 +214,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     ]);
 
     logger.info(`Server group deleted: ${group.name}`);
+    audit(req, { action: 'server_group.delete', entityType: 'server_group', entityId: req.params.id, details: { name: group.name } });
 
     res.json({ success: true, message: 'Group deleted successfully' });
   } catch (error) {
@@ -237,6 +241,7 @@ router.post('/move-servers', async (req: Request, res: Response, next: NextFunct
     });
 
     logger.info(`Moved ${serverIds.length} server(s) to group ${groupId || 'ungrouped'}`);
+    audit(req, { action: 'server_group.move_servers', entityType: 'server_group', entityId: groupId, details: { serverIds, groupId } });
 
     res.json({ success: true, message: `${serverIds.length} server(s) moved` });
   } catch (error) {

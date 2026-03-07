@@ -43,11 +43,12 @@
 - [x] Write tests: `alertTemplates.test.ts`
 
 ### 1.5 Auto-Discovery Service
-- [ ] Fix version probing (MySQL, PostgreSQL, MongoDB, Redis, Nginx)
-- [ ] Make discovery configurable (scan specific IPs/subnets, not just localhost)
-- [ ] Wire `runDiscoveryAndUpdate()` into a scheduled job
-- [ ] Add UI display of discovered services on server detail page
-- [ ] Write tests: `autoDiscovery.test.ts`
+- [x] Fix version probing (MySQL TCP banner, Redis INFO, PostgreSQL SSL probe)
+- [x] Make discovery configurable via DISCOVERY_TARGETS env var
+- [x] Wire `runDiscoveryAndUpdate()` into scheduled job (startAutoDiscovery)
+- [x] Write Prometheus file_sd target files and reload Prometheus
+- [x] Store discovery events in EventLog
+- [x] Write tests: `autoDiscovery.test.ts`
 
 ### 1.6 Custom Dashboards
 - [ ] Create `packages/api/src/routes/dashboards.ts` with CRUD endpoints
@@ -187,7 +188,7 @@
 - [x] `auditLogger.test.ts` — Audit log entries and querying (16 tests)
 - [x] `multiStageAlertProcessor.test.ts` — Condition evaluation, hysteresis, PromQL injection (30 tests)
 - [x] `alertTemplates.test.ts` — Alert template config, label matching, validation (19 tests)
-- [ ] `autoDiscovery.test.ts` — Service auto-discovery
+- [x] `autoDiscovery.test.ts` — Target parsing, port mapping, banner parsing (20 tests)
 - [ ] `dashboards.test.ts` — Dashboard CRUD
 - [ ] `userManagement.test.ts` — User CRUD and roles
 - [ ] `serverTags.test.ts` — Tag operations

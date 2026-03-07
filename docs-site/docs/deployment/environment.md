@@ -1,6 +1,10 @@
+---
+sidebar_position: 2
+title: Environment Variables
+---
+
 # Environment Variables
 
-> Auto-generated on 2026-03-07
 
 ## Configuration
 

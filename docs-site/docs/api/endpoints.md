@@ -1,6 +1,10 @@
+---
+sidebar_position: 2
+title: API Endpoints
+---
+
 # API Endpoints
 
-> Auto-generated on 2026-03-07
 
 ## Base URL
 

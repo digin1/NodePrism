@@ -1,6 +1,10 @@
+---
+sidebar_position: 1
+title: Frontend
+---
+
 # Frontend Pages
 
-> Auto-generated on 2026-03-07
 
 ## Technology Stack
 

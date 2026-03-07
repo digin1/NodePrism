@@ -142,6 +142,25 @@ export const healthApi = {
   check: () => getRaw(api.get('/health')),
 };
 
+// User Management API
+export interface UserInfo {
+  id: string;
+  email: string;
+  name: string;
+  role: 'ADMIN' | 'OPERATOR' | 'VIEWER';
+  lastLogin: string | null;
+  createdAt: string;
+}
+
+export const userApi = {
+  list: () => getData<UserInfo[]>(api.get('/api/auth/users')),
+  create: (data: { email: string; name: string; password: string; role: string }) =>
+    api.post('/api/auth/register', data),
+  update: (id: string, data: { name?: string; role?: string; password?: string }) =>
+    getData<UserInfo>(api.put(`/api/auth/users/${id}`, data)),
+  delete: (id: string) => api.delete(`/api/auth/users/${id}`),
+};
+
 // Anomaly API
 export const anomalyApi = {
   list: () => getData(api.get('/api/anomalies')),

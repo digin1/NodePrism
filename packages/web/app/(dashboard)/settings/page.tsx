@@ -256,6 +256,23 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* User Management */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>Manage users, roles, and access permissions</CardDescription>
+              </div>
+              <a href="/settings/users">
+                <Button>Manage Users</Button>
+              </a>
+            </div>
+          </CardHeader>
+        </Card>
+      )}
+
       {/* Notification Channels */}
       {isAdmin && (
         <Card>

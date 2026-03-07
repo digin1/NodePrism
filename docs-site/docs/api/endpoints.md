@@ -72,6 +72,16 @@ Base path: `/api/anomalies`
 | POST | `/anomalies/events` | - | Redis connection for anomaly scores |
 | PUT | `/anomalies/events/:id/resolve` | - | Redis connection for anomaly scores |
 
+## Audit
+
+Base path: `/api/audit`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/audit` | ✓ | All audit routes require ADMIN role |
+| GET | `/audit/entity/:type/:id` | ✓ | All audit routes require ADMIN role |
+| GET | `/audit/stats` | ✓ | All audit routes require ADMIN role |
+
 ## Auth
 
 Base path: `/api/auth`
@@ -92,6 +102,18 @@ Base path: `/api/containers`
 |--------|----------|------|-------------|
 | POST | `/containers` | - | Validation schemas |
 | GET | `/containers/server/:serverId` | - | Validation schemas |
+
+## Dashboards
+
+Base path: `/api/dashboards`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/dashboards` | - | Validation schemas |
+| GET | `/dashboards/:id` | - | Validation schemas |
+| POST | `/dashboards` | - | Validation schemas |
+| PUT | `/dashboards/:id` | - | Validation schemas |
+| DELETE | `/dashboards/:id` | - | Validation schemas |
 
 ## Events
 

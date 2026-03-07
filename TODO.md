@@ -62,13 +62,13 @@
 ## Phase 2: High-Value Additions
 
 ### 2.1 User Management UI
-- [ ] Add `/settings/users` admin page
-- [ ] List all users with role, last login, created date
-- [ ] Create new user form
-- [ ] Edit user (change role, reset password)
-- [ ] Delete user (with confirmation)
-- [ ] Role assignment (ADMIN, OPERATOR, VIEWER)
-- [ ] Write tests: `userManagement.test.ts`
+- [x] Add `/settings/users` admin page
+- [x] List all users with role, last login, created date
+- [x] Create new user form
+- [x] Edit user (change role, reset password)
+- [x] Delete user (with confirmation)
+- [x] Role assignment (ADMIN, OPERATOR, VIEWER)
+- [x] Write tests: `userManagement.test.ts`
 
 ### 2.2 Server Tags UI
 - [ ] Add tag management component on server list page (add/remove tags)
@@ -191,7 +191,7 @@
 - [x] `alertTemplates.test.ts` — Alert template config, label matching, validation (19 tests)
 - [x] `autoDiscovery.test.ts` — Target parsing, port mapping, banner parsing (20 tests)
 - [x] `dashboards.test.ts` — Panel validation, config structure, grid layout (17 tests)
-- [ ] `userManagement.test.ts` — User CRUD and roles
+- [x] `userManagement.test.ts` — User CRUD, roles, and permission hierarchy (19 tests)
 - [ ] `serverTags.test.ts` — Tag operations
 - [ ] `bandwidth.test.ts` — Bandwidth calculations
 - [ ] `bulkOperations.test.ts` — Bulk server/alert operations

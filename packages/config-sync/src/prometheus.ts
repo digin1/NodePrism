@@ -26,15 +26,46 @@ interface PrometheusTargetsResponse {
 
 export class PrometheusClient {
   private baseUrl: string;
+  private consecutiveFailures = 0;
+  private readonly MAX_RETRIES = 3;
+  private readonly BASE_DELAY_MS = 1000;
 
   constructor(baseUrl: string = PROMETHEUS_URL) {
     this.baseUrl = baseUrl;
   }
 
+  /**
+   * Retry an operation with exponential backoff.
+   */
+  private async withRetry<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
+    for (let attempt = 0; attempt <= this.MAX_RETRIES; attempt++) {
+      try {
+        const result = await operation();
+        if (this.consecutiveFailures > 0) {
+          console.log(`Prometheus recovered after ${this.consecutiveFailures} failures`);
+        }
+        this.consecutiveFailures = 0;
+        return result;
+      } catch (error) {
+        if (attempt < this.MAX_RETRIES) {
+          const delay = this.BASE_DELAY_MS * Math.pow(2, attempt);
+          console.warn(`Prometheus request failed (attempt ${attempt + 1}/${this.MAX_RETRIES + 1}), retrying in ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          this.consecutiveFailures++;
+          console.error(`Prometheus unreachable after ${this.MAX_RETRIES + 1} attempts (consecutive failures: ${this.consecutiveFailures})`);
+          return fallback;
+        }
+      }
+    }
+    return fallback;
+  }
+
   async getTargets(): Promise<PrometheusTarget[]> {
-    try {
+    return this.withRetry(async () => {
       const response = await axios.get<PrometheusTargetsResponse>(
-        `${this.baseUrl}/api/v1/targets`
+        `${this.baseUrl}/api/v1/targets`,
+        { timeout: 5000 }
       );
 
       if (response.data.status !== 'success') {
@@ -42,17 +73,13 @@ export class PrometheusClient {
       }
 
       return response.data.data.activeTargets.map((target) => ({
-        // Merge discoveredLabels and labels (labels take priority)
         labels: { ...target.discoveredLabels, ...target.labels },
         scrapeUrl: target.scrapeUrl,
         health: target.health as 'up' | 'down' | 'unknown',
         lastScrape: target.lastScrape,
         lastError: target.lastError,
       }));
-    } catch (error) {
-      console.error('Error fetching Prometheus targets:', error);
-      return [];
-    }
+    }, []);
   }
 
   async query(promql: string): Promise<any> {

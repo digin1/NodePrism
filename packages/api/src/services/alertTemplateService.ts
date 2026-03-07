@@ -173,19 +173,30 @@ export class AlertTemplateService {
   }
 
   /**
-   * Simple condition evaluation (placeholder - would need proper PromQL/expression parser)
+   * Safe condition evaluation without eval().
+   * Supports: $value > N, $value < N, $value >= N, $value <= N, $value == N, $value != N
    */
-  private evaluateCondition(expression: string, value: number): boolean {
-    // Very basic implementation - in reality, this would parse PromQL expressions
-    // For now, assume simple forms like "$value > 80"
-
+  evaluateCondition(expression: string, value: number): boolean {
     try {
-      // Replace $value with actual value
-      const expr = expression.replace(/\$value/g, value.toString());
+      // Match pattern: $value <operator> <number>
+      const match = expression.match(/^\s*\$value\s*(>=|<=|!=|>|<|==)\s*(-?\d+(?:\.\d+)?)\s*$/);
+      if (!match) {
+        logger.warn('Unsupported condition expression', { expression });
+        return false;
+      }
 
-      // Simple evaluation (this is unsafe and should be replaced with proper parsing)
-      // eslint-disable-next-line no-eval
-      return eval(expr) as boolean;
+      const operator = match[1];
+      const threshold = parseFloat(match[2]);
+
+      switch (operator) {
+        case '>':  return value > threshold;
+        case '<':  return value < threshold;
+        case '>=': return value >= threshold;
+        case '<=': return value <= threshold;
+        case '==': return value === threshold;
+        case '!=': return value !== threshold;
+        default:   return false;
+      }
     } catch {
       logger.warn('Failed to evaluate condition', { expression, value });
       return false;

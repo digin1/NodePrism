@@ -29,11 +29,12 @@
 - [x] Write tests: `auditLogger.test.ts`
 
 ### 1.3 Multi-Stage Alert Processor
-- [ ] Replace mock random data with real Prometheus queries in `multiStageAlertProcessor.ts`
-- [ ] Integrate `evaluateStage()` with `metricsApi.query()` for live PromQL evaluation
-- [ ] Implement hysteresis logic using `alertTemplateService.evaluateHysteresis()`
-- [ ] Wire into alert evaluation loop (called from metric collector cycle)
-- [ ] Write tests: `multiStageAlertProcessor.test.ts`
+- [x] Replace mock random data with real Prometheus queries in `multiStageAlertProcessor.ts`
+- [x] Replace unsafe `eval()` with safe condition parser in `alertTemplateService.ts`
+- [x] Implement hysteresis logic using `alertTemplateService.evaluateHysteresis()`
+- [x] Wire into alert evaluation loop (called from metric collector cycle)
+- [x] Dispatch notifications when template alerts fire
+- [x] Write tests: `multiStageAlertProcessor.test.ts`
 
 ### 1.4 Alert Template UI
 - [ ] Add `/alerts/templates` page with template list, create, edit, delete
@@ -184,7 +185,7 @@
 - [x] `targetGenerator.test.ts` — Prometheus target generation (8 tests)
 - [x] `notifications.test.ts` — Notification dispatch (24 tests)
 - [x] `auditLogger.test.ts` — Audit log entries and querying (16 tests)
-- [ ] `multiStageAlertProcessor.test.ts` — Alert stage evaluation
+- [x] `multiStageAlertProcessor.test.ts` — Condition evaluation, hysteresis, PromQL injection (30 tests)
 - [ ] `alertTemplates.test.ts` — Alert template CRUD and matching
 - [ ] `autoDiscovery.test.ts` — Service auto-discovery
 - [ ] `dashboards.test.ts` — Dashboard CRUD

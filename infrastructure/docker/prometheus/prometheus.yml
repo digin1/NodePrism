@@ -39,6 +39,12 @@ scrape_configs:
     static_configs:
       - targets: ['pushgateway:9091']
 
+  # NodePrism API self-monitoring
+  - job_name: 'nodeprism-api'
+    static_configs:
+      - targets: ['host.docker.internal:4000']
+    metrics_path: '/metrics'
+
   # Node Exporter - File-based service discovery
   - job_name: 'node-exporter'
     file_sd_configs:

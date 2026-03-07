@@ -109,12 +109,12 @@
 - [x] Write tests: `healthCheck.test.ts`
 
 ### 3.2 API Self-Monitoring (Prometheus Metrics)
-- [ ] Add `prom-client` to API package
-- [ ] Expose `GET /metrics` endpoint on API (port 4000)
-- [ ] Track: request count, latency histogram, error rate, active WebSocket connections
-- [ ] Add API scrape job to Prometheus config
-- [ ] Add API metrics panel to Grafana system-overview dashboard
-- [ ] Write tests: `apiMetrics.test.ts`
+- [x] Add `prom-client` to API package
+- [x] Expose `GET /metrics` endpoint on API (port 4000)
+- [x] Track: request count, latency histogram, error rate, active WebSocket connections
+- [x] Add API scrape job to Prometheus config
+- [x] Add API metrics panel to Grafana system-overview dashboard
+- [x] Write tests: `apiMetrics.test.ts`
 
 ### 3.3 Scheduled Maintenance Windows
 - [ ] Add `MaintenanceWindow` model to Prisma schema (serverId, startTime, endTime, reason)
@@ -197,7 +197,7 @@
 - [x] `bulkOperations.test.ts` — Bulk delete, acknowledge, silence, move, selection (19 tests)
 - [x] `configExportImport.test.ts` — Config export/import validation and conflict resolution (32 tests)
 - [x] `healthCheck.test.ts` — Health endpoint enrichment and dependency checks (23 tests)
-- [ ] `apiMetrics.test.ts` — Prometheus self-metrics
+- [x] `apiMetrics.test.ts` — Prometheus self-metrics, route normalization, error classification (26 tests)
 - [ ] `maintenanceWindows.test.ts` — Maintenance window logic
 - [ ] `gracefulDegradation.test.ts` — Fallback behavior
 - [ ] `dbBackup.test.ts` — Backup scheduling

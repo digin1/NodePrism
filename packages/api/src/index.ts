@@ -17,6 +17,7 @@ import { startHousekeeping, stopHousekeeping } from './services/housekeeping';
 import { startAutoDiscovery, stopAutoDiscovery } from './services/autoDiscoveryService';
 import { setEventLoggerSocket, logSystemStartup } from './services/eventLogger';
 import { prisma } from './lib/prisma';
+import { metricsMiddleware, metricsRegistry, setWebSocketConnections } from './services/apiMetrics';
 
 // Load environment variables from root .env
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -91,6 +92,15 @@ app.use(express.urlencoded({ extended: true }));
 
 // Apply rate limiting to API routes
 app.use('/api', generalLimiter);
+
+// Prometheus metrics middleware
+app.use(metricsMiddleware);
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', metricsRegistry.contentType);
+  res.end(await metricsRegistry.metrics());
+});
 
 // Request logging
 app.use((req, res, next) => {
@@ -169,9 +179,11 @@ app.use('/uploads', express.static(uploadsPath));
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   logger.info(`Socket connected: ${socket.id}`);
+  setWebSocketConnections(io.engine.clientsCount);
 
   socket.on('disconnect', () => {
     logger.info(`Socket disconnected: ${socket.id}`);
+    setWebSocketConnections(io.engine.clientsCount);
   });
 
   // Subscribe to server updates

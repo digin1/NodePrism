@@ -1,6 +1,8 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { execSync } from 'child_process';
+import path from 'path';
+import fs from 'fs';
 
 // Configuration with defaults
 const HOUSEKEEPING_INTERVAL_MINUTES = parseInt(process.env.HOUSEKEEPING_INTERVAL_MINUTES || '60', 10);
@@ -164,6 +166,156 @@ function pruneDockerResources(aggressive: boolean): string {
     return results.join('; ');
   } catch {
     return 'Docker prune skipped (not available or failed)';
+  }
+}
+
+// ==================== DATABASE BACKUP ====================
+
+const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, '../../backups');
+const BACKUP_RETENTION_COUNT = parseInt(process.env.BACKUP_RETENTION_COUNT || '7', 10);
+const BACKUP_SCHEDULE_HOURS = parseInt(process.env.BACKUP_SCHEDULE_HOURS || '24', 10);
+
+let backupInterval: NodeJS.Timeout | null = null;
+let lastBackupTime: Date | null = null;
+let lastBackupStatus: 'success' | 'failed' | null = null;
+
+/**
+ * Ensure backup directory exists
+ */
+function ensureBackupDir(): void {
+  if (!fs.existsSync(BACKUP_DIR)) {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  }
+}
+
+/**
+ * Run a PostgreSQL backup using pg_dump
+ */
+export async function runDatabaseBackup(): Promise<{ file: string; sizeBytes: number } | null> {
+  try {
+    ensureBackupDir();
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('_').slice(0, -5);
+    const filename = `nodeprism-backup-${timestamp}.sql.gz`;
+    const filepath = path.join(BACKUP_DIR, filename);
+
+    const databaseUrl = process.env.DATABASE_URL || '';
+    if (!databaseUrl) {
+      logger.error('DATABASE_URL not set — cannot run backup');
+      lastBackupStatus = 'failed';
+      return null;
+    }
+
+    // Run pg_dump piped through gzip
+    execSync(`pg_dump "${databaseUrl}" | gzip > "${filepath}"`, {
+      timeout: 300_000, // 5 minute timeout
+      stdio: 'pipe',
+    });
+
+    const stats = fs.statSync(filepath);
+    lastBackupTime = new Date();
+    lastBackupStatus = 'success';
+
+    logger.info('Database backup completed', {
+      file: filename,
+      sizeBytes: stats.size,
+      sizeMB: (stats.size / (1024 * 1024)).toFixed(2),
+    });
+
+    // Prune old backups
+    pruneOldBackups();
+
+    return { file: filename, sizeBytes: stats.size };
+  } catch (error) {
+    lastBackupStatus = 'failed';
+    logger.error('Database backup failed', { error });
+    return null;
+  }
+}
+
+/**
+ * Remove old backups beyond the retention count
+ */
+function pruneOldBackups(): void {
+  try {
+    ensureBackupDir();
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('nodeprism-backup-') && f.endsWith('.sql.gz'))
+      .sort()
+      .reverse(); // newest first
+
+    const toDelete = files.slice(BACKUP_RETENTION_COUNT);
+    for (const file of toDelete) {
+      fs.unlinkSync(path.join(BACKUP_DIR, file));
+      logger.info('Deleted old backup', { file });
+    }
+
+    if (toDelete.length > 0) {
+      logger.info(`Pruned ${toDelete.length} old backup(s), keeping ${BACKUP_RETENTION_COUNT}`);
+    }
+  } catch (error) {
+    logger.warn('Failed to prune old backups', { error });
+  }
+}
+
+/**
+ * Get backup status for the system info endpoint
+ */
+export function getBackupStatus(): {
+  lastBackupTime: string | null;
+  lastBackupStatus: string | null;
+  backupDir: string;
+  retentionCount: number;
+  scheduleHours: number;
+  backupCount: number;
+} {
+  let backupCount = 0;
+  try {
+    if (fs.existsSync(BACKUP_DIR)) {
+      backupCount = fs.readdirSync(BACKUP_DIR)
+        .filter(f => f.startsWith('nodeprism-backup-') && f.endsWith('.sql.gz'))
+        .length;
+    }
+  } catch { /* ignore */ }
+
+  return {
+    lastBackupTime: lastBackupTime?.toISOString() || null,
+    lastBackupStatus,
+    backupDir: BACKUP_DIR,
+    retentionCount: BACKUP_RETENTION_COUNT,
+    scheduleHours: BACKUP_SCHEDULE_HOURS,
+    backupCount,
+  };
+}
+
+/**
+ * Start scheduled database backups
+ */
+export function startBackupScheduler(): void {
+  if (backupInterval) return;
+
+  const intervalMs = BACKUP_SCHEDULE_HOURS * 60 * 60 * 1000;
+
+  // Run first backup after 1 minute (let services start)
+  setTimeout(() => {
+    runDatabaseBackup().catch(err => logger.error('Initial backup failed', { error: err }));
+  }, 60_000);
+
+  backupInterval = setInterval(() => {
+    runDatabaseBackup().catch(err => logger.error('Scheduled backup failed', { error: err }));
+  }, intervalMs);
+
+  logger.info(`Database backup scheduler started (every ${BACKUP_SCHEDULE_HOURS}h, keep ${BACKUP_RETENTION_COUNT})`);
+}
+
+/**
+ * Stop scheduled database backups
+ */
+export function stopBackupScheduler(): void {
+  if (backupInterval) {
+    clearInterval(backupInterval);
+    backupInterval = null;
+    logger.info('Database backup scheduler stopped');
   }
 }
 

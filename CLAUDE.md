@@ -16,17 +16,18 @@ THE MOST IMPORTANT RULES ARE:
 - Port 4000: API Server
 - Port 4002: Config Sync
 - Port 4003: Anomaly Detector
+- Port 9101: Agent App
 
 ## Starting the App (Production Mode)
 
 The app runs in **production mode by default**. Build first, then start:
 ```bash
-lsof -ti:3000,4000,4002,4003 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run build && pnpm run start
+lsof -ti:3000,4000,4002,4003,9101 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run build && pnpm run start
 ```
 
 For development/debugging only:
 ```bash
-lsof -ti:3000,4000,4002,4003 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run dev
+lsof -ti:3000,4000,4002,4003,9101 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run dev
 ```
 
 **Production mode benefits:**

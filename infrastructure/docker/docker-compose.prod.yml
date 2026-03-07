@@ -43,7 +43,6 @@ services:
       - PORT=4000
       - DATABASE_URL=postgresql://nodeprism:${DB_PASSWORD}@postgres:5432/nodeprism
       - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://nodeprism:${RABBITMQ_PASSWORD}@rabbitmq:5672
       - PROMETHEUS_URL=http://prometheus:9090
       - LOKI_URL=http://loki:3100
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production}

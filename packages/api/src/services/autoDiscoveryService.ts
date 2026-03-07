@@ -3,7 +3,7 @@ import { logger } from '../utils/logger';
 import * as net from 'net';
 
 export interface DiscoveredService {
-  type: 'mysql' | 'postgresql' | 'mongodb' | 'nginx' | 'apache' | 'redis' | 'rabbitmq';
+  type: 'mysql' | 'postgresql' | 'mongodb' | 'nginx' | 'apache' | 'redis';
   host: string;
   port: number;
   name?: string;
@@ -49,12 +49,6 @@ export class AutoDiscoveryService {
       versionProbe: this.probeRedisVersion.bind(this),
     },
     {
-      type: 'rabbitmq',
-      port: 5672,
-      checkFunction: this.checkRabbitMQ.bind(this),
-      versionProbe: this.probeRabbitMQVersion.bind(this),
-    },
-    {
       type: 'nginx',
       port: 80,
       checkFunction: this.checkNginx.bind(this),
@@ -74,8 +68,8 @@ export class AutoDiscoveryService {
   async discoverServices(): Promise<DiscoveredService[]> {
     const discovered: DiscoveredService[] = [];
     const scanTargets = [
-      { host: 'localhost', ports: [3306, 5432, 27017, 6379, 5672, 80, 8080, 8081] },
-      { host: '127.0.0.1', ports: [3306, 5432, 27017, 6379, 5672, 80, 8080, 8081] },
+      { host: 'localhost', ports: [3306, 5432, 27017, 6379, 80, 8080, 8081] },
+      { host: '127.0.0.1', ports: [3306, 5432, 27017, 6379, 80, 8080, 8081] },
     ];
 
     for (const target of scanTargets) {
@@ -169,7 +163,6 @@ export class AutoDiscoveryService {
       postgresql: 9187,
       mongodb: 9216,
       redis: 9121,
-      rabbitmq: 15692,
       nginx: 9113,
       apache: 9117,
     };
@@ -191,10 +184,6 @@ export class AutoDiscoveryService {
   }
 
   private async checkRedis(host: string, port: number): Promise<boolean> {
-    return this.checkTCPConnection(host, port);
-  }
-
-  private async checkRabbitMQ(host: string, port: number): Promise<boolean> {
     return this.checkTCPConnection(host, port);
   }
 
@@ -252,11 +241,6 @@ export class AutoDiscoveryService {
 
   private async probeRedisVersion(host: string, port: number): Promise<string | undefined> {
     // This would require a Redis client connection
-    return undefined;
-  }
-
-  private async probeRabbitMQVersion(host: string, port: number): Promise<string | undefined> {
-    // This would require an AMQP connection
     return undefined;
   }
 

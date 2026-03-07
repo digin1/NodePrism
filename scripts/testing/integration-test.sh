@@ -20,7 +20,6 @@ API_URL="${API_URL:-http://localhost:3002}"
 WEB_URL="${WEB_URL:-http://localhost:3000}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-http://localhost:9090}"
 GRAFANA_URL="${GRAFANA_URL:-http://localhost:3030}"
-RABBITMQ_URL="${RABBITMQ_URL:-http://localhost:15672}"
 TEST_MODE="${1:-quick}"
 
 # Counters
@@ -174,14 +173,6 @@ test_docker_services() {
     log_success "Redis container is running"
   else
     log_fail "Redis container is not running"
-  fi
-
-  # RabbitMQ
-  if docker ps | grep -q nodeprism-rabbitmq; then
-    log_success "RabbitMQ container is running"
-    check_service "RabbitMQ Management" "$RABBITMQ_URL" "/api/overview" || true
-  else
-    log_fail "RabbitMQ container is not running"
   fi
 
   # Prometheus

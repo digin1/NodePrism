@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { alertApi, healthApi } from '@/lib/api';
+import { alertApi, healthApi, settingsApi } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -31,9 +31,16 @@ export function Header({ onMenuToggle }: HeaderProps) {
     refetchInterval: 10000,
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const stats = alertStats as AlertStats | undefined;
   const healthData = health as Health | undefined;
   const firingCount = stats?.firing ?? 0;
+  const systemName = settings?.systemName || 'NodePrism';
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-white px-4 md:px-6">
@@ -49,7 +56,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
             </svg>
           </button>
         )}
-        <h1 className="text-lg font-semibold text-gray-900">NodePrism</h1>
+        <h1 className="text-lg font-semibold text-gray-900">{systemName}</h1>
       </div>
 
       <div className="flex items-center gap-2 md:gap-4">

@@ -28,16 +28,6 @@ function buildRedisUrl(): string {
   return `redis://${host}:${port}`;
 }
 
-// Helper to build RabbitMQ URL from components
-function buildRabbitmqUrl(): string {
-  if (process.env.RABBITMQ_URL) return process.env.RABBITMQ_URL;
-  const host = process.env.RABBITMQ_HOST || 'localhost';
-  const port = process.env.RABBITMQ_PORT || '5672';
-  const user = process.env.RABBITMQ_USER || 'nodeprism';
-  const password = process.env.RABBITMQ_PASSWORD || 'nodeprism123';
-  return `amqp://${user}:${password}@${host}:${port}`;
-}
-
 // Helper to build simple HTTP URLs
 function buildHttpUrl(envUrl: string | undefined, hostEnv: string, portEnv: string, defaultHost: string, defaultPort: string): string {
   if (envUrl) return envUrl;
@@ -81,15 +71,6 @@ export const config = {
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     password: process.env.REDIS_PASSWORD || '',
     url: buildRedisUrl(),
-  },
-
-  // RabbitMQ
-  rabbitmq: {
-    host: process.env.RABBITMQ_HOST || 'localhost',
-    port: parseInt(process.env.RABBITMQ_PORT || '5672', 10),
-    user: process.env.RABBITMQ_USER || 'nodeprism',
-    password: process.env.RABBITMQ_PASSWORD || 'nodeprism123',
-    url: buildRabbitmqUrl(),
   },
 
   // Prometheus

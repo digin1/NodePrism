@@ -305,6 +305,106 @@ function MetricCard({
   );
 }
 
+// Exim per-domain email stats table
+function EximDomainTable({ serverId }: { serverId: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const { data } = useQuery({
+    queryKey: ['eximDomains', serverId],
+    queryFn: async () => {
+      const res = await fetch(`/api/metrics/server/${serverId}/exim-domains`);
+      const json = await res.json();
+      return json.data as { domain: string; sentToday: number }[];
+    },
+    enabled: expanded,
+    refetchInterval: 30000,
+  });
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs text-purple-500 hover:text-purple-600 font-medium flex items-center gap-1"
+      >
+        {expanded ? '▾' : '▸'} Top sending domains
+      </button>
+      {expanded && data && (
+        <div className="mt-2 max-h-48 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-muted-foreground border-b border-border">
+                <th className="text-left py-1 font-medium">Domain</th>
+                <th className="text-right py-1 font-medium">Sent Today</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.slice(0, 20).map((d) => (
+                <tr key={d.domain} className="border-b border-border/50">
+                  <td className="py-1 font-mono">{d.domain}</td>
+                  <td className="text-right py-1 tabular-nums">{d.sentToday.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// cPanel per-account table
+function CpanelAccountTable({ serverId }: { serverId: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const { data } = useQuery({
+    queryKey: ['cpanelAccounts', serverId],
+    queryFn: async () => {
+      const res = await fetch(`/api/metrics/server/${serverId}/cpanel-accounts`);
+      const json = await res.json();
+      return json.data as { account: string; diskUsage: number; domains: number }[];
+    },
+    enabled: expanded,
+    refetchInterval: 30000,
+  });
+
+  const formatDisk = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  };
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs text-cyan-500 hover:text-cyan-600 font-medium flex items-center gap-1"
+      >
+        {expanded ? '▾' : '▸'} Account details (by disk usage)
+      </button>
+      {expanded && data && (
+        <div className="mt-2 max-h-48 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-muted-foreground border-b border-border">
+                <th className="text-left py-1 font-medium">Account</th>
+                <th className="text-right py-1 font-medium">Disk</th>
+                <th className="text-right py-1 font-medium">Domains</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.slice(0, 30).map((a) => (
+                <tr key={a.account} className="border-b border-border/50">
+                  <td className="py-1 font-mono">{a.account}</td>
+                  <td className="text-right py-1 tabular-nums">{formatDisk(a.diskUsage)}</td>
+                  <td className="text-right py-1 tabular-nums">{a.domains}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type TabKey = 'overview' | 'metrics' | 'containers' | 'agents' | 'alerts';
 
 export default function ServerDetailPage() {
@@ -827,6 +927,7 @@ export default function ServerDetailPage() {
                         </p>
                       </div>
                     </div>
+                    <EximDomainTable serverId={serverId} />
                   </CardContent>
                 </Card>
               )}
@@ -871,6 +972,7 @@ export default function ServerDetailPage() {
                         </p>
                       </div>
                     </div>
+                    <CpanelAccountTable serverId={serverId} />
                   </CardContent>
                 </Card>
               )}

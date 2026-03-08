@@ -19,6 +19,8 @@ import { setEventLoggerSocket, logSystemStartup } from './services/eventLogger';
 import { startUptimeMonitoring, stopUptimeMonitoring } from './services/uptimeService';
 import { prisma } from './lib/prisma';
 import { metricsMiddleware, metricsRegistry, setWebSocketConnections } from './services/apiMetrics';
+import { initAnomalyMetrics } from './services/anomalyMetrics';
+import { autoLabelAllServers } from './services/serverAutoLabel';
 
 // Load environment variables from root .env
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -96,6 +98,9 @@ app.use('/api', generalLimiter);
 
 // Prometheus metrics middleware
 app.use(metricsMiddleware);
+
+// Register anomaly detection gauges on the Prometheus registry
+initAnomalyMetrics();
 
 // Prometheus metrics endpoint
 app.get('/metrics', async (req, res) => {
@@ -265,6 +270,9 @@ server.listen(PORT, async () => {
 
   // Start uptime monitoring service
   startUptimeMonitoring();
+
+  // Auto-label servers based on registered agents/metadata
+  autoLabelAllServers();
 
   // Log system startup event
   logSystemStartup();

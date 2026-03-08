@@ -23,8 +23,8 @@ const NODE_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
   load1: (serverId) => `node_load1{server_id="${serverId}"}`,
   load5: (serverId) => `node_load5{server_id="${serverId}"}`,
   load15: (serverId) => `node_load15{server_id="${serverId}"}`,
-  networkIn: (serverId) => `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))`,
-  networkOut: (serverId) => `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))`,
+  networkIn: (serverId) => `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|em.*|br.*|venet.*|bond.*"}[5m]))`,
+  networkOut: (serverId) => `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|em.*|br.*|venet.*|bond.*"}[5m]))`,
 };
 
 // MySQL exporter metric queries (only collected when MYSQL_EXPORTER agent is running)

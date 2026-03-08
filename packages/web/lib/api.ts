@@ -159,6 +159,15 @@ export interface DiskMount {
   usedBytes: number;
 }
 
+// Logs API (Loki)
+export const logsApi = {
+  query: (params: { query: string; start: string; end: string; limit: number }) =>
+    getData(api.get('/api/logs', { params })),
+  labels: () => getData<string[]>(api.get('/api/logs/labels')),
+  labelValues: (labelName: string) =>
+    getData<string[]>(api.get(`/api/logs/labels/${labelName}/values`)),
+};
+
 // Health API
 export const healthApi = {
   check: () => getRaw(api.get('/health')),

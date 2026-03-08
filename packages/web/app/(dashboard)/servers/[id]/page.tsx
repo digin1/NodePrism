@@ -13,6 +13,7 @@ import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualC
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
 import { ServerForecasting } from './forecasting';
+import { ServerTypeBadge, isServerTypeTag } from '@/components/icons/ServerTypeIcons';
 
 const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary'> = {
   ONLINE: 'success',
@@ -195,7 +196,11 @@ function ContainerRow({ container: c, metrics }: { container: VirtualContainer; 
             : '—'}
         </TableCell>
         <TableCell className="text-right">
-          {meta?.diskSizeBytes ? formatBytes(Number(meta.diskSizeBytes)) : '—'}
+          {meta?.diskUsageBytes != null && Number(meta.diskUsageBytes) > 0 && meta?.diskLimitBytes
+            ? `${formatBytes(Number(meta.diskUsageBytes))} / ${formatBytes(Number(meta.diskLimitBytes))}`
+            : meta?.diskLimitBytes && Number(meta.diskLimitBytes) > 0
+            ? formatBytes(Number(meta.diskLimitBytes))
+            : meta?.diskSizeBytes ? formatBytes(Number(meta.diskSizeBytes)) : '—'}
         </TableCell>
         <TableCell className="text-right text-green-600">
           {metrics?.netRxBytesPerSec != null ? formatBytesRate(metrics.netRxBytesPerSec) : formatTraffic(c.networkRxBytes)}
@@ -629,7 +634,12 @@ export default function ServerDetailPage() {
             </Button>
           </Link>
           <div>
-            <h2 className="text-2xl font-bold text-foreground">{serverData.hostname}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-foreground">{serverData.hostname}</h2>
+              {serverData.tags?.filter(isServerTypeTag).map(tag => (
+                <ServerTypeBadge key={tag} type={tag} />
+              ))}
+            </div>
             <p className="text-muted-foreground font-mono">{serverData.ipAddress}</p>
           </div>
           <Badge variant={statusColors[serverData.status]}>{serverData.status}</Badge>
@@ -653,7 +663,7 @@ export default function ServerDetailPage() {
 
       {/* Tags */}
       <div className="flex flex-wrap items-center gap-2">
-        {serverData.tags?.map(tag => (
+        {serverData.tags?.filter(t => !isServerTypeTag(t)).map(tag => (
           <span
             key={tag}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300"
@@ -1167,7 +1177,7 @@ export default function ServerDetailPage() {
                   const hasMem = totalMemMax > 0 || totalMemUsed > 0;
                   const totalDiskAlloc = containerList.reduce((sum, c) => {
                     const meta = c.metadata as Record<string, unknown> | null;
-                    return sum + (meta?.diskSizeBytes ? Number(meta.diskSizeBytes) : 0);
+                    return sum + (meta?.diskUsageBytes ? Number(meta.diskUsageBytes) : meta?.diskSizeBytes ? Number(meta.diskSizeBytes) : 0);
                   }, 0);
                   return (
                     <div className="flex flex-wrap gap-4 mb-4 text-sm">
@@ -1276,8 +1286,10 @@ export default function ServerDetailPage() {
                           case 'cpu': return dir * ((ma?.cpuPercent ?? -1) - (mb?.cpuPercent ?? -1));
                           case 'memory': return dir * ((ma?.memoryUsageBytes ?? ma?.memoryMaxBytes ?? -1) - (mb?.memoryUsageBytes ?? mb?.memoryMaxBytes ?? -1));
                           case 'disk': {
-                            const da = (a.metadata as Record<string, unknown>)?.diskSizeBytes;
-                            const db = (b.metadata as Record<string, unknown>)?.diskSizeBytes;
+                            const ma2 = a.metadata as Record<string, unknown> | null;
+                            const mb2 = b.metadata as Record<string, unknown> | null;
+                            const da = ma2?.diskUsageBytes ?? ma2?.diskSizeBytes;
+                            const db = mb2?.diskUsageBytes ?? mb2?.diskSizeBytes;
                             return dir * ((da ? Number(da) : -1) - (db ? Number(db) : -1));
                           }
                           case 'rx': return dir * ((ma?.netRxBytesPerSec ?? Number(a.networkRxBytes)) - (mb?.netRxBytesPerSec ?? Number(b.networkRxBytes)));

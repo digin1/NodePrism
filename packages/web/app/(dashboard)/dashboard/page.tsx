@@ -159,6 +159,9 @@ function AlertRow({ alert, onAck }: { alert: any; onAck: (id: string) => void })
       />
       <div className="flex-1 min-w-0">
         <p className="text-sm leading-tight truncate">{alert.message}</p>
+        {alert.annotations?.description && (
+          <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">{alert.annotations.description}</p>
+        )}
         <div className="flex items-center gap-2 mt-1">
           {alert.server && (
             <a

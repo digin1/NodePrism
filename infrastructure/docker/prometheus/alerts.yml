@@ -117,3 +117,36 @@ groups:
         annotations:
           summary: "Prometheus target missing"
           description: "Target {{ $labels.instance }} is down"
+
+  - name: anomaly_alerts
+    interval: 30s
+    rules:
+      # High Node Anomaly Rate — many metrics anomalous on one server
+      - alert: HighAnomalyRate
+        expr: nodeprism_anomaly_rate > 30
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High anomaly rate on server {{ $labels.server_id }}"
+          description: "Node Anomaly Rate is {{ $value | printf \"%.1f\" }}% — more than 30% of monitored metrics are anomalous"
+
+      # Critical Node Anomaly Rate
+      - alert: CriticalAnomalyRate
+        expr: nodeprism_anomaly_rate > 60
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical anomaly rate on server {{ $labels.server_id }}"
+          description: "Node Anomaly Rate is {{ $value | printf \"%.1f\" }}% — more than 60% of monitored metrics are anomalous"
+
+      # Individual metric anomaly sustained for 5+ minutes
+      - alert: SustainedAnomaly
+        expr: nodeprism_anomaly_detected == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sustained anomaly: {{ $labels.metric_name }} on {{ $labels.server_id }}"
+          description: "Metric {{ $labels.metric_name }} has been anomalous for over 5 minutes"

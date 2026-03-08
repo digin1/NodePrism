@@ -19,6 +19,9 @@ _nodeprism_main() {
 
 set -e
 
+# ─── Ensure sbin paths are in PATH (needed for vzlist, prlctl, etc.) ──
+export PATH="/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+
 # ─── Colors ───────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -474,12 +477,14 @@ gather_containers() {
   GATHER_VG_INFO=""
 
   # Detect what virtualization host tools are available
-  if command -v virsh &>/dev/null; then
+  # Check for OpenVZ/VZ7 first: these hosts often have virsh installed too,
+  # but /proc/vz only exists on OpenVZ/Virtuozzo nodes
+  if [[ -d "/proc/vz" ]] && command -v vzlist &>/dev/null; then
+    virt_type="openvz"
+  elif command -v virsh &>/dev/null; then
     virt_type="kvm"
   elif command -v prlctl &>/dev/null; then
     virt_type="virtuozzo"
-  elif command -v vzlist &>/dev/null; then
-    virt_type="openvz"
   fi
 
   [[ -z "$virt_type" ]] && echo "$containers" && return
@@ -652,6 +657,20 @@ gather_containers() {
         done < <(vzlist -H -o ctid,veid -a 2>/dev/null)
       fi
 
+      # Gather per-container disk usage (1K-blocks from vzlist)
+      declare -A _vz_disk_used _vz_disk_limit
+      while IFS= read -r dline; do
+        local d_ctid d_used d_limit
+        d_ctid=$(echo "$dline" | awk '{print $1}')
+        d_used=$(echo "$dline" | awk '{print $2}')
+        d_limit=$(echo "$dline" | awk '{print $3}')
+        [[ -z "$d_ctid" || "$d_ctid" == "CTID" ]] && continue
+        [[ "$d_used" == "-" ]] && d_used=0
+        [[ "$d_limit" == "-" ]] && d_limit=0
+        _vz_disk_used["$d_ctid"]="$d_used"
+        _vz_disk_limit["$d_ctid"]="$d_limit"
+      done < <(vzlist -H -o ctid,diskspace,diskspace.h -a 2>/dev/null)
+
       # Gather per-container CPU%
       declare -A _vz_cpu
       if command -v vzstat &>/dev/null; then
@@ -794,10 +813,17 @@ gather_containers() {
         fi
         [[ -z "$cpu_pct" || "$cpu_pct" == "-" ]] && cpu_pct=0
 
+        # Disk usage (vzlist reports in 1K-blocks, convert to bytes)
+        local disk_used_bytes=0 disk_limit_bytes=0
+        local dk_used="${_vz_disk_used[$ctid]:-0}"
+        local dk_limit="${_vz_disk_limit[$ctid]:-0}"
+        [[ "$dk_used" =~ ^[0-9]+$ ]] && disk_used_bytes=$(( dk_used * 1024 ))
+        [[ "$dk_limit" =~ ^[0-9]+$ ]] && disk_limit_bytes=$(( dk_limit * 1024 ))
+
         local hostname_escaped
         hostname_escaped=$(echo "$ct_hostname" | sed 's/"/\\"/g')
 
-        json_entries+=("{\"containerId\":\"${ctid}\",\"name\":\"CT${ctid}\",\"type\":\"openvz\",\"status\":\"${status}\",\"ipAddress\":$([ -n "$ct_ip" ] && echo "\"$ct_ip\"" || echo "null"),\"hostname\":$([ -n "$ct_hostname" ] && echo "\"$hostname_escaped\"" || echo "null"),\"networkRxBytes\":${rx_bytes},\"networkTxBytes\":${tx_bytes},\"metadata\":{\"vcpus\":${vcpus},\"cpuPercent\":${cpu_pct},\"memoryUsageBytes\":${mem_used_bytes},\"memoryMaxBytes\":${mem_max_bytes}}}")
+        json_entries+=("{\"containerId\":\"${ctid}\",\"name\":\"CT${ctid}\",\"type\":\"openvz\",\"status\":\"${status}\",\"ipAddress\":$([ -n "$ct_ip" ] && echo "\"$ct_ip\"" || echo "null"),\"hostname\":$([ -n "$ct_hostname" ] && echo "\"$hostname_escaped\"" || echo "null"),\"networkRxBytes\":${rx_bytes},\"networkTxBytes\":${tx_bytes},\"metadata\":{\"vcpus\":${vcpus},\"cpuPercent\":${cpu_pct},\"memoryUsageBytes\":${mem_used_bytes},\"memoryMaxBytes\":${mem_max_bytes},\"diskUsageBytes\":${disk_used_bytes},\"diskLimitBytes\":${disk_limit_bytes}}}")
       done < <(vzlist -a -o ctid,ip,hostname,status -H 2>/dev/null)
       ;;
 
@@ -2444,14 +2470,51 @@ download_and_install() {
     pkg-config --exists libvirt 2>/dev/null || need_deps=true
     command -v gcc &>/dev/null || need_deps=true
 
+    # Check if headers already exist (common on KVM hosts)
+    if [[ "$need_deps" == "true" ]] && [[ -f /usr/include/libvirt/libvirt.h ]] && command -v gcc &>/dev/null; then
+      need_deps=false
+    fi
+
     if [[ "$need_deps" == "true" ]]; then
       log_info "Installing libvirt development libraries..."
+      local deps_installed=false
       if command -v apt-get &>/dev/null; then
-        apt-get update -qq && apt-get install -y -qq libvirt-dev pkg-config build-essential
+        apt-get update -qq && apt-get install -y -qq libvirt-dev pkg-config build-essential && deps_installed=true
       elif command -v dnf &>/dev/null; then
-        dnf install -y -q libvirt-devel pkgconfig gcc make
+        dnf install -y -q libvirt-devel pkgconfig gcc make && deps_installed=true
       elif command -v yum &>/dev/null; then
-        yum install -y -q libvirt-devel pkgconfig gcc make
+        yum install -y -q libvirt-devel pkgconfig gcc make 2>/dev/null && deps_installed=true
+      fi
+
+      # Fallback for CentOS 7 EOL / broken mirrors: download RPMs from vault.centos.org
+      if [[ "$deps_installed" != "true" ]] && command -v yum &>/dev/null; then
+        log_warn "Package manager install failed (mirrors may be offline). Trying CentOS vault fallback..."
+        local vault_url="http://vault.centos.org/7.9.2009"
+        local rpm_tmp
+        rpm_tmp=$(mktemp -d)
+
+        # Install gcc/make if missing (these are usually already present on KVM hosts)
+        rpm -q gcc &>/dev/null || yum install -y -q gcc make 2>/dev/null || true
+
+        # Download libvirt-devel RPM directly (bypasses broken mirrorlists)
+        local el_version
+        el_version=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}' libvirt 2>/dev/null | grep -oP '[\d.]+-[\d.]+\.el7[^\s]*' || echo "")
+        if [[ -n "$el_version" ]]; then
+          # Match devel version to installed libvirt version
+          local devel_rpm="libvirt-devel-${el_version}.x86_64.rpm"
+          curl -sfL "${vault_url}/updates/x86_64/Packages/${devel_rpm}" -o "$rpm_tmp/libvirt-devel.rpm" 2>/dev/null || \
+          curl -sfL "${vault_url}/os/x86_64/Packages/${devel_rpm}" -o "$rpm_tmp/libvirt-devel.rpm" 2>/dev/null
+        fi
+        # Fallback: try common known version
+        if [[ ! -s "$rpm_tmp/libvirt-devel.rpm" ]]; then
+          curl -sfL "${vault_url}/updates/x86_64/Packages/libvirt-devel-4.5.0-36.el7_9.5.x86_64.rpm" -o "$rpm_tmp/libvirt-devel.rpm" 2>/dev/null
+        fi
+
+        if [[ -s "$rpm_tmp/libvirt-devel.rpm" ]]; then
+          rpm -i "$rpm_tmp/libvirt-devel.rpm" 2>/dev/null || rpm -i --nodeps "$rpm_tmp/libvirt-devel.rpm" 2>/dev/null
+          log_info "Installed libvirt-devel from CentOS vault"
+        fi
+        rm -rf "$rpm_tmp"
       fi
 
       # Verify the critical dependency is now available
@@ -2460,6 +2523,7 @@ download_and_install() {
         if [[ ! -f /usr/include/libvirt/libvirt.h ]]; then
           log_error "libvirt-devel is required but could not be installed."
           log_error "Install it manually: yum install libvirt-devel gcc make"
+          log_error "For CentOS 7 EOL: use vault.centos.org repos"
           exit 1
         fi
       fi
@@ -3540,11 +3604,9 @@ PrivateTmp=yes
 PrivateDevices=yes"
       ;;
     libvirt_exporter)
-      sandbox_lines="NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=yes
-PrivateTmp=yes
-ReadOnlyPaths=/var/run/libvirt"
+      # Use only directives supported by systemd 219+ (CentOS 7 compat)
+      sandbox_lines="ProtectHome=yes
+PrivateTmp=yes"
       ;;
     *)
       sandbox_lines="NoNewPrivileges=yes
@@ -3916,6 +3978,20 @@ gather() {
       done < <(vzlist -H -o ctid,veid -a 2>/dev/null)
     fi
 
+    # Gather per-container disk usage (1K-blocks from vzlist)
+    declare -A vz_disk_used vz_disk_limit
+    while IFS= read -r dline; do
+      local d_ctid d_used d_limit
+      d_ctid=$(echo "$dline" | awk '{print $1}')
+      d_used=$(echo "$dline" | awk '{print $2}')
+      d_limit=$(echo "$dline" | awk '{print $3}')
+      [[ -z "$d_ctid" || "$d_ctid" == "CTID" ]] && continue
+      [[ "$d_used" == "-" ]] && d_used=0
+      [[ "$d_limit" == "-" ]] && d_limit=0
+      vz_disk_used["$d_ctid"]="$d_used"
+      vz_disk_limit["$d_ctid"]="$d_limit"
+    done < <(vzlist -H -o ctid,diskspace,diskspace.h -a 2>/dev/null)
+
     # Gather per-container CPU%
     declare -A vz_cpu
     if command -v vzstat &>/dev/null; then
@@ -4075,10 +4151,17 @@ gather() {
       fi
       [[ -z "$cpu_pct" || "$cpu_pct" == "-" ]] && cpu_pct=0
 
+      # Disk usage (vzlist reports in 1K-blocks, convert to bytes)
+      local disk_used_bytes=0 disk_limit_bytes=0
+      local dk_used="${vz_disk_used[$ctid]:-0}"
+      local dk_limit="${vz_disk_limit[$ctid]:-0}"
+      [[ "$dk_used" =~ ^[0-9]+$ ]] && disk_used_bytes=$(( dk_used * 1024 ))
+      [[ "$dk_limit" =~ ^[0-9]+$ ]] && disk_limit_bytes=$(( dk_limit * 1024 ))
+
       local hostname_escaped
       hostname_escaped=$(echo "$ct_hostname" | sed 's/"/\\"/g')
 
-      json_entries+=("{\"containerId\":\"${ctid}\",\"name\":\"CT${ctid}\",\"type\":\"openvz\",\"status\":\"${status}\",\"ipAddress\":$([ -n "$ct_ip" ] && echo "\"$ct_ip\"" || echo "null"),\"hostname\":$([ -n "$ct_hostname" ] && echo "\"$hostname_escaped\"" || echo "null"),\"networkRxBytes\":${rx_bytes},\"networkTxBytes\":${tx_bytes},\"metadata\":{\"vcpus\":${vcpus},\"cpuPercent\":${cpu_pct},\"memoryUsageBytes\":${mem_used_bytes},\"memoryMaxBytes\":${mem_max_bytes},\"netRxBytesPerSec\":${rx_rate},\"netTxBytesPerSec\":${tx_rate}}}")
+      json_entries+=("{\"containerId\":\"${ctid}\",\"name\":\"CT${ctid}\",\"type\":\"openvz\",\"status\":\"${status}\",\"ipAddress\":$([ -n "$ct_ip" ] && echo "\"$ct_ip\"" || echo "null"),\"hostname\":$([ -n "$ct_hostname" ] && echo "\"$hostname_escaped\"" || echo "null"),\"networkRxBytes\":${rx_bytes},\"networkTxBytes\":${tx_bytes},\"metadata\":{\"vcpus\":${vcpus},\"cpuPercent\":${cpu_pct},\"memoryUsageBytes\":${mem_used_bytes},\"memoryMaxBytes\":${mem_max_bytes},\"diskUsageBytes\":${disk_used_bytes},\"diskLimitBytes\":${disk_limit_bytes},\"netRxBytesPerSec\":${rx_rate},\"netTxBytesPerSec\":${tx_rate}}}")
     done < <(vzlist -a -o ctid,ip,hostname,status -H 2>/dev/null)
 
   elif command -v prlctl &>/dev/null; then
@@ -4181,7 +4264,11 @@ TIMEREOF
 
 setup_lvm_collector() {
   # Only set up on KVM hosts with LVM storage and node_exporter installed
+  # Skip OpenVZ/VZ7 nodes (they have virsh but LVM VG info is irrelevant)
   if ! command -v lvs &>/dev/null || ! command -v virsh &>/dev/null; then
+    return 0
+  fi
+  if [[ -d "/proc/vz" ]]; then
     return 0
   fi
 

@@ -69,7 +69,8 @@ function severityEmoji(severity: string): string {
 function formatAlertText(alert: AlertPayload): string {
   const server = alert.serverHostname || alert.serverIp || alert.labels?.instance || 'Unknown';
   const status = alert.status === 'RESOLVED' ? '✅ RESOLVED' : `${severityEmoji(alert.severity)} ${alert.severity}`;
-  return `[${status}] ${alert.message}\nServer: ${server}\nStarted: ${alert.startsAt.toISOString()}${alert.endsAt ? `\nEnded: ${alert.endsAt.toISOString()}` : ''}`;
+  const description = alert.annotations?.description;
+  return `[${status}] ${alert.message}\n${description ? `Details: ${description}\n` : ''}Server: ${server}\nStarted: ${alert.startsAt.toISOString()}${alert.endsAt ? `\nEnded: ${alert.endsAt.toISOString()}` : ''}`;
 }
 
 // ─── Senders ──────────────────────────────────────────────────────────
@@ -96,6 +97,7 @@ async function sendEmail(config: EmailConfig, alert: AlertPayload): Promise<void
       </div>
       <div style="padding: 16px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
         <p><strong>Message:</strong> ${alert.message}</p>
+        ${alert.annotations?.description ? `<p><strong>Details:</strong> ${alert.annotations.description}</p>` : ''}
         <p><strong>Server:</strong> ${server}</p>
         <p><strong>Started:</strong> ${alert.startsAt.toISOString()}</p>
         ${alert.endsAt ? `<p><strong>Resolved:</strong> ${alert.endsAt.toISOString()}</p>` : ''}
@@ -125,6 +127,7 @@ async function sendSlack(config: SlackConfig, alert: AlertPayload): Promise<void
     attachments: [{
       color,
       title: `${severityEmoji(alert.severity)} ${alert.status === 'RESOLVED' ? 'Resolved' : alert.severity}: ${alert.message}`,
+      ...(alert.annotations?.description && { text: alert.annotations.description }),
       fields: [
         { title: 'Server', value: server, short: true },
         { title: 'Status', value: alert.status, short: true },
@@ -147,6 +150,7 @@ async function sendDiscord(config: DiscordConfig, alert: AlertPayload): Promise<
     username: 'NodePrism',
     embeds: [{
       title: `${severityEmoji(alert.severity)} ${alert.status === 'RESOLVED' ? 'Resolved' : alert.severity}: ${alert.message}`,
+      ...(alert.annotations?.description && { description: alert.annotations.description }),
       color,
       fields: [
         { name: 'Server', value: server, inline: true },
@@ -214,7 +218,7 @@ async function sendPagerDuty(config: PagerDutyConfig, alert: AlertPayload): Prom
     event_action: alert.status === 'RESOLVED' ? 'resolve' : 'trigger',
     dedup_key: alert.id,
     payload: {
-      summary: `[${alert.severity}] ${alert.message} on ${server}`,
+      summary: `[${alert.severity}] ${alert.message} on ${server}${alert.annotations?.description ? ` — ${alert.annotations.description}` : ''}`,
       source: server,
       severity: (config.severity || alert.severity).toLowerCase(),
       timestamp: alert.startsAt.toISOString(),

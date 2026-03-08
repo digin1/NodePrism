@@ -87,8 +87,8 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
       disk: `(1 - (node_filesystem_avail_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"})) * 100`,
       diskTotal: `node_filesystem_size_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"}`,
       diskAvailable: `node_filesystem_avail_bytes{server_id="${serverId}", mountpoint="/", fstype!~"tmpfs|fuse.lxcfs"}`,
-      networkIn: `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))`,
-      networkOut: `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))`,
+      networkIn: `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|em.*|br.*|venet.*|bond.*"}[5m]))`,
+      networkOut: `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|em.*|br.*|venet.*|bond.*"}[5m]))`,
       load1: `node_load1{server_id="${serverId}"}`,
       load5: `node_load5{server_id="${serverId}"}`,
       load15: `node_load15{server_id="${serverId}"}`,
@@ -639,8 +639,12 @@ router.get('/server/:serverId/disk-usage', async (req: Request, res: Response, n
       })
       .sort((a: any, b: any) => a.mount.localeCompare(b.mount));
 
-    // Also check for LVM Volume Groups (KVM hosts)
-    try {
+    // Also check for LVM Volume Groups (KVM hosts only — skip for OpenVZ/Virtuozzo)
+    const hasLibvirtAgent = await prisma.agent.findFirst({
+      where: { serverId, type: 'LIBVIRT_EXPORTER' },
+      select: { id: true },
+    });
+    if (hasLibvirtAgent) try {
       const [vgSizeResp, vgFreeResp] = await Promise.all([
         axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
           params: { query: `nodeprism_lvm_vg_size_bytes{server_id="${serverId}"}` },

@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { serverApi, serverGroupApi, maintenanceApi, ServerGroup, MaintenanceWindow } from '@/lib/api';
+import { ServerTypeBadge, isServerTypeTag } from '@/components/icons/ServerTypeIcons';
 
 const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary'> = {
   ONLINE: 'success',
@@ -302,9 +303,14 @@ export default function ServersPage() {
         />
       </TableCell>
       <TableCell>
-        <Link href={`/servers/${server.id}`} className="font-medium hover:underline">
-          {server.hostname}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/servers/${server.id}`} className="font-medium hover:underline">
+            {server.hostname}
+          </Link>
+          {server.tags?.filter(isServerTypeTag).map(tag => (
+            <ServerTypeBadge key={tag} type={tag} />
+          ))}
+        </div>
       </TableCell>
       <TableCell className="font-mono text-sm">{server.ipAddress}</TableCell>
       <TableCell>
@@ -322,7 +328,7 @@ export default function ServersPage() {
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
-          {server.tags?.map(tag => (
+          {server.tags?.filter(t => !isServerTypeTag(t)).map(tag => (
             <span
               key={tag}
               className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400"
@@ -336,7 +342,7 @@ export default function ServersPage() {
               </button>
             </span>
           ))}
-          {(!server.tags || server.tags.length === 0) && (
+          {(!server.tags || server.tags.filter(t => !isServerTypeTag(t)).length === 0) && (
             <span className="text-muted-foreground text-xs">-</span>
           )}
         </div>

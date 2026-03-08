@@ -55,6 +55,7 @@ PRESET_LOG_DIR=""
 
 # ─── Logging ──────────────────────────────────────────────────────────
 log_info()  { echo -e "${GREEN}[INFO]${NC}  $1"; }
+log_ok()    { echo -e "${GREEN}[OK]${NC}    $1"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step()  { echo -e "\n${CYAN}${BOLD}── $1 ──${NC}\n"; }
@@ -290,7 +291,7 @@ prompt() {
   local default_val="$3"
 
   if [[ "$NON_INTERACTIVE" == "true" ]]; then
-    eval "$var_name=\"$default_val\""
+    printf -v "$var_name" '%s' "$default_val"
     return
   fi
 
@@ -301,9 +302,9 @@ prompt() {
   local input
   read -r input
   if [[ -z "$input" ]]; then
-    eval "$var_name=\"$default_val\""
+    printf -v "$var_name" '%s' "$default_val"
   else
-    eval "$var_name=\"$input\""
+    printf -v "$var_name" '%s' "$input"
   fi
 }
 
@@ -992,18 +993,21 @@ open_firewall_port() {
 
   case "$fw" in
     csf)
-      # Check if port is already in TCP_IN
-      if grep -q "TCP_IN.*${port}" /etc/csf/csf.conf 2>/dev/null; then
+      # Check if port is already in TCP_IN (exact match, not substring)
+      local current_tcp_in
+      current_tcp_in=$(grep '^TCP_IN' /etc/csf/csf.conf | head -1 | cut -d'"' -f2)
+      if echo ",${current_tcp_in}," | grep -q ",${port},"; then
         log_info "Port ${port} already allowed in CSF"
         return 0
       fi
 
       # Add port to TCP_IN
-      local current_tcp_in
-      current_tcp_in=$(grep '^TCP_IN' /etc/csf/csf.conf | head -1 | cut -d'"' -f2)
       if [[ -n "$current_tcp_in" ]]; then
         local new_tcp_in="${current_tcp_in},${port}"
-        sed -i "s/^TCP_IN = \"${current_tcp_in}\"/TCP_IN = \"${new_tcp_in}\"/" /etc/csf/csf.conf
+        # Escape regex metacharacters in current value for safe sed replacement
+        local escaped_current
+        escaped_current=$(printf '%s\n' "$current_tcp_in" | sed 's/[.[\/*^$]/\\&/g')
+        sed -i "s/^TCP_IN = \"${escaped_current}\"/TCP_IN = \"${new_tcp_in}\"/" /etc/csf/csf.conf
         csf -r >/dev/null 2>&1
         log_info "Port ${port}/tcp added to CSF TCP_IN and firewall restarted"
       else
@@ -1054,11 +1058,16 @@ close_firewall_port() {
       local current_tcp_in
       current_tcp_in=$(grep '^TCP_IN' /etc/csf/csf.conf | head -1 | cut -d'"' -f2)
       if [[ -n "$current_tcp_in" ]]; then
-        # Remove the port (handle both ",port" and "port," patterns)
+        # Remove port using comma-delimited exact matching
+        # Wrap in commas, remove exact match, unwrap
         local new_tcp_in
-        new_tcp_in=$(echo "$current_tcp_in" | sed "s/,${port}\b//g; s/\b${port},//g; s/^${port}$//g")
+        new_tcp_in=$(echo ",${current_tcp_in}," | sed "s/,${port},/,/g")
+        new_tcp_in="${new_tcp_in#,}"  # strip leading comma
+        new_tcp_in="${new_tcp_in%,}"  # strip trailing comma
         if [[ "$new_tcp_in" != "$current_tcp_in" ]]; then
-          sed -i "s/^TCP_IN = \"${current_tcp_in}\"/TCP_IN = \"${new_tcp_in}\"/" /etc/csf/csf.conf
+          local escaped_current
+          escaped_current=$(printf '%s\n' "$current_tcp_in" | sed 's/[.[\/*^$]/\\&/g')
+          sed -i "s/^TCP_IN = \"${escaped_current}\"/TCP_IN = \"${new_tcp_in}\"/" /etc/csf/csf.conf
           csf -r >/dev/null 2>&1
           log_info "Port ${port}/tcp removed from CSF"
         fi
@@ -1428,14 +1437,11 @@ load_existing_config() {
   case $agent in
     mysql_exporter)
       if [[ -f /etc/mysql_exporter.env ]]; then
-        local dsn
-        dsn=$(grep -oP '^DATA_SOURCE_NAME=\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "")
-        if [[ -n "$dsn" ]]; then
-          MYSQL_USER=$(echo "$dsn" | grep -oP '^[^:]+' || echo "exporter")
-          MYSQL_PASSWORD=$(echo "$dsn" | grep -oP '(?<=:)[^@]+' || echo "")
-          MYSQL_HOST=$(echo "$dsn" | grep -oP '(?<=tcp\()[^:]+' || echo "127.0.0.1")
-          MYSQL_PORT=$(echo "$dsn" | grep -oP '(?<=:)[0-9]+(?=\))' || echo "3306")
-        fi
+        # Parse .my.cnf [client] format
+        MYSQL_USER=$(grep -oP '^\s*user\s*=\s*\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "exporter")
+        MYSQL_PASSWORD=$(grep -oP '^\s*password\s*=\s*\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "")
+        MYSQL_HOST=$(grep -oP '^\s*host\s*=\s*\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "localhost")
+        MYSQL_PORT=$(grep -oP '^\s*port\s*=\s*\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "3306")
       fi
       ;;
     postgres_exporter)
@@ -1956,17 +1962,21 @@ configure_postgres_exporter() {
   echo ""
   echo -e "  ${BOLD}PostgreSQL Connection:${NC}"
 
+  # Use preset values from CLI flags if provided
+  PG_USER="${PRESET_DB_USER:-}"
+  PG_PASSWORD="${PRESET_DB_PASSWORD:-}"
+
   prompt PG_HOST "PostgreSQL host" "localhost"
   prompt PG_PORT "PostgreSQL port" "5432"
-  prompt PG_USER "PostgreSQL user" "postgres_exporter"
+  prompt PG_USER "PostgreSQL user" "${PG_USER:-postgres_exporter}"
   prompt PG_DATABASE "PostgreSQL database" "postgres"
 
   if [[ "$NON_INTERACTIVE" != "true" ]]; then
-    echo -en "  PostgreSQL password: "
-    read -rs PG_PASSWORD
-    echo ""
-  else
-    PG_PASSWORD="${PG_PASSWORD:-}"
+    if [[ -z "$PG_PASSWORD" ]]; then
+      echo -en "  PostgreSQL password: "
+      read -rs PG_PASSWORD
+      echo ""
+    fi
   fi
 
   PG_SSLMODE="disable"
@@ -1982,12 +1992,15 @@ configure_mongodb_exporter() {
   echo ""
   echo -e "  ${BOLD}MongoDB Connection:${NC}"
 
+  # Use preset values from CLI flags if provided
+  MONGO_USER="${PRESET_DB_USER:-}"
+  MONGO_PASSWORD="${PRESET_DB_PASSWORD:-}"
+
   prompt MONGO_HOST "MongoDB host" "localhost"
   prompt MONGO_PORT "MongoDB port" "27017"
-  prompt MONGO_USER "MongoDB user (leave empty for no auth)" ""
+  prompt MONGO_USER "MongoDB user (leave empty for no auth)" "${MONGO_USER:-}"
 
-  MONGO_PASSWORD=""
-  if [[ -n "$MONGO_USER" && "$NON_INTERACTIVE" != "true" ]]; then
+  if [[ -n "$MONGO_USER" && -z "$MONGO_PASSWORD" && "$NON_INTERACTIVE" != "true" ]]; then
     echo -en "  MongoDB password: "
     read -rs MONGO_PASSWORD
     echo ""

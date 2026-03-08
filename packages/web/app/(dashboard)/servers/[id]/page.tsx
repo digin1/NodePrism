@@ -89,6 +89,16 @@ interface Metrics {
   mysqlUptime: number | null;
   mysqlBufferPoolSize: number | null;
   mysqlBufferPoolUsed: number | null;
+  lsConnections: number | null;
+  lsSSLConnections: number | null;
+  lsMaxConnections: number | null;
+  lsReqPerSec: number | null;
+  lsReqProcessing: number | null;
+  lsTotalRequests: number | null;
+  lsBpsIn: number | null;
+  lsBpsOut: number | null;
+  lsCacheHitsPerSec: number | null;
+  lsStaticHitsPerSec: number | null;
 }
 
 function formatBytes(bytes: number | null): string {
@@ -676,6 +686,70 @@ export default function ServerDetailPage() {
                     <p className="text-sm text-muted-foreground">Uptime</p>
                     <p className="text-2xl font-bold mt-1 text-orange-600">
                       {formatUptime(metricsData?.mysqlUptime ?? null)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* LiteSpeed Metrics */}
+          {serverData.agents?.some(a => a.type === 'LITESPEED_EXPORTER' && a.status === 'RUNNING') && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <svg className="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                  </svg>
+                  LiteSpeed Web Server
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+                  <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Connections</p>
+                    <p className="text-2xl font-bold mt-1 text-green-600">
+                      {metricsData?.lsConnections != null ? Math.round(metricsData.lsConnections) : 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      SSL: {metricsData?.lsSSLConnections != null ? Math.round(metricsData.lsSSLConnections) : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Requests/sec</p>
+                    <p className="text-2xl font-bold mt-1 text-green-600">
+                      {metricsData?.lsReqPerSec?.toFixed(1) ?? 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Processing: {metricsData?.lsReqProcessing != null ? Math.round(metricsData.lsReqProcessing) : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Total Requests</p>
+                    <p className="text-2xl font-bold mt-1 text-green-600">
+                      {metricsData?.lsTotalRequests != null
+                        ? metricsData.lsTotalRequests >= 1000000
+                          ? `${(metricsData.lsTotalRequests / 1000000).toFixed(1)}M`
+                          : metricsData.lsTotalRequests >= 1000
+                            ? `${(metricsData.lsTotalRequests / 1000).toFixed(1)}K`
+                            : Math.round(metricsData.lsTotalRequests).toString()
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Bandwidth</p>
+                    <p className="text-2xl font-bold mt-1 text-green-600">
+                      {metricsData?.lsBpsOut != null ? formatNetworkSpeed(metricsData.lsBpsOut) : 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Outbound</p>
+                  </div>
+                  <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Cache Hits/sec</p>
+                    <p className="text-2xl font-bold mt-1 text-green-600">
+                      {metricsData?.lsCacheHitsPerSec?.toFixed(1) ?? 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Static: {metricsData?.lsStaticHitsPerSec?.toFixed(1) ?? 'N/A'}/s
                     </p>
                   </div>
                 </div>

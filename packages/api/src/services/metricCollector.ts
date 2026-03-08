@@ -38,6 +38,20 @@ const MYSQL_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
   mysqlBufferPoolUsed: (serverId) => `mysql_global_status_innodb_buffer_pool_bytes_data{server_id="${serverId}"}`,
 };
 
+// LiteSpeed exporter metric queries (only collected when LITESPEED_EXPORTER agent is running)
+const LITESPEED_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
+  lsConnections: (serverId) => `litespeed_plainconn{server_id="${serverId}"} + litespeed_sslconn{server_id="${serverId}"}`,
+  lsSSLConnections: (serverId) => `litespeed_sslconn{server_id="${serverId}"}`,
+  lsMaxConnections: (serverId) => `litespeed_maxconn{server_id="${serverId}"}`,
+  lsReqPerSec: (serverId) => `litespeed_req_per_sec{server_id="${serverId}"}`,
+  lsReqProcessing: (serverId) => `litespeed_req_processing{server_id="${serverId}"}`,
+  lsTotalRequests: (serverId) => `litespeed_tot_reqs{server_id="${serverId}"}`,
+  lsBpsIn: (serverId) => `litespeed_bps_in{server_id="${serverId}"} + litespeed_ssl_bps_in{server_id="${serverId}"}`,
+  lsBpsOut: (serverId) => `litespeed_bps_out{server_id="${serverId}"} + litespeed_ssl_bps_out{server_id="${serverId}"}`,
+  lsCacheHitsPerSec: (serverId) => `litespeed_pub_cache_hits_per_sec{server_id="${serverId}"}`,
+  lsStaticHitsPerSec: (serverId) => `litespeed_static_hits_per_sec{server_id="${serverId}"}`,
+};
+
 // Combined for backward compatibility
 const METRIC_QUERIES: Record<string, (serverId: string) => string> = {
   ...NODE_METRIC_QUERIES,
@@ -194,6 +208,16 @@ async function collectServerMetrics(serverId: string): Promise<Record<string, nu
     );
   }
 
+  // Collect LiteSpeed metrics if LITESPEED_EXPORTER is registered
+  const hasLiteSpeedExporter = await hasAgentRegistered(serverId, AgentType.LITESPEED_EXPORTER);
+  if (hasLiteSpeedExporter) {
+    await Promise.all(
+      Object.entries(LITESPEED_METRIC_QUERIES).map(async ([metricName, queryFn]) => {
+        results[metricName] = await queryMetric(queryFn(serverId));
+      })
+    );
+  }
+
   return results;
 }
 
@@ -301,6 +325,12 @@ export async function collectAllMetrics(): Promise<{
             const hasMySQLMetrics = metrics.mysqlConnections !== null || metrics.mysqlQueriesPerSec !== null;
             if (hasMySQLMetrics) {
               await updatePassiveAgentHealthCheck(server.id, AgentType.MYSQL_EXPORTER);
+            }
+
+            // If we collected LiteSpeed metrics, update LITESPEED_EXPORTER health check too
+            const hasLSMetrics = metrics.lsReqPerSec !== null || metrics.lsConnections !== null;
+            if (hasLSMetrics) {
+              await updatePassiveAgentHealthCheck(server.id, AgentType.LITESPEED_EXPORTER);
             }
 
             // Populate OS info from Prometheus (only once per server per startup)

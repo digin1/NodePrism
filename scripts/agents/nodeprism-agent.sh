@@ -3346,6 +3346,7 @@ build_exec_args() {
       args="$args --collector.filesystem.mount-points-exclude=\"${FILESYSTEM_EXCLUDE}\""
       ;;
     mysql_exporter)
+      args="$args --config.my-cnf=/etc/mysql_exporter.env"
       [[ "$MYSQL_INNODB_METRICS" == "true" ]] && args="$args --collect.info_schema.innodb_metrics"
       [[ "$MYSQL_PROCESSLIST" == "true" ]] && args="$args --collect.info_schema.processlist"
       [[ "$MYSQL_SLOW_QUERIES" == "true" ]] && args="$args --collect.info_schema.query_response_time"
@@ -3391,9 +3392,10 @@ create_systemd_service() {
   local exec_args
   exec_args=$(build_exec_args)
 
+  # Database exporters use --config.my-cnf or env vars in ExecStart, not EnvironmentFile
+  # EnvironmentFile is only for exporters that need KEY=VALUE environment variables
   local env_file_line=""
   case $AGENT_TYPE in
-    mysql_exporter)      env_file_line="EnvironmentFile=/etc/mysql_exporter.env" ;;
     postgres_exporter)   env_file_line="EnvironmentFile=/etc/postgres_exporter.env" ;;
     mongodb_exporter)    env_file_line="EnvironmentFile=/etc/mongodb_exporter.env" ;;
     redis_exporter)      env_file_line="EnvironmentFile=/etc/redis_exporter.env" ;;

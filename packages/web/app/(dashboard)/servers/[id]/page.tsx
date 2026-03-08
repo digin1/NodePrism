@@ -1162,7 +1162,7 @@ export default function ServerDetailPage() {
                       )}
                       {storagePool && (
                         <div className="text-muted-foreground">
-                          VG {storagePool.name}: {formatBytes(storagePool.sizeBytes - storagePool.freeBytes)} / {formatBytes(storagePool.sizeBytes)} ({formatBytes(storagePool.freeBytes)} free)
+                          {storagePool.name.startsWith('/') ? `Storage ${storagePool.name}` : `VG ${storagePool.name}`}: {formatBytes(storagePool.sizeBytes - storagePool.freeBytes)} / {formatBytes(storagePool.sizeBytes)} ({formatBytes(storagePool.freeBytes)} free)
                         </div>
                       )}
                     </div>

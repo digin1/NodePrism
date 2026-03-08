@@ -317,10 +317,40 @@ router.get('/server/:serverId/metrics', async (req: Request, res: Response, next
         };
       });
 
-    // Check server metadata for storage pool (from agent container reports)
-    const server = await prisma.server.findUnique({ where: { id: serverId }, select: { metadata: true } });
-    const serverMeta = server?.metadata as Record<string, unknown> | null;
-    const storagePool = serverMeta?.storagePool as { name: string; sizeBytes: number; freeBytes: number } | null ?? null;
+    // Try to get storage pool info: /vz filesystem for OpenVZ, or server metadata fallback
+    let storagePool: { name: string; sizeBytes: number; freeBytes: number } | null = null;
+    const hasOpenVZ = containers.some(c => c.type === 'openvz');
+
+    if (hasOpenVZ) {
+      // Query Prometheus for /vz filesystem metrics (Node Exporter)
+      try {
+        const [vzSizeResp, vzAvailResp] = await Promise.all([
+          axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+            params: { query: `node_filesystem_size_bytes{server_id="${serverId}",mountpoint="/vz"}` },
+            timeout: 5000,
+          }),
+          axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+            params: { query: `node_filesystem_avail_bytes{server_id="${serverId}",mountpoint="/vz"}` },
+            timeout: 5000,
+          }),
+        ]);
+        const sizeResult = vzSizeResp.data?.data?.result?.[0];
+        const availResult = vzAvailResp.data?.data?.result?.[0];
+        if (sizeResult && availResult) {
+          const sizeBytes = parseFloat(sizeResult.value?.[1] || '0');
+          const freeBytes = parseFloat(availResult.value?.[1] || '0');
+          storagePool = { name: '/vz', sizeBytes, freeBytes };
+        }
+      } catch {
+        // /vz metrics not available — fall through to metadata
+      }
+    }
+
+    if (!storagePool) {
+      const server = await prisma.server.findUnique({ where: { id: serverId }, select: { metadata: true } });
+      const serverMeta = server?.metadata as Record<string, unknown> | null;
+      storagePool = serverMeta?.storagePool as { name: string; sizeBytes: number; freeBytes: number } | null ?? null;
+    }
 
     res.json({ success: true, data: metricsArray, storagePool });
   } catch (error) {

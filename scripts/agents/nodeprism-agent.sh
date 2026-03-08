@@ -1880,14 +1880,20 @@ configure_mysql_exporter() {
   fi
 
   if [[ -z "$MYSQL_PASSWORD" ]]; then
-    log_warn "No MySQL password provided. The exporter will fail to start without credentials."
-    echo -e "  ${DIM}Pass --mysql-password or set credentials in /etc/mysql_exporter.env later.${NC}"
+    MYSQL_PASSWORD=$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
+    log_info "Auto-generated MySQL password for user '${MYSQL_USER}'"
+    echo ""
+    echo -e "  ${BOLD}╔══════════════════════════════════════════════════╗${NC}"
+    echo -e "  ${BOLD}║  MySQL credentials (save these!)                ║${NC}"
+    echo -e "  ${BOLD}║  User:     ${NC}${MYSQL_USER}"
+    echo -e "  ${BOLD}║  Password: ${NC}${MYSQL_PASSWORD}"
+    echo -e "  ${BOLD}║  Config:   ${NC}/etc/mysql_exporter.env"
+    echo -e "  ${BOLD}╚══════════════════════════════════════════════════╝${NC}"
+    echo ""
   fi
 
   # Try to auto-create the MySQL monitoring user
-  if [[ -n "$MYSQL_PASSWORD" ]]; then
-    setup_mysql_user
-  fi
+  setup_mysql_user
 
   MYSQL_INNODB_METRICS=true
   MYSQL_PROCESSLIST=true

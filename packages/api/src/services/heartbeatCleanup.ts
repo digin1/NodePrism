@@ -4,9 +4,9 @@ import { generateTargetFiles, reloadPrometheus } from './targetGenerator';
 import { logServerStatusChange, logAgentStatusChange, logHeartbeatMissed } from './eventLogger';
 
 // Configuration
-const HEARTBEAT_TIMEOUT_MINUTES = parseInt(process.env.HEARTBEAT_TIMEOUT_MINUTES || '5', 10);
+const HEARTBEAT_TIMEOUT_MINUTES = parseInt(process.env.HEARTBEAT_TIMEOUT_MINUTES || '7', 10);
 const CLEANUP_INTERVAL_MINUTES = parseInt(process.env.CLEANUP_INTERVAL_MINUTES || '2', 10);
-const OFFLINE_THRESHOLD_MINUTES = parseInt(process.env.OFFLINE_THRESHOLD_MINUTES || '10', 10);
+const OFFLINE_THRESHOLD_MINUTES = parseInt(process.env.OFFLINE_THRESHOLD_MINUTES || '15', 10);
 
 let cleanupInterval: NodeJS.Timeout | null = null;
 let deepHealthInterval: NodeJS.Timeout | null = null;

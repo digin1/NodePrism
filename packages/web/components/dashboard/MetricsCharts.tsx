@@ -48,12 +48,19 @@ interface ChartDataPoint {
   lsBpsOut?: number;
   lsCacheHitsPerSec?: number;
   lsStaticHitsPerSec?: number;
+  // Exim metrics
+  eximQueueSize?: number;
+  eximDeliveriesToday?: number;
+  eximReceivedToday?: number;
+  eximBouncesToday?: number;
+  eximDeferredToday?: number;
 }
 
 interface MetricsChartsProps {
   serverId: string;
   hasMySQLExporter?: boolean;
   hasLiteSpeedExporter?: boolean;
+  hasEximExporter?: boolean;
 }
 
 const TIME_PERIODS = [
@@ -86,7 +93,7 @@ function formatTime(timestamp: number): string {
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeedExporter = false }: MetricsChartsProps) {
+export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeedExporter = false, hasEximExporter = false }: MetricsChartsProps) {
   const [period, setPeriod] = useState<TimePeriod>('1h');
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -668,6 +675,104 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
             </CardContent>
           </Card>
         </>
+      )}
+
+      {/* Exim Mail Charts - Only shown when Exim exporter is available */}
+      {hasEximExporter && chartData.some(d => d.eximDeliveriesToday !== undefined || d.eximQueueSize !== undefined) && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+              Exim Mail Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="timestamp"
+                  tickFormatter={formatTime}
+                  stroke="#9ca3af"
+                  fontSize={12}
+                />
+                <YAxis
+                  yAxisId="mail"
+                  stroke="#9ca3af"
+                  fontSize={12}
+                  tickFormatter={(v) => {
+                    if (v >= 1000) return `${(v / 1000).toFixed(1)}K`;
+                    return v.toString();
+                  }}
+                />
+                <YAxis
+                  yAxisId="queue"
+                  orientation="right"
+                  stroke="#9ca3af"
+                  fontSize={12}
+                />
+                <Tooltip
+                  labelFormatter={(label) => new Date(label).toLocaleString()}
+                  formatter={(value: number, name: string) => {
+                    if (value >= 1000) return [`${(value / 1000).toFixed(1)}K`, name];
+                    return [value.toFixed(0), name];
+                  }}
+                />
+                <Legend />
+                <Line
+                  yAxisId="mail"
+                  type="monotone"
+                  dataKey="eximDeliveriesToday"
+                  name="Delivered"
+                  stroke="#9333ea"
+                  dot={false}
+                  strokeWidth={2}
+                />
+                <Line
+                  yAxisId="mail"
+                  type="monotone"
+                  dataKey="eximReceivedToday"
+                  name="Received"
+                  stroke="#a855f7"
+                  dot={false}
+                  strokeWidth={2}
+                />
+                <Line
+                  yAxisId="mail"
+                  type="monotone"
+                  dataKey="eximBouncesToday"
+                  name="Bounces"
+                  stroke="#ef4444"
+                  dot={false}
+                  strokeWidth={1.5}
+                />
+                <Line
+                  yAxisId="queue"
+                  type="monotone"
+                  dataKey="eximQueueSize"
+                  name="Queue"
+                  stroke="#f59e0b"
+                  dot={false}
+                  strokeWidth={2}
+                  strokeDasharray="4 2"
+                />
+                <Line
+                  yAxisId="mail"
+                  type="monotone"
+                  dataKey="eximDeferredToday"
+                  name="Deferred"
+                  stroke="#f97316"
+                  dot={false}
+                  strokeWidth={1.5}
+                  strokeDasharray="4 2"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

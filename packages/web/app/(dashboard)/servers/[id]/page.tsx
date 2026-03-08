@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer, ContainerMetrics, ContainerMetricsResponse, forecastApi } from '@/lib/api';
+import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer, ContainerMetrics, ContainerMetricsResponse, forecastApi, DiskMount } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
 import { ServerForecasting } from './forecasting';
@@ -465,6 +465,13 @@ export default function ServerDetailPage() {
   const containerMetricsList = containerMetricsResponse?.data;
   const storagePool = containerMetricsResponse?.storagePool;
 
+  const { data: diskMounts } = useQuery({
+    queryKey: ['diskUsage', serverId],
+    queryFn: () => metricsApi.diskUsage(serverId),
+    enabled: !!server,
+    refetchInterval: 30000,
+  });
+
   const { data: allTags } = useQuery({
     queryKey: ['serverTags'],
     queryFn: () => serverApi.tags(),
@@ -749,6 +756,40 @@ export default function ServerDetailPage() {
               <p className="text-xs text-muted-foreground mt-1">Upload</p>
             </div>
           </div>
+
+          {/* Disk Usage per Mount */}
+          {diskMounts && (diskMounts as DiskMount[]).length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Disk Usage</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {(diskMounts as DiskMount[]).map((m) => {
+                    const usagePct = m.sizeBytes > 0 ? (m.usedBytes / m.sizeBytes) * 100 : 0;
+                    const barColor = usagePct > 95 ? 'bg-red-500' : usagePct > 80 ? 'bg-yellow-500' : 'bg-green-500';
+                    return (
+                      <div key={m.mount}>
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="font-mono font-medium">{m.mount}</span>
+                          <span className="text-muted-foreground">
+                            {formatBytes(m.usedBytes)} / {formatBytes(m.sizeBytes)} ({formatBytes(m.availBytes)} free)
+                          </span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(usagePct, 100)}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
+                          <span>{m.device} ({m.fstype})</span>
+                          <span>{usagePct.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* MySQL Metrics */}
           {serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING') && (

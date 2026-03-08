@@ -52,9 +52,9 @@ groups:
           summary: "High memory usage on {{ $labels.instance }}"
           description: "Memory usage is above 80% (current value: {{ $value }}%)"
 
-      # Low disk space - server_id already present
+      # Low disk space - exclude tmpfs, cagefs bind mounts, and /boot
       - alert: LowDiskSpace
-        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"})) * 100 > 80
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"})) * 100 > 80
         for: 2m
         labels:
           severity: warning
@@ -64,7 +64,7 @@ groups:
 
       # Critical disk space
       - alert: CriticalDiskSpace
-        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"})) * 100 > 95
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"})) * 100 > 95
         for: 2m
         labels:
           severity: critical

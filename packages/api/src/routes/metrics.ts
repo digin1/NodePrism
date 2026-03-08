@@ -131,6 +131,31 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
       queries.lsStaticHitsPerSec = `litespeed_static_hits_per_sec{server_id="${serverId}"}`;
     }
 
+    // Add Exim metrics if Exim exporter is registered
+    const eximAgent = await prisma.agent.findFirst({
+      where: { serverId, type: 'EXIM_EXPORTER' },
+    });
+    if (eximAgent) {
+      queries.eximQueueSize = `exim_queue_size{server_id="${serverId}"}`;
+      queries.eximQueueFrozen = `exim_queue_frozen{server_id="${serverId}"}`;
+      queries.eximDeliveriesToday = `exim_deliveries_today{server_id="${serverId}"}`;
+      queries.eximReceivedToday = `exim_received_today{server_id="${serverId}"}`;
+      queries.eximBouncesToday = `exim_bounces_today{server_id="${serverId}"}`;
+      queries.eximRejectedToday = `exim_rejections_today{server_id="${serverId}"}`;
+      queries.eximDeferredToday = `exim_deferred_today{server_id="${serverId}"}`;
+    }
+
+    // Add cPanel metrics if cPanel exporter is registered
+    const cpanelAgent = await prisma.agent.findFirst({
+      where: { serverId, type: 'CPANEL_EXPORTER' },
+    });
+    if (cpanelAgent) {
+      queries.cpanelAccounts = `cpanel_accounts_total{server_id="${serverId}"}`;
+      queries.cpanelAccountsActive = `cpanel_accounts_active{server_id="${serverId}"}`;
+      queries.cpanelAccountsSuspended = `cpanel_accounts_suspended{server_id="${serverId}"}`;
+      queries.cpanelDomains = `cpanel_domains_total{server_id="${serverId}"}`;
+    }
+
     const results: Record<string, any> = {};
 
     // Execute queries in parallel

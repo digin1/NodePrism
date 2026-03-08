@@ -94,18 +94,18 @@ interface ForecastData {
   daysUntil100: number | null;
   projectedValues: Array<{ days: number; value: number }>;
   dataPoints: number;
+  dataSpanDays: number;
   r2: number;
 }
 
 async function queryPrometheusRange(
   query: string,
-  ipAddress: string,
-  lookbackDays: number = 7
+  lookbackDays: number = 30
 ): Promise<DataPoint[]> {
   const end = Math.floor(Date.now() / 1000);
   const start = end - lookbackDays * SECONDS_PER_DAY;
-  // Step: ~1 hour intervals for 7 days gives ~168 data points
-  const step = Math.floor((lookbackDays * SECONDS_PER_DAY) / 168);
+  // Fixed 1-hour step — gives up to 720 points for 30 days, and captures short spans well
+  const step = 3600;
 
   const response = await axios.get(`${PROMETHEUS_URL}/api/v1/query_range`, {
     params: {
@@ -146,6 +146,7 @@ function buildForecast(points: DataPoint[]): ForecastData {
       daysUntil100: null,
       projectedValues: [],
       dataPoints: 0,
+      dataSpanDays: 0,
       r2: 0,
     };
   }
@@ -153,6 +154,7 @@ function buildForecast(points: DataPoint[]): ForecastData {
   const regression = linearRegression(points);
   const currentValue = points[points.length - 1].y;
   const trend = determineTrend(regression.slopePerDay);
+  const dataSpanDays = (points[points.length - 1].x - points[0].x) / SECONDS_PER_DAY;
 
   const projectedValues = [7, 30, 90].map((days) => ({
     days,
@@ -170,6 +172,7 @@ function buildForecast(points: DataPoint[]): ForecastData {
     daysUntil100: days100 !== null ? parseFloat(days100.toFixed(1)) : null,
     projectedValues,
     dataPoints: points.length,
+    dataSpanDays: parseFloat(dataSpanDays.toFixed(1)),
     r2: parseFloat(regression.r2.toFixed(4)),
   };
 }
@@ -190,17 +193,9 @@ async function getServerIpAddress(serverId: string): Promise<string | null> {
 router.get('/disk/:serverId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { serverId } = req.params;
-    const ipAddress = await getServerIpAddress(serverId);
 
-    if (!ipAddress) {
-      return res.status(404).json({
-        success: false,
-        error: 'Server not found',
-      });
-    }
-
-    const query = `(1 - node_filesystem_avail_bytes{instance="${ipAddress}:9100",mountpoint="/"} / node_filesystem_size_bytes{instance="${ipAddress}:9100",mountpoint="/"}) * 100`;
-    const points = await queryPrometheusRange(query, ipAddress);
+    const query = `(1 - node_filesystem_avail_bytes{server_id="${serverId}",mountpoint="/"} / node_filesystem_size_bytes{server_id="${serverId}",mountpoint="/"}) * 100`;
+    const points = await queryPrometheusRange(query);
 
     if (points.length === 0) {
       return res.json({
@@ -210,12 +205,7 @@ router.get('/disk/:serverId', async (req: Request, res: Response, next: NextFunc
       });
     }
 
-    const forecast = buildForecast(points);
-
-    res.json({
-      success: true,
-      data: forecast,
-    });
+    res.json({ success: true, data: buildForecast(points) });
   } catch (error) {
     logger.error('Disk forecast error', { error: (error as Error).message });
     next(error);
@@ -226,17 +216,9 @@ router.get('/disk/:serverId', async (req: Request, res: Response, next: NextFunc
 router.get('/memory/:serverId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { serverId } = req.params;
-    const ipAddress = await getServerIpAddress(serverId);
 
-    if (!ipAddress) {
-      return res.status(404).json({
-        success: false,
-        error: 'Server not found',
-      });
-    }
-
-    const query = `(1 - node_memory_MemAvailable_bytes{instance="${ipAddress}:9100"} / node_memory_MemTotal_bytes{instance="${ipAddress}:9100"}) * 100`;
-    const points = await queryPrometheusRange(query, ipAddress);
+    const query = `(1 - node_memory_MemAvailable_bytes{server_id="${serverId}"} / node_memory_MemTotal_bytes{server_id="${serverId}"}) * 100`;
+    const points = await queryPrometheusRange(query);
 
     if (points.length === 0) {
       return res.json({
@@ -246,12 +228,7 @@ router.get('/memory/:serverId', async (req: Request, res: Response, next: NextFu
       });
     }
 
-    const forecast = buildForecast(points);
-
-    res.json({
-      success: true,
-      data: forecast,
-    });
+    res.json({ success: true, data: buildForecast(points) });
   } catch (error) {
     logger.error('Memory forecast error', { error: (error as Error).message });
     next(error);
@@ -262,17 +239,9 @@ router.get('/memory/:serverId', async (req: Request, res: Response, next: NextFu
 router.get('/cpu/:serverId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { serverId } = req.params;
-    const ipAddress = await getServerIpAddress(serverId);
 
-    if (!ipAddress) {
-      return res.status(404).json({
-        success: false,
-        error: 'Server not found',
-      });
-    }
-
-    const query = `100 - (avg by(instance)(irate(node_cpu_seconds_total{instance="${ipAddress}:9100",mode="idle"}[5m])) * 100)`;
-    const points = await queryPrometheusRange(query, ipAddress);
+    const query = `100 - (avg by(instance)(irate(node_cpu_seconds_total{server_id="${serverId}",mode="idle"}[5m])) * 100)`;
+    const points = await queryPrometheusRange(query);
 
     if (points.length === 0) {
       return res.json({
@@ -282,15 +251,7 @@ router.get('/cpu/:serverId', async (req: Request, res: Response, next: NextFunct
       });
     }
 
-    // CPU forecast: same structure but thresholds are less meaningful
-    // since CPU at 100% is transient, not an exhaustion event.
-    // We still provide daysUntil90/100 for consistency, but trend is the key indicator.
-    const forecast = buildForecast(points);
-
-    res.json({
-      success: true,
-      data: forecast,
-    });
+    res.json({ success: true, data: buildForecast(points) });
   } catch (error) {
     logger.error('CPU forecast error', { error: (error as Error).message });
     next(error);
@@ -301,25 +262,15 @@ router.get('/cpu/:serverId', async (req: Request, res: Response, next: NextFunct
 router.get('/all/:serverId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { serverId } = req.params;
-    const ipAddress = await getServerIpAddress(serverId);
 
-    if (!ipAddress) {
-      return res.status(404).json({
-        success: false,
-        error: 'Server not found',
-      });
-    }
-
-    const instance = `${ipAddress}:9100`;
-
-    const diskQuery = `(1 - node_filesystem_avail_bytes{instance="${instance}",mountpoint="/"} / node_filesystem_size_bytes{instance="${instance}",mountpoint="/"}) * 100`;
-    const memoryQuery = `(1 - node_memory_MemAvailable_bytes{instance="${instance}"} / node_memory_MemTotal_bytes{instance="${instance}"}) * 100`;
-    const cpuQuery = `100 - (avg by(instance)(irate(node_cpu_seconds_total{instance="${instance}",mode="idle"}[5m])) * 100)`;
+    const diskQuery = `(1 - node_filesystem_avail_bytes{server_id="${serverId}",mountpoint="/"} / node_filesystem_size_bytes{server_id="${serverId}",mountpoint="/"}) * 100`;
+    const memoryQuery = `(1 - node_memory_MemAvailable_bytes{server_id="${serverId}"} / node_memory_MemTotal_bytes{server_id="${serverId}"}) * 100`;
+    const cpuQuery = `100 - (avg by(instance)(irate(node_cpu_seconds_total{server_id="${serverId}",mode="idle"}[5m])) * 100)`;
 
     const [diskPoints, memoryPoints, cpuPoints] = await Promise.all([
-      queryPrometheusRange(diskQuery, ipAddress),
-      queryPrometheusRange(memoryQuery, ipAddress),
-      queryPrometheusRange(cpuQuery, ipAddress),
+      queryPrometheusRange(diskQuery),
+      queryPrometheusRange(memoryQuery),
+      queryPrometheusRange(cpuQuery),
     ]);
 
     const disk = diskPoints.length > 0 ? buildForecast(diskPoints) : null;
@@ -328,11 +279,7 @@ router.get('/all/:serverId', async (req: Request, res: Response, next: NextFunct
 
     res.json({
       success: true,
-      data: {
-        disk,
-        memory,
-        cpu,
-      },
+      data: { disk, memory, cpu },
     });
   } catch (error) {
     logger.error('Combined forecast error', { error: (error as Error).message });

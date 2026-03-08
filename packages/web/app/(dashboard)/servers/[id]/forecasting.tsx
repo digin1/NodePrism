@@ -15,6 +15,7 @@ interface ForecastData {
   daysUntil100?: number | null;
   projectedValues: { days: number; value: number }[];
   dataPoints: number;
+  dataSpanDays?: number;
   r2: number;
 }
 
@@ -119,11 +120,14 @@ function ForecastCard({ title, forecast, unit }: { title: string; forecast: Fore
           </div>
         )}
 
-        {/* Correlation */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {/* Correlation & data quality */}
+        <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground">
           <span>R² = {forecast.r2.toFixed(3)}</span>
-          <span>({forecast.dataPoints} data points)</span>
-          {forecast.r2 < 0.3 && (
+          <span>({forecast.dataPoints} pts{forecast.dataSpanDays != null ? `, ${forecast.dataSpanDays < 1 ? '<1' : forecast.dataSpanDays.toFixed(0)}d span` : ''})</span>
+          {forecast.dataSpanDays != null && forecast.dataSpanDays < 1 && (
+            <Badge variant="warning" className="text-[10px]">Insufficient data — need 24h+</Badge>
+          )}
+          {forecast.dataSpanDays != null && forecast.dataSpanDays >= 1 && forecast.r2 < 0.3 && (
             <Badge variant="secondary" className="text-[10px]">Low correlation</Badge>
           )}
         </div>

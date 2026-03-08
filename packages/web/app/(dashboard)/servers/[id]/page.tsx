@@ -24,9 +24,15 @@ const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary
 const AGENT_TYPES = [
   { value: 'NODE_EXPORTER', label: 'Node Exporter', defaultPort: 9100 },
   { value: 'MYSQL_EXPORTER', label: 'MySQL Exporter', defaultPort: 9104 },
+  { value: 'POSTGRES_EXPORTER', label: 'PostgreSQL Exporter', defaultPort: 9187 },
+  { value: 'MONGODB_EXPORTER', label: 'MongoDB Exporter', defaultPort: 9216 },
   { value: 'NGINX_EXPORTER', label: 'Nginx Exporter', defaultPort: 9113 },
   { value: 'REDIS_EXPORTER', label: 'Redis Exporter', defaultPort: 9121 },
-  { value: 'POSTGRES_EXPORTER', label: 'PostgreSQL Exporter', defaultPort: 9187 },
+  { value: 'LIBVIRT_EXPORTER', label: 'Libvirt Exporter', defaultPort: 9177 },
+  { value: 'LITESPEED_EXPORTER', label: 'LiteSpeed Exporter', defaultPort: 9122 },
+  { value: 'EXIM_EXPORTER', label: 'Exim Exporter', defaultPort: 9123 },
+  { value: 'CPANEL_EXPORTER', label: 'cPanel Exporter', defaultPort: 9124 },
+  { value: 'PROMTAIL', label: 'Promtail', defaultPort: 9080 },
   { value: 'APP_AGENT', label: 'Application Agent', defaultPort: 9101 },
   { value: 'CUSTOM', label: 'Custom Exporter', defaultPort: 9100 },
 ];
@@ -1013,7 +1019,7 @@ export default function ServerDetailPage() {
                   {serverData.agents.map((agent) => (
                     <div key={agent.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div>
-                        <p className="font-medium">{agent.type.replace('_', ' ')}</p>
+                        <p className="font-medium">{AGENT_TYPES.find(t => t.value === agent.type)?.label || agent.type.replaceAll('_', ' ')}</p>
                         <p className="text-sm text-muted-foreground">Port: {agent.port}</p>
                       </div>
                       <div className="flex items-center gap-2">

@@ -52,6 +52,25 @@ const LITESPEED_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
   lsStaticHitsPerSec: (serverId) => `litespeed_static_hits_per_sec{server_id="${serverId}"}`,
 };
 
+// Exim exporter metric queries
+const EXIM_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
+  eximQueueSize: (serverId) => `exim_queue_size{server_id="${serverId}"}`,
+  eximQueueFrozen: (serverId) => `exim_queue_frozen{server_id="${serverId}"}`,
+  eximDeliveriesToday: (serverId) => `exim_deliveries_today{server_id="${serverId}"}`,
+  eximReceivedToday: (serverId) => `exim_received_today{server_id="${serverId}"}`,
+  eximBouncesToday: (serverId) => `exim_bounces_today{server_id="${serverId}"}`,
+  eximRejectedToday: (serverId) => `exim_rejections_today{server_id="${serverId}"}`,
+  eximDeferredToday: (serverId) => `exim_deferred_today{server_id="${serverId}"}`,
+};
+
+// cPanel exporter metric queries
+const CPANEL_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
+  cpanelAccounts: (serverId) => `cpanel_accounts_total{server_id="${serverId}"}`,
+  cpanelAccountsActive: (serverId) => `cpanel_accounts_active{server_id="${serverId}"}`,
+  cpanelAccountsSuspended: (serverId) => `cpanel_accounts_suspended{server_id="${serverId}"}`,
+  cpanelDomains: (serverId) => `cpanel_domains_total{server_id="${serverId}"}`,
+};
+
 // Combined for backward compatibility
 const METRIC_QUERIES: Record<string, (serverId: string) => string> = {
   ...NODE_METRIC_QUERIES,
@@ -218,6 +237,26 @@ async function collectServerMetrics(serverId: string): Promise<Record<string, nu
     );
   }
 
+  // Collect Exim metrics if EXIM_EXPORTER is registered
+  const hasEximExporter = await hasAgentRegistered(serverId, AgentType.EXIM_EXPORTER);
+  if (hasEximExporter) {
+    await Promise.all(
+      Object.entries(EXIM_METRIC_QUERIES).map(async ([metricName, queryFn]) => {
+        results[metricName] = await queryMetric(queryFn(serverId));
+      })
+    );
+  }
+
+  // Collect cPanel metrics if CPANEL_EXPORTER is registered
+  const hasCpanelExporter = await hasAgentRegistered(serverId, AgentType.CPANEL_EXPORTER);
+  if (hasCpanelExporter) {
+    await Promise.all(
+      Object.entries(CPANEL_METRIC_QUERIES).map(async ([metricName, queryFn]) => {
+        results[metricName] = await queryMetric(queryFn(serverId));
+      })
+    );
+  }
+
   return results;
 }
 
@@ -331,6 +370,18 @@ export async function collectAllMetrics(): Promise<{
             const hasLSMetrics = metrics.lsReqPerSec !== null || metrics.lsConnections !== null;
             if (hasLSMetrics) {
               await updatePassiveAgentHealthCheck(server.id, AgentType.LITESPEED_EXPORTER);
+            }
+
+            // If we collected Exim metrics, update EXIM_EXPORTER health check
+            const hasEximMetrics = metrics.eximQueueSize !== null || metrics.eximDeliveriesToday !== null;
+            if (hasEximMetrics) {
+              await updatePassiveAgentHealthCheck(server.id, AgentType.EXIM_EXPORTER);
+            }
+
+            // If we collected cPanel metrics, update CPANEL_EXPORTER health check
+            const hasCpanelMetrics = metrics.cpanelAccounts !== null || metrics.cpanelDomains !== null;
+            if (hasCpanelMetrics) {
+              await updatePassiveAgentHealthCheck(server.id, AgentType.CPANEL_EXPORTER);
             }
 
             // Populate OS info from Prometheus (only once per server per startup)

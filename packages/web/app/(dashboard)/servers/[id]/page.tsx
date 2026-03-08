@@ -99,6 +99,17 @@ interface Metrics {
   lsBpsOut: number | null;
   lsCacheHitsPerSec: number | null;
   lsStaticHitsPerSec: number | null;
+  eximQueueSize: number | null;
+  eximQueueFrozen: number | null;
+  eximDeliveriesToday: number | null;
+  eximReceivedToday: number | null;
+  eximBouncesToday: number | null;
+  eximRejectedToday: number | null;
+  eximDeferredToday: number | null;
+  cpanelAccounts: number | null;
+  cpanelAccountsActive: number | null;
+  cpanelAccountsSuspended: number | null;
+  cpanelDomains: number | null;
 }
 
 function formatBytes(bytes: number | null): string {
@@ -755,6 +766,115 @@ export default function ServerDetailPage() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Exim Mail & cPanel panels side by side */}
+          {(serverData.agents?.some(a => a.type === 'EXIM_EXPORTER' && a.status === 'RUNNING') ||
+            serverData.agents?.some(a => a.type === 'CPANEL_EXPORTER' && a.status === 'RUNNING')) && (
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Exim Mail Metrics */}
+              {serverData.agents?.some(a => a.type === 'EXIM_EXPORTER' && a.status === 'RUNNING') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <svg className="w-5 h-5 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                        <polyline points="22,6 12,13 2,6" />
+                      </svg>
+                      Exim Mail Server
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-3 grid-cols-2">
+                      <div className="p-3 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Queue</p>
+                        <p className="text-xl font-bold text-purple-600">
+                          {metricsData?.eximQueueSize != null ? Math.round(metricsData.eximQueueSize) : 'N/A'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Frozen: {metricsData?.eximQueueFrozen != null ? Math.round(metricsData.eximQueueFrozen) : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Delivered Today</p>
+                        <p className="text-xl font-bold text-purple-600">
+                          {metricsData?.eximDeliveriesToday != null
+                            ? metricsData.eximDeliveriesToday >= 1000
+                              ? `${(metricsData.eximDeliveriesToday / 1000).toFixed(1)}K`
+                              : Math.round(metricsData.eximDeliveriesToday).toString()
+                            : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Received Today</p>
+                        <p className="text-xl font-bold text-purple-600">
+                          {metricsData?.eximReceivedToday != null
+                            ? metricsData.eximReceivedToday >= 1000
+                              ? `${(metricsData.eximReceivedToday / 1000).toFixed(1)}K`
+                              : Math.round(metricsData.eximReceivedToday).toString()
+                            : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Bounces / Rejected</p>
+                        <p className="text-xl font-bold text-purple-600">
+                          {metricsData?.eximBouncesToday != null ? Math.round(metricsData.eximBouncesToday) : 'N/A'}
+                          {' / '}
+                          {metricsData?.eximRejectedToday != null ? Math.round(metricsData.eximRejectedToday) : 'N/A'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Deferred: {metricsData?.eximDeferredToday != null ? Math.round(metricsData.eximDeferredToday) : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* cPanel Metrics */}
+              {serverData.agents?.some(a => a.type === 'CPANEL_EXPORTER' && a.status === 'RUNNING') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <svg className="w-5 h-5 text-cyan-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                        <line x1="8" y1="21" x2="16" y2="21" />
+                        <line x1="12" y1="17" x2="12" y2="21" />
+                      </svg>
+                      cPanel / WHM
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-3 grid-cols-2">
+                      <div className="p-3 bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Total Accounts</p>
+                        <p className="text-xl font-bold text-cyan-600">
+                          {metricsData?.cpanelAccounts != null ? Math.round(metricsData.cpanelAccounts) : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Active</p>
+                        <p className="text-xl font-bold text-cyan-600">
+                          {metricsData?.cpanelAccountsActive != null ? Math.round(metricsData.cpanelAccountsActive) : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Suspended</p>
+                        <p className="text-xl font-bold text-red-500">
+                          {metricsData?.cpanelAccountsSuspended != null ? Math.round(metricsData.cpanelAccountsSuspended) : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Domains</p>
+                        <p className="text-xl font-bold text-cyan-600">
+                          {metricsData?.cpanelDomains != null ? Math.round(metricsData.cpanelDomains) : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
 
           {/* Server Info + System Details */}

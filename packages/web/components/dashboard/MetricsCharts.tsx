@@ -40,11 +40,20 @@ interface ChartDataPoint {
   mysqlQueriesPerSec?: number;
   mysqlSlowQueries?: number;
   mysqlBufferPoolUsed?: number;
+  // LiteSpeed metrics
+  lsConnections?: number;
+  lsReqPerSec?: number;
+  lsReqProcessing?: number;
+  lsBpsIn?: number;
+  lsBpsOut?: number;
+  lsCacheHitsPerSec?: number;
+  lsStaticHitsPerSec?: number;
 }
 
 interface MetricsChartsProps {
   serverId: string;
   hasMySQLExporter?: boolean;
+  hasLiteSpeedExporter?: boolean;
 }
 
 const TIME_PERIODS = [
@@ -77,7 +86,7 @@ function formatTime(timestamp: number): string {
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function MetricsCharts({ serverId, hasMySQLExporter = false }: MetricsChartsProps) {
+export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeedExporter = false }: MetricsChartsProps) {
   const [period, setPeriod] = useState<TimePeriod>('1h');
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -473,6 +482,188 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false }: MetricsCha
                     strokeWidth={2}
                   />
                 </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* LiteSpeed Metrics Charts - Only shown when LiteSpeed exporter is available */}
+      {hasLiteSpeedExporter && chartData.some(d => d.lsReqPerSec !== undefined || d.lsConnections !== undefined) && (
+        <>
+          {/* LiteSpeed Connections & Requests Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+                LiteSpeed Requests &amp; Connections
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="timestamp"
+                    tickFormatter={formatTime}
+                    stroke="#9ca3af"
+                    fontSize={12}
+                  />
+                  <YAxis
+                    yAxisId="rps"
+                    stroke="#9ca3af"
+                    fontSize={12}
+                    tickFormatter={(v) => `${v}/s`}
+                  />
+                  <YAxis
+                    yAxisId="conn"
+                    orientation="right"
+                    stroke="#9ca3af"
+                    fontSize={12}
+                    tickFormatter={(v) => v.toString()}
+                  />
+                  <Tooltip
+                    labelFormatter={(label) => new Date(label).toLocaleString()}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'Req/sec') return [`${value.toFixed(1)}/s`, name];
+                      return [value.toFixed(0), name];
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    yAxisId="rps"
+                    type="monotone"
+                    dataKey="lsReqPerSec"
+                    name="Req/sec"
+                    stroke="#16a34a"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    yAxisId="conn"
+                    type="monotone"
+                    dataKey="lsConnections"
+                    name="Connections"
+                    stroke="#15803d"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    yAxisId="conn"
+                    type="monotone"
+                    dataKey="lsReqProcessing"
+                    name="Processing"
+                    stroke="#4ade80"
+                    dot={false}
+                    strokeWidth={1.5}
+                    strokeDasharray="4 2"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* LiteSpeed Bandwidth & Cache Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+                LiteSpeed Bandwidth &amp; Cache
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorLsBpsOut" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorLsBpsIn" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#4ade80" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="timestamp"
+                    tickFormatter={formatTime}
+                    stroke="#9ca3af"
+                    fontSize={12}
+                  />
+                  <YAxis
+                    yAxisId="bw"
+                    stroke="#9ca3af"
+                    fontSize={12}
+                    tickFormatter={(v) => {
+                      if (v < 1024) return `${v}B/s`;
+                      if (v < 1024 * 1024) return `${(v / 1024).toFixed(0)}K/s`;
+                      return `${(v / 1024 / 1024).toFixed(1)}M/s`;
+                    }}
+                  />
+                  <YAxis
+                    yAxisId="cache"
+                    orientation="right"
+                    stroke="#9ca3af"
+                    fontSize={12}
+                    tickFormatter={(v) => `${v}/s`}
+                  />
+                  <Tooltip
+                    labelFormatter={(label) => new Date(label).toLocaleString()}
+                    formatter={(value: number, name: string) => {
+                      if (name.includes('Bandwidth')) {
+                        if (value < 1024) return [`${value.toFixed(0)} B/s`, name];
+                        if (value < 1024 * 1024) return [`${(value / 1024).toFixed(1)} KB/s`, name];
+                        return [`${(value / 1024 / 1024).toFixed(2)} MB/s`, name];
+                      }
+                      return [`${value.toFixed(1)}/s`, name];
+                    }}
+                  />
+                  <Legend />
+                  <Area
+                    yAxisId="bw"
+                    type="monotone"
+                    dataKey="lsBpsOut"
+                    name="Bandwidth Out"
+                    stroke="#16a34a"
+                    fillOpacity={1}
+                    fill="url(#colorLsBpsOut)"
+                    strokeWidth={2}
+                  />
+                  <Area
+                    yAxisId="bw"
+                    type="monotone"
+                    dataKey="lsBpsIn"
+                    name="Bandwidth In"
+                    stroke="#4ade80"
+                    fillOpacity={1}
+                    fill="url(#colorLsBpsIn)"
+                    strokeWidth={1.5}
+                  />
+                  <Line
+                    yAxisId="cache"
+                    type="monotone"
+                    dataKey="lsCacheHitsPerSec"
+                    name="Cache Hits/s"
+                    stroke="#eab308"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    yAxisId="cache"
+                    type="monotone"
+                    dataKey="lsStaticHitsPerSec"
+                    name="Static Hits/s"
+                    stroke="#f59e0b"
+                    dot={false}
+                    strokeWidth={1.5}
+                    strokeDasharray="4 2"
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>

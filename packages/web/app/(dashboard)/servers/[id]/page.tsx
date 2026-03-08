@@ -867,7 +867,7 @@ export default function ServerDetailPage() {
         <div className="space-y-6">
           <BandwidthSummary serverId={serverId} />
           <ServerForecasting serverId={serverId} />
-          <MetricsCharts serverId={serverId} hasMySQLExporter={serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING')} />
+          <MetricsCharts serverId={serverId} hasMySQLExporter={serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING')} hasLiteSpeedExporter={serverData.agents?.some(a => a.type === 'LITESPEED_EXPORTER' && a.status === 'RUNNING')} />
         </div>
       )}
 

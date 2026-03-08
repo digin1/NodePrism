@@ -26,6 +26,7 @@ title: Frontend
 | `/dashboard` | `(dashboard)/dashboard/page.tsx` | Main dashboard with overview |
 | `/dashboards` | `(dashboard)/dashboards/page.tsx` | - |
 | `/docs` | `(dashboard)/docs/page.tsx` | - |
+| `/incidents/:id` | `(dashboard)/incidents/[id]/page.tsx` | - |
 | `/incidents` | `(dashboard)/incidents/page.tsx` | - |
 | `/infrastructure-logs` | `(dashboard)/infrastructure-logs/page.tsx` | - |
 | `/logs` | `(dashboard)/logs/page.tsx` | Log aggregation view |

@@ -80,32 +80,7 @@ docker-compose -f docker-compose.prod.yml up -d
 2. Click "Deploy Agent"
 3. Agent is automatically installed via SSH
 
-### Option 2: Agent Installer Script (Recommended)
-
-Run the agent installer directly on the target server. The script is served on **port 80** via nginx, so it works even on servers with restrictive firewalls (CSF/cPanel):
-
-```bash
-# Install node exporter (system metrics)
-curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type node_exporter
-
-# Install MySQL exporter
-curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type mysql_exporter
-
-# Install any exporter type
-curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type <TYPE>
-
-# Check status of all installed agents
-curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- status
-
-# Uninstall an agent
-curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- uninstall --type node_exporter --non-interactive
-```
-
-Available types: `node_exporter`, `mysql_exporter`, `postgres_exporter`, `mongodb_exporter`, `redis_exporter`, `nginx_exporter`, `apache_exporter`, `litespeed_exporter`, `exim_exporter`, `cpanel_exporter`, `promtail`
-
-> **Note:** Port 80 is used because many servers with CSF or strict firewalls block non-standard outbound ports. See the [Agent Overview](../agents/overview.md) for full documentation.
-
-### Option 3: Manual Installation
+### Option 2: Without SSH Access (Manual)
 
 For each exporter, install on the remote server, then register with NodePrism.
 
@@ -146,7 +121,7 @@ curl http://localhost:9100/metrics | head
 
 **Register with NodePrism:**
 ```bash
-curl -X POST http://MANAGER_IP/api/agents/register \
+curl -X POST http://MANAGER_IP:4000/api/agents/register \
   -H "Content-Type: application/json" \
   -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "NODE_EXPORTER", "port": 9100}'
 ```
@@ -200,7 +175,7 @@ sudo systemctl enable --now mysqld_exporter
 
 **Register with NodePrism:**
 ```bash
-curl -X POST http://MANAGER_IP/api/agents/register \
+curl -X POST http://MANAGER_IP:4000/api/agents/register \
   -H "Content-Type: application/json" \
   -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "MYSQL_EXPORTER", "port": 9104}'
 ```
@@ -246,7 +221,7 @@ sudo systemctl enable --now postgres_exporter
 
 **Register with NodePrism:**
 ```bash
-curl -X POST http://MANAGER_IP/api/agents/register \
+curl -X POST http://MANAGER_IP:4000/api/agents/register \
   -H "Content-Type: application/json" \
   -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "POSTGRES_EXPORTER", "port": 9187}'
 ```
@@ -290,7 +265,7 @@ sudo systemctl enable --now mongodb_exporter
 
 **Register with NodePrism:**
 ```bash
-curl -X POST http://MANAGER_IP/api/agents/register \
+curl -X POST http://MANAGER_IP:4000/api/agents/register \
   -H "Content-Type: application/json" \
   -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "MONGODB_EXPORTER", "port": 9216}'
 ```
@@ -340,7 +315,7 @@ sudo systemctl enable --now nginx_exporter
 
 **Register with NodePrism:**
 ```bash
-curl -X POST http://MANAGER_IP/api/agents/register \
+curl -X POST http://MANAGER_IP:4000/api/agents/register \
   -H "Content-Type: application/json" \
   -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "NGINX_EXPORTER", "port": 9113}'
 ```
@@ -387,7 +362,7 @@ sudo systemctl enable --now apache_exporter
 
 **Register with NodePrism:**
 ```bash
-curl -X POST http://MANAGER_IP/api/agents/register \
+curl -X POST http://MANAGER_IP:4000/api/agents/register \
   -H "Content-Type: application/json" \
   -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "APACHE_EXPORTER", "port": 9117}'
 ```
@@ -462,7 +437,7 @@ sudo systemctl enable --now promtail
 
 **Register with NodePrism:**
 ```bash
-curl -X POST http://MANAGER_IP/api/agents/register \
+curl -X POST http://MANAGER_IP:4000/api/agents/register \
   -H "Content-Type: application/json" \
   -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "PROMTAIL", "port": 9080}'
 ```

@@ -51,10 +51,10 @@ Base path: `/api/alerts`
 | POST | `/alerts/rules` | - | Validation schemas |
 | PUT | `/alerts/rules/:id` | - | Validation schemas |
 | DELETE | `/alerts/rules/:id` | - | Validation schemas |
-| POST | `/alerts/:id/acknowledge` | - | Validation schemas |
-| POST | `/alerts/:id/silence` | - | Validation schemas |
 | POST | `/alerts/bulk/acknowledge` | - | Validation schemas |
 | POST | `/alerts/bulk/silence` | - | Validation schemas |
+| POST | `/alerts/:id/acknowledge` | - | Validation schemas |
+| POST | `/alerts/:id/silence` | - | Validation schemas |
 | POST | `/alerts/webhook` | - | Validation schemas |
 | GET | `/alerts/stats` | - | Validation schemas |
 | GET | `/alerts/history` | - | Validation schemas |

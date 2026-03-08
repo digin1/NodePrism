@@ -74,58 +74,55 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ## Adding Monitored Servers
 
-### Option 1: One-Liner Install (Recommended)
-
-The NodePrism agent installer is served via **nginx on port 80**, making it accessible from any server — including those with restrictive firewalls like CSF/cPanel.
-
-```bash
-# Install node_exporter
-curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type node_exporter
-
-# Install multiple agents
-curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type promtail
-curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type mysql_exporter
-
-# Check status of installed agents
-curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- status
-```
-
-This automatically:
-- Downloads and installs the agent binary
-- Creates a systemd service
-- **Opens the firewall port** (CSF, UFW, firewalld, or iptables)
-- Registers with the NodePrism manager API
-- Detects containers/VMs on virtualization hosts
-
-> **Why port 80?** Servers with CSF (cPanel/WHM) or strict firewalls typically block outbound connections to non-standard ports (3000, 4000, etc.). Nginx on the manager server reverse-proxies port 80 to the API (port 4000) and web UI (port 3000), so the one-liner works everywhere.
-
-For interactive mode (download first):
-```bash
-curl -sL http://MANAGER_IP/agent-install.sh -o nodeprism-agent.sh
-sudo bash nodeprism-agent.sh
-```
-
-### Option 2: Via Web UI (SSH)
+### Option 1: With SSH Access (Automated)
 
 1. Add server in UI (Servers → Add New)
 2. Click "Deploy Agent"
 3. Agent is automatically installed via SSH
 
-### Option 3: Manual Install
+### Option 2: Agent Installer Script (Recommended)
 
-For manual installation of each exporter without the installer script, see below.
+Run the agent installer directly on the target server. The script is served on **port 80** via nginx, so it works even on servers with restrictive firewalls (CSF/cPanel):
 
-<details>
-<summary>Manual Node Exporter Installation</summary>
+```bash
+# Install node exporter (system metrics)
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type node_exporter
+
+# Install MySQL exporter
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type mysql_exporter
+
+# Install any exporter type
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type <TYPE>
+
+# Check status of all installed agents
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- status
+
+# Uninstall an agent
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- uninstall --type node_exporter --non-interactive
+```
+
+Available types: `node_exporter`, `mysql_exporter`, `postgres_exporter`, `mongodb_exporter`, `redis_exporter`, `nginx_exporter`, `apache_exporter`, `litespeed_exporter`, `exim_exporter`, `cpanel_exporter`, `promtail`
+
+> **Note:** Port 80 is used because many servers with CSF or strict firewalls block non-standard outbound ports. See the [Agent Overview](../agents/overview.md) for full documentation.
+
+### Option 3: Manual Installation
+
+For each exporter, install on the remote server, then register with NodePrism.
+
+---
+
+#### Node Exporter (System Metrics)
 
 **Port:** 9100 | **Metrics:** CPU, memory, disk, network, load
 
 ```bash
+# Download and install
 wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
 tar xvfz node_exporter-*.tar.gz
 sudo mv node_exporter-*/node_exporter /usr/local/bin/
 sudo useradd -rs /bin/false node_exporter
 
+# Create systemd service
 sudo tee /etc/systemd/system/node_exporter.service <<EOF
 [Unit]
 Description=Prometheus Node Exporter
@@ -142,34 +139,51 @@ EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now node_exporter
+
+# Verify
 curl http://localhost:9100/metrics | head
 ```
 
-</details>
+**Register with NodePrism:**
+```bash
+curl -X POST http://MANAGER_IP/api/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "NODE_EXPORTER", "port": 9100}'
+```
 
-<details>
-<summary>Manual MySQL Exporter Installation</summary>
+---
 
-**Port:** 9104
+#### MySQL Exporter
+
+**Port:** 9104 | **Metrics:** queries, connections, replication, InnoDB
 
 ```bash
+# Download and install
 wget https://github.com/prometheus/mysqld_exporter/releases/download/v0.15.1/mysqld_exporter-0.15.1.linux-amd64.tar.gz
 tar xvfz mysqld_exporter-*.tar.gz
 sudo mv mysqld_exporter-*/mysqld_exporter /usr/local/bin/
+sudo useradd -rs /bin/false mysqld_exporter
 
-mysql -u root -p -e "CREATE USER 'nodeprism'@'localhost' IDENTIFIED BY 'password'; GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'nodeprism'@'localhost'; FLUSH PRIVILEGES;"
+# Create MySQL user for exporter
+mysql -u root -p <<EOF
+CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'your_password';
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
+FLUSH PRIVILEGES;
+EOF
 
+# Create credentials file
 sudo tee /etc/.mysqld_exporter.cnf <<EOF
 [client]
 user=exporter
-password=password
+password=your_password
 EOF
 sudo chmod 600 /etc/.mysqld_exporter.cnf
 
+# Create systemd service
 sudo tee /etc/systemd/system/mysqld_exporter.service <<EOF
 [Unit]
 Description=Prometheus MySQL Exporter
-After=network.target
+After=network.target mysql.service
 
 [Service]
 User=mysqld_exporter
@@ -180,30 +194,45 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-sudo systemctl daemon-reload && sudo systemctl enable --now mysqld_exporter
+sudo systemctl daemon-reload
+sudo systemctl enable --now mysqld_exporter
 ```
 
-</details>
+**Register with NodePrism:**
+```bash
+curl -X POST http://MANAGER_IP/api/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "MYSQL_EXPORTER", "port": 9104}'
+```
 
-<details>
-<summary>Manual PostgreSQL Exporter Installation</summary>
+---
 
-**Port:** 9187
+#### PostgreSQL Exporter
+
+**Port:** 9187 | **Metrics:** connections, queries, locks, replication
 
 ```bash
+# Download and install
 wget https://github.com/prometheus-community/postgres_exporter/releases/download/v0.15.0/postgres_exporter-0.15.0.linux-amd64.tar.gz
 tar xvfz postgres_exporter-*.tar.gz
 sudo mv postgres_exporter-*/postgres_exporter /usr/local/bin/
+sudo useradd -rs /bin/false postgres_exporter
 
-sudo -u postgres psql -c "CREATE USER exporter WITH PASSWORD 'password'; GRANT pg_monitor TO exporter;"
+# Create PostgreSQL user for exporter
+sudo -u postgres psql <<EOF
+CREATE USER exporter WITH PASSWORD 'your_password';
+GRANT pg_monitor TO exporter;
+EOF
 
+# Create systemd service
 sudo tee /etc/systemd/system/postgres_exporter.service <<EOF
 [Unit]
 Description=Prometheus PostgreSQL Exporter
-After=network.target
+After=network.target postgresql.service
 
 [Service]
-Environment="DATA_SOURCE_NAME=postgresql://exporter:password@localhost:5432/postgres?sslmode=disable"
+User=postgres_exporter
+Environment="DATA_SOURCE_NAME=postgresql://exporter:your_password@localhost:5432/postgres?sslmode=disable"
 ExecStart=/usr/local/bin/postgres_exporter --web.listen-address=:9187
 Restart=always
 
@@ -211,45 +240,251 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-sudo systemctl daemon-reload && sudo systemctl enable --now postgres_exporter
+sudo systemctl daemon-reload
+sudo systemctl enable --now postgres_exporter
 ```
 
-</details>
+**Register with NodePrism:**
+```bash
+curl -X POST http://MANAGER_IP/api/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "POSTGRES_EXPORTER", "port": 9187}'
+```
 
 ---
 
-### Nginx Reverse Proxy (Manager Server)
+#### MongoDB Exporter
 
-The NodePrism manager uses nginx on port 80 to proxy all services. This is set up automatically but the config is at `/etc/nginx/sites-available/nodeprism`:
+**Port:** 9216 | **Metrics:** connections, operations, replication, storage
 
-| Path | Proxied To | Purpose |
-|------|-----------|---------|
-| `/agent-install.sh` | `localhost:4000` | Agent installer script |
-| `/api/*` | `localhost:4000` | REST API |
-| `/socket.io/*` | `localhost:4000` | WebSocket (real-time updates) |
-| `/health` | `localhost:4000` | Health check endpoint |
-| `/*` (everything else) | `localhost:3000` | Next.js Web UI |
+```bash
+# Download and install
+wget https://github.com/percona/mongodb_exporter/releases/download/v0.40.0/mongodb_exporter-0.40.0.linux-amd64.tar.gz
+tar xvfz mongodb_exporter-*.tar.gz
+sudo mv mongodb_exporter-*/mongodb_exporter /usr/local/bin/
+sudo useradd -rs /bin/false mongodb_exporter
+
+# Create MongoDB user for exporter (in mongo shell)
+# use admin
+# db.createUser({user: "exporter", pwd: "your_password", roles: [{role: "clusterMonitor", db: "admin"}, {role: "read", db: "local"}]})
+
+# Create systemd service
+sudo tee /etc/systemd/system/mongodb_exporter.service <<EOF
+[Unit]
+Description=Prometheus MongoDB Exporter
+After=network.target mongod.service
+
+[Service]
+User=mongodb_exporter
+Environment="MONGODB_URI=mongodb://exporter:your_password@localhost:27017/admin"
+ExecStart=/usr/local/bin/mongodb_exporter --web.listen-address=:9216
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now mongodb_exporter
+```
+
+**Register with NodePrism:**
+```bash
+curl -X POST http://MANAGER_IP/api/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "MONGODB_EXPORTER", "port": 9216}'
+```
+
+---
+
+#### Nginx Exporter
+
+**Port:** 9113 | **Metrics:** connections, requests, response codes
+
+```bash
+# Enable Nginx stub_status module (add to nginx.conf)
+# server {
+#     listen 127.0.0.1:8080;
+#     location /nginx_status {
+#         stub_status on;
+#         allow 127.0.0.1;
+#         deny all;
+#     }
+# }
+sudo nginx -t && sudo systemctl reload nginx
+
+# Download and install exporter
+wget https://github.com/nginxinc/nginx-prometheus-exporter/releases/download/v1.1.0/nginx-prometheus-exporter_1.1.0_linux_amd64.tar.gz
+tar xvfz nginx-prometheus-exporter_*.tar.gz
+sudo mv nginx-prometheus-exporter /usr/local/bin/
+sudo useradd -rs /bin/false nginx_exporter
+
+# Create systemd service
+sudo tee /etc/systemd/system/nginx_exporter.service <<EOF
+[Unit]
+Description=Prometheus Nginx Exporter
+After=network.target nginx.service
+
+[Service]
+User=nginx_exporter
+ExecStart=/usr/local/bin/nginx-prometheus-exporter -nginx.scrape-uri=http://127.0.0.1:8080/nginx_status -web.listen-address=:9113
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now nginx_exporter
+```
+
+**Register with NodePrism:**
+```bash
+curl -X POST http://MANAGER_IP/api/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "NGINX_EXPORTER", "port": 9113}'
+```
+
+---
+
+#### Apache Exporter
+
+**Port:** 9117 | **Metrics:** requests, workers, scoreboard, bytes
+
+```bash
+# Enable Apache mod_status (add to apache config)
+# <Location "/server-status">
+#     SetHandler server-status
+#     Require local
+# </Location>
+sudo a2enmod status
+sudo systemctl reload apache2
+
+# Download and install exporter
+wget https://github.com/Lusitaniae/apache_exporter/releases/download/v1.0.3/apache_exporter-1.0.3.linux-amd64.tar.gz
+tar xvfz apache_exporter-*.tar.gz
+sudo mv apache_exporter-*/apache_exporter /usr/local/bin/
+sudo useradd -rs /bin/false apache_exporter
+
+# Create systemd service
+sudo tee /etc/systemd/system/apache_exporter.service <<EOF
+[Unit]
+Description=Prometheus Apache Exporter
+After=network.target apache2.service
+
+[Service]
+User=apache_exporter
+ExecStart=/usr/local/bin/apache_exporter --scrape_uri=http://127.0.0.1/server-status?auto --web.listen-address=:9117
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now apache_exporter
+```
+
+**Register with NodePrism:**
+```bash
+curl -X POST http://MANAGER_IP/api/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "APACHE_EXPORTER", "port": 9117}'
+```
+
+---
+
+#### Promtail (Log Shipping)
+
+**Port:** 9080 | **Purpose:** Ships logs to Loki
+
+```bash
+# Download and install
+wget https://github.com/grafana/loki/releases/download/v2.9.4/promtail-linux-amd64.zip
+unzip promtail-linux-amd64.zip
+sudo mv promtail-linux-amd64 /usr/local/bin/promtail
+sudo useradd -rs /bin/false promtail
+sudo usermod -aG adm promtail  # For log access
+
+# Create config
+sudo mkdir -p /etc/promtail
+sudo tee /etc/promtail/config.yml <<EOF
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /var/lib/promtail/positions.yaml
+
+clients:
+  - url: http://MANAGER_IP:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          host: $(hostname)
+          __path__: /var/log/*.log
+  - job_name: syslog
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: syslog
+          host: $(hostname)
+          __path__: /var/log/syslog
+EOF
+
+sudo mkdir -p /var/lib/promtail
+sudo chown promtail:promtail /var/lib/promtail
+
+# Create systemd service
+sudo tee /etc/systemd/system/promtail.service <<EOF
+[Unit]
+Description=Promtail Log Agent
+After=network.target
+
+[Service]
+User=promtail
+ExecStart=/usr/local/bin/promtail -config.file=/etc/promtail/config.yml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now promtail
+```
+
+**Register with NodePrism:**
+```bash
+curl -X POST http://MANAGER_IP/api/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{"hostname": "my-server", "ipAddress": "SERVER_IP", "agentType": "PROMTAIL", "port": 9080}'
+```
+
+---
 
 ### Firewall Configuration
 
-**Automatic (via installer script):** The agent installer auto-detects CSF, UFW, firewalld, or iptables and opens the required port. No manual action needed.
-
-**Manual (if needed):**
+Ensure the manager can reach the exporter ports:
 
 ```bash
-# CSF (cPanel/WHM) — edit TCP_IN to add the port
-vi /etc/csf/csf.conf   # Add 9100 to TCP_IN
-csf -r                  # Restart CSF
-
 # UFW (Ubuntu)
-sudo ufw allow from MANAGER_IP to any port 9100
+sudo ufw allow from MANAGER_IP to any port 9100  # node_exporter
+sudo ufw allow from MANAGER_IP to any port 9104  # mysqld_exporter
+sudo ufw allow from MANAGER_IP to any port 9187  # postgres_exporter
+sudo ufw allow from MANAGER_IP to any port 9216  # mongodb_exporter
+sudo ufw allow from MANAGER_IP to any port 9113  # nginx_exporter
+sudo ufw allow from MANAGER_IP to any port 9117  # apache_exporter
 
 # firewalld (CentOS/RHEL)
-sudo firewall-cmd --permanent --add-port=9100/tcp
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="MANAGER_IP" port port="9100" protocol="tcp" accept'
 sudo firewall-cmd --reload
-
-# iptables
-sudo iptables -I INPUT -p tcp --dport 9100 -j ACCEPT
 ```
 
 ## Troubleshooting

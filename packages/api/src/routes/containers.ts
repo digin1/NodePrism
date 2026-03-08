@@ -22,9 +22,16 @@ const containerSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
 });
 
+const storagePoolSchema = z.object({
+  name: z.string(),
+  sizeBytes: z.number(),
+  freeBytes: z.number(),
+}).optional();
+
 const reportContainersSchema = z.object({
   serverId: z.string().uuid(),
   containers: z.array(containerSchema),
+  storagePool: storagePoolSchema,
 });
 
 // POST /api/agents/containers - Agent reports container data (public, rate-limited)
@@ -93,6 +100,17 @@ router.post('/', agentLimiter, async (req: Request, res: Response, next: NextFun
           status: { not: 'stopped' },
         },
         data: { status: 'stopped' },
+      });
+    }
+
+    // Save storage pool (LVM VG) info on the server metadata if provided
+    if (data.storagePool) {
+      const existingMeta = (server.metadata as Record<string, unknown>) || {};
+      await prisma.server.update({
+        where: { id: data.serverId },
+        data: {
+          metadata: { ...existingMeta, storagePool: data.storagePool },
+        },
       });
     }
 
@@ -234,7 +252,33 @@ router.get('/server/:serverId/metrics', async (req: Request, res: Response, next
         netTxBytesPerSec: metrics.netTx ?? null,
       }));
 
-      return res.json({ success: true, data: metricsArray });
+      // Also fetch LVM storage pool info from Prometheus
+      let storagePool: { name: string; sizeBytes: number; freeBytes: number } | null = null;
+      try {
+        const [vgSizeResp, vgFreeResp] = await Promise.all([
+          axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+            params: { query: `nodeprism_lvm_vg_size_bytes{server_id="${serverId}"}` },
+            timeout: 5000,
+          }),
+          axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+            params: { query: `nodeprism_lvm_vg_free_bytes{server_id="${serverId}"}` },
+            timeout: 5000,
+          }),
+        ]);
+        const sizeResult = vgSizeResp.data?.data?.result?.[0];
+        const freeResult = vgFreeResp.data?.data?.result?.[0];
+        if (sizeResult && freeResult) {
+          storagePool = {
+            name: sizeResult.metric?.vg || 'unknown',
+            sizeBytes: parseFloat(sizeResult.value?.[1] || '0'),
+            freeBytes: parseFloat(freeResult.value?.[1] || '0'),
+          };
+        }
+      } catch {
+        // LVM data not available — skip
+      }
+
+      return res.json({ success: true, data: metricsArray, storagePool });
     }
 
     // Non-Prometheus path: metrics come from container metadata (reported by agent/collector)
@@ -243,7 +287,7 @@ router.get('/server/:serverId/metrics', async (req: Request, res: Response, next
     });
 
     if (containers.length === 0) {
-      return res.json({ success: true, data: [] });
+      return res.json({ success: true, data: [], storagePool: null });
     }
 
     // Include containers that have any useful metadata (OpenVZ cpu/mem, or KVM vcpus/memoryKB)
@@ -273,7 +317,12 @@ router.get('/server/:serverId/metrics', async (req: Request, res: Response, next
         };
       });
 
-    res.json({ success: true, data: metricsArray });
+    // Check server metadata for storage pool (from agent container reports)
+    const server = await prisma.server.findUnique({ where: { id: serverId }, select: { metadata: true } });
+    const serverMeta = server?.metadata as Record<string, unknown> | null;
+    const storagePool = serverMeta?.storagePool as { name: string; sizeBytes: number; freeBytes: number } | null ?? null;
+
+    res.json({ success: true, data: metricsArray, storagePool });
   } catch (error) {
     next(error);
   }

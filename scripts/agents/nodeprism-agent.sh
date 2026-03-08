@@ -466,9 +466,12 @@ gather_system_info() {
 
 # Gather container/VM list from host (KVM, OpenVZ, Virtuozzo)
 # Outputs JSON array to stdout
+# Sets global GATHER_VG_INFO with VG JSON (or empty)
+GATHER_VG_INFO=""
 gather_containers() {
   local containers="[]"
   local virt_type=""
+  GATHER_VG_INFO=""
 
   # Detect what virtualization host tools are available
   if command -v virsh &>/dev/null; then
@@ -482,6 +485,33 @@ gather_containers() {
   [[ -z "$virt_type" ]] && echo "$containers" && return
 
   local json_entries=()
+
+  # --- LVM disk info (KVM hosts) ---
+  # Build LV path → size map and collect VG totals
+  declare -A _lv_sizes
+  local vg_info=""
+  if [[ "$virt_type" == "kvm" ]] && command -v lvs &>/dev/null; then
+    while IFS= read -r lvline; do
+      [[ -z "$lvline" ]] && continue
+      local lv_path lv_size
+      lv_path=$(echo "$lvline" | awk '{print $2}')
+      lv_size=$(echo "$lvline" | awk '{print $1}')
+      [[ -n "$lv_path" && -n "$lv_size" ]] && _lv_sizes["$lv_path"]="$lv_size"
+    done < <(lvs --noheadings --nosuffix --units b -o lv_size,lv_path 2>/dev/null)
+
+    # VG totals
+    if command -v vgs &>/dev/null; then
+      local vg_line
+      vg_line=$(vgs --noheadings --nosuffix --units b -o vg_name,vg_size,vg_free 2>/dev/null | head -1)
+      if [[ -n "$vg_line" ]]; then
+        local vg_name vg_size vg_free
+        vg_name=$(echo "$vg_line" | awk '{print $1}')
+        vg_size=$(echo "$vg_line" | awk '{print $2}')
+        vg_free=$(echo "$vg_line" | awk '{print $3}')
+        vg_info="{\"name\":\"${vg_name}\",\"sizeBytes\":${vg_size},\"freeBytes\":${vg_free}}"
+      fi
+    fi
+  fi
 
   case "$virt_type" in
     kvm)
@@ -582,11 +612,22 @@ gather_containers() {
         vcpus=$(virsh vcpucount "$vm_name" --current 2>/dev/null || echo "0")
         mem_kb=$(virsh dominfo "$vm_name" 2>/dev/null | awk '/Max memory/ {print $3}' || echo "0")
 
+        # Get LVM disk size from virsh dumpxml → source dev → lvs size
+        local disk_size_bytes=0
+        local disk_sources
+        disk_sources=$(virsh dumpxml "$vm_name" 2>/dev/null | sed -n "s/.*source dev='\([^']*\)'.*/\1/p")
+        while IFS= read -r ds; do
+          [[ -z "$ds" ]] && continue
+          if [[ -n "${_lv_sizes[$ds]+x}" ]]; then
+            disk_size_bytes=$((disk_size_bytes + ${_lv_sizes[$ds]}))
+          fi
+        done <<< "$disk_sources"
+
         local name_escaped hostname_escaped
         name_escaped=$(echo "$display_name" | tr -d '\000-\037' | sed 's/\\/\\\\/g; s/"/\\"/g')
         hostname_escaped=$(echo "$vm_hostname" | tr -d '\000-\037' | sed 's/\\/\\\\/g; s/"/\\"/g')
 
-        json_entries+=("{\"containerId\":\"${vm_uuid}\",\"name\":\"${name_escaped}\",\"type\":\"kvm\",\"status\":\"${status}\",\"ipAddress\":$([ -n "$vm_ip" ] && echo "\"$vm_ip\"" || echo "null"),\"hostname\":$([ -n "$vm_hostname" ] && echo "\"$hostname_escaped\"" || echo "null"),\"networkRxBytes\":${rx_bytes},\"networkTxBytes\":${tx_bytes},\"metadata\":{\"vcpus\":${vcpus:-0},\"memoryKB\":${mem_kb:-0}}}")
+        json_entries+=("{\"containerId\":\"${vm_uuid}\",\"name\":\"${name_escaped}\",\"type\":\"kvm\",\"status\":\"${status}\",\"ipAddress\":$([ -n "$vm_ip" ] && echo "\"$vm_ip\"" || echo "null"),\"hostname\":$([ -n "$vm_hostname" ] && echo "\"$hostname_escaped\"" || echo "null"),\"networkRxBytes\":${rx_bytes},\"networkTxBytes\":${tx_bytes},\"metadata\":{\"vcpus\":${vcpus:-0},\"memoryKB\":${mem_kb:-0},\"diskSizeBytes\":${disk_size_bytes}}}")
       done < <(virsh list --all 2>/dev/null | tail -n +3)
       ;;
 
@@ -821,6 +862,9 @@ gather_containers() {
     local IFS=','
     containers="[${json_entries[*]}]"
   fi
+
+  # Export VG info for the caller
+  [[ -n "$vg_info" ]] && GATHER_VG_INFO="$vg_info"
 
   echo "$containers"
 }
@@ -2841,8 +2885,8 @@ _cache = {'ts': 0, 'data': None}
 
 def run_cmd(cmd, timeout=10):
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        return r.stdout.strip()
+        r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        return r.stdout.decode('utf-8', errors='replace').strip()
     except Exception:
         return ''
 
@@ -3704,7 +3748,11 @@ report_containers() {
   log_info "Found ${count} container(s)/VM(s), reporting to NodePrism..."
 
   local payload
-  payload="{\"serverId\":\"${server_id}\",\"containers\":${container_json}}"
+  if [[ -n "$GATHER_VG_INFO" ]]; then
+    payload="{\"serverId\":\"${server_id}\",\"containers\":${container_json},\"storagePool\":${GATHER_VG_INFO}}"
+  else
+    payload="{\"serverId\":\"${server_id}\",\"containers\":${container_json}}"
+  fi
 
   local ssl_opts
   ssl_opts=$(build_curl_ssl_opts)
@@ -4131,6 +4179,148 @@ TIMEREOF
   log_info "Container collector installed (updates every 30s)"
 }
 
+setup_lvm_collector() {
+  # Only set up on KVM hosts with LVM storage and node_exporter installed
+  if ! command -v lvs &>/dev/null || ! command -v virsh &>/dev/null; then
+    return 0
+  fi
+
+  local textfile_dir="/var/lib/node_exporter/textfile"
+
+  # Ensure textfile collector is enabled on node_exporter
+  local ne_svc="/etc/systemd/system/node_exporter.service"
+  if [[ -f "$ne_svc" ]]; then
+    if ! grep -q "collector.textfile" "$ne_svc"; then
+      log_info "Enabling textfile collector on node_exporter..."
+      mkdir -p "$textfile_dir"
+      local svc_user svc_group
+      svc_user=$(grep '^User=' "$ne_svc" 2>/dev/null | cut -d= -f2)
+      svc_group=$(grep '^Group=' "$ne_svc" 2>/dev/null | cut -d= -f2)
+      chown "${svc_user:-root}:${svc_group:-root}" "$textfile_dir" 2>/dev/null
+      # Append textfile flags to ExecStart
+      sed -i "s|^ExecStart=\(.*node_exporter\)\(.*\)|ExecStart=\1\2 --collector.textfile --collector.textfile.directory=${textfile_dir}|" "$ne_svc"
+      systemctl daemon-reload
+      systemctl restart node_exporter >/dev/null 2>&1
+    else
+      # Extract existing textfile dir from the service
+      local extracted_dir
+      extracted_dir=$(sed -n 's/.*collector\.textfile\.directory=\([^ ]*\).*/\1/p' "$ne_svc" | head -1)
+      [[ -n "$extracted_dir" ]] && textfile_dir="$extracted_dir"
+    fi
+  fi
+
+  mkdir -p "$textfile_dir"
+
+  log_info "Setting up LVM metrics collector..."
+
+  cat > /usr/local/bin/nodeprism-lvm-collector <<LVMSCRIPT
+#!/bin/bash
+# NodePrism LVM Metrics Collector
+# Writes Prometheus textfile metrics for LVM volume groups and per-VM logical volumes.
+
+TEXTFILE_DIR="${textfile_dir}"
+PROM_FILE="\${TEXTFILE_DIR}/nodeprism_lvm.prom"
+TMP_FILE="\${PROM_FILE}.tmp"
+
+# VG metrics
+write_vg_metrics() {
+  while IFS= read -r line; do
+    [[ -z "\$line" ]] && continue
+    local vg_name vg_size vg_free
+    vg_name=\$(echo "\$line" | awk '{print \$1}')
+    vg_size=\$(echo "\$line" | awk '{print \$2}')
+    vg_free=\$(echo "\$line" | awk '{print \$3}')
+    echo "nodeprism_lvm_vg_size_bytes{vg=\"\${vg_name}\"} \${vg_size}"
+    echo "nodeprism_lvm_vg_free_bytes{vg=\"\${vg_name}\"} \${vg_free}"
+    echo "nodeprism_lvm_vg_used_bytes{vg=\"\${vg_name}\"} \$(( vg_size - vg_free ))"
+  done < <(vgs --noheadings --nosuffix --units b -o vg_name,vg_size,vg_free 2>/dev/null)
+}
+
+# Per-LV metrics (mapped to VM names via virsh)
+write_lv_metrics() {
+  # Build LV path → size map
+  declare -A lv_sizes
+  while IFS= read -r line; do
+    [[ -z "\$line" ]] && continue
+    local lv_size lv_path
+    lv_size=\$(echo "\$line" | awk '{print \$1}')
+    lv_path=\$(echo "\$line" | awk '{print \$2}')
+    [[ -n "\$lv_path" && -n "\$lv_size" ]] && lv_sizes["\$lv_path"]="\$lv_size"
+  done < <(lvs --noheadings --nosuffix --units b -o lv_size,lv_path 2>/dev/null)
+
+  # Map VM → disk source → LV size
+  if command -v virsh &>/dev/null; then
+    while IFS= read -r vmline; do
+      [[ -z "\$vmline" ]] && continue
+      local vm_name vm_state
+      vm_name=\$(echo "\$vmline" | awk '{print \$2}')
+      vm_state=\$(echo "\$vmline" | awk '{\$1=""; \$2=""; print}' | sed 's/^ *//')
+      [[ -z "\$vm_name" || "\$vm_name" == "Name" ]] && continue
+
+      local total_disk=0
+      while IFS= read -r ds; do
+        [[ -z "\$ds" ]] && continue
+        if [[ -n "\${lv_sizes[\$ds]+x}" ]]; then
+          total_disk=\$(( total_disk + \${lv_sizes[\$ds]} ))
+        fi
+      done <<< "\$(virsh dumpxml "\$vm_name" 2>/dev/null | sed -n "s/.*source dev='\([^']*\)'.*/\1/p")"
+
+      if [[ \$total_disk -gt 0 ]]; then
+        local safe_name
+        safe_name=\$(echo "\$vm_name" | sed 's/[^a-zA-Z0-9._-]/_/g')
+        echo "nodeprism_lvm_vm_disk_bytes{domain=\"\${safe_name}\"} \${total_disk}"
+      fi
+    done < <(virsh list --all 2>/dev/null | tail -n +3)
+  fi
+}
+
+# Write atomically
+{
+  echo "# HELP nodeprism_lvm_vg_size_bytes Total size of LVM volume group in bytes"
+  echo "# TYPE nodeprism_lvm_vg_size_bytes gauge"
+  echo "# HELP nodeprism_lvm_vg_free_bytes Free space in LVM volume group in bytes"
+  echo "# TYPE nodeprism_lvm_vg_free_bytes gauge"
+  echo "# HELP nodeprism_lvm_vg_used_bytes Used space in LVM volume group in bytes"
+  echo "# TYPE nodeprism_lvm_vg_used_bytes gauge"
+  write_vg_metrics
+  echo "# HELP nodeprism_lvm_vm_disk_bytes Total LVM disk allocation per VM in bytes"
+  echo "# TYPE nodeprism_lvm_vm_disk_bytes gauge"
+  write_lv_metrics
+} > "\${TMP_FILE}"
+
+mv "\${TMP_FILE}" "\${PROM_FILE}"
+LVMSCRIPT
+  chmod +x /usr/local/bin/nodeprism-lvm-collector
+
+  cat > /etc/systemd/system/nodeprism-lvm-collector.service <<LVMSVCEOF
+[Unit]
+Description=NodePrism LVM Metrics Collector
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/nodeprism-lvm-collector
+LVMSVCEOF
+
+  cat > /etc/systemd/system/nodeprism-lvm-collector.timer <<LVMTIMEREOF
+[Unit]
+Description=Run NodePrism LVM metrics collector every 30s
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
+LVMTIMEREOF
+
+  systemctl daemon-reload
+  systemctl enable --now nodeprism-lvm-collector.timer >/dev/null 2>&1
+
+  log_info "LVM metrics collector installed (writes to ${textfile_dir}/nodeprism_lvm.prom every 30s)"
+}
+
 do_install() {
   choose_agent_type
   configure_agent
@@ -4147,6 +4337,7 @@ do_install() {
   register_with_api
   report_containers
   setup_container_collector
+  setup_lvm_collector
   print_summary
 }
 

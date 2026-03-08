@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "targets": [
+      "108.170.55.202:9122"
+    ],
+    "labels": {
+      "server_id": "59222b1a-9711-46c4-acda-ddda21e2ecb0",
+      "hostname": "terminal4.veeblehosting.com",
+      "environment": "production",
+      "agent_type": "litespeed_exporter"
+    }
+  },
+  {
+    "targets": [
+      "185.56.136.50:9122"
+    ],
+    "labels": {
+      "server_id": "f7a2290f-8cfc-40cb-b978-9f725119eb20",
+      "hostname": "terminal7.veeblehosting.com",
+      "environment": "production",
+      "agent_type": "litespeed_exporter"
+    }
+  }
+]

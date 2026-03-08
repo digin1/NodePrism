@@ -1,5 +1,7 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "description": "Container and VM overview with live metrics from Prometheus and inventory from PostgreSQL",
   "editable": true,
   "fiscalYearStartMonth": 0,
@@ -10,8 +12,16 @@
     {
       "title": "Total Containers / VMs",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 0 },
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
       "targets": [
         {
           "rawSql": "SELECT COUNT(*) AS \"Total\" FROM virtual_containers",
@@ -20,14 +30,24 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "none" }
+        "defaults": {
+          "unit": "none"
+        }
       }
     },
     {
       "title": "Running",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "count(libvirt_domain_info_vstate == 1) or count(libvirt_domain_info_vstate{domain=~\".+\"}) * 0",
@@ -40,7 +60,10 @@
           "unit": "none",
           "thresholds": {
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         }
@@ -49,8 +72,16 @@
     {
       "title": "Stopped",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "count(libvirt_domain_info_vstate == 5) or count(libvirt_domain_info_vstate{domain=~\".+\"}) * 0",
@@ -63,7 +94,10 @@
           "unit": "none",
           "thresholds": {
             "steps": [
-              { "color": "orange", "value": null }
+              {
+                "color": "orange",
+                "value": null
+              }
             ]
           }
         }
@@ -72,8 +106,16 @@
     {
       "title": "Total vCPUs",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(libvirt_domain_info_virtual_cpus)",
@@ -82,14 +124,24 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "none" }
+        "defaults": {
+          "unit": "none"
+        }
       }
     },
     {
       "title": "Total Memory Allocated",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(libvirt_domain_info_maximum_memory_bytes)",
@@ -98,14 +150,24 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "bytes" }
+        "defaults": {
+          "unit": "bytes"
+        }
       }
     },
     {
       "title": "By Type",
       "type": "piechart",
-      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 0 },
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
       "targets": [
         {
           "rawSql": "SELECT type AS metric, COUNT(*) AS value FROM virtual_containers GROUP BY type ORDER BY value DESC",
@@ -117,8 +179,16 @@
     {
       "title": "VM CPU Usage Over Time (Top 20)",
       "type": "timeseries",
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 5 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "topk(20, rate(libvirt_domain_info_cpu_time_seconds_total[5m]) * 100)",
@@ -133,20 +203,40 @@
             "drawStyle": "line",
             "lineWidth": 1,
             "fillOpacity": 10,
-            "stacking": { "mode": "none" }
+            "stacking": {
+              "mode": "none"
+            }
           }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi", "sort": "desc" },
-        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
     },
     {
       "title": "VM Memory Usage Over Time (Top 20)",
       "type": "timeseries",
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 5 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "topk(20, libvirt_domain_info_memory_usage_bytes)",
@@ -161,20 +251,40 @@
             "drawStyle": "line",
             "lineWidth": 1,
             "fillOpacity": 10,
-            "stacking": { "mode": "none" }
+            "stacking": {
+              "mode": "none"
+            }
           }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi", "sort": "desc" },
-        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
     },
     {
       "title": "VM Disk Read Rate (Top 10)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "topk(10, sum by (domain) (rate(libvirt_domain_block_stats_read_bytes_total[5m])))",
@@ -193,15 +303,29 @@
         }
       },
       "options": {
-        "tooltip": { "mode": "multi", "sort": "desc" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "title": "VM Disk Write Rate (Top 10)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "topk(10, sum by (domain) (rate(libvirt_domain_block_stats_write_bytes_total[5m])))",
@@ -220,15 +344,29 @@
         }
       },
       "options": {
-        "tooltip": { "mode": "multi", "sort": "desc" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "title": "VM Network RX Rate (Top 10)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (domain) (rate(libvirt_domain_interface_stats_receive_bytes_total[5m])) > 100",
@@ -243,22 +381,42 @@
             "drawStyle": "line",
             "lineWidth": 2,
             "fillOpacity": 20,
-            "stacking": { "mode": "none" },
+            "stacking": {
+              "mode": "none"
+            },
             "pointSize": 5,
             "showPoints": "auto"
           }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi", "sort": "desc" },
-        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
     },
     {
       "title": "VM Network TX Rate (Top 10)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (domain) (rate(libvirt_domain_interface_stats_transmit_bytes_total[5m])) > 100",
@@ -273,22 +431,42 @@
             "drawStyle": "line",
             "lineWidth": 2,
             "fillOpacity": 20,
-            "stacking": { "mode": "none" },
+            "stacking": {
+              "mode": "none"
+            },
             "pointSize": 5,
             "showPoints": "auto"
           }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi", "sort": "desc" },
-        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
     },
     {
       "title": "VM Status Summary",
       "type": "piechart",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 31 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 31
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "count(libvirt_domain_info_vstate == 1)",
@@ -308,22 +486,83 @@
       ],
       "fieldConfig": {
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Running" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Paused" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Shutoff" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Running"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Paused"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Shutoff"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
         "pieType": "donut",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Top 10 VMs by CPU Usage (Current)",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 31 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 31
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "topk(10, rate(libvirt_domain_info_cpu_time_seconds_total[5m]) * 100)",
@@ -337,9 +576,18 @@
           "unit": "percent",
           "thresholds": {
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 50 },
-              { "color": "red", "value": 80 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           },
           "max": 100
@@ -348,14 +596,26 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Top 10 VMs by Memory Usage (Current)",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 31 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 31
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "topk(10, libvirt_domain_info_memory_usage_bytes)",
@@ -369,9 +629,18 @@
           "unit": "bytes",
           "thresholds": {
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 8589934592 },
-              { "color": "red", "value": 17179869184 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 8589934592
+              },
+              {
+                "color": "red",
+                "value": 17179869184
+              }
             ]
           }
         }
@@ -379,14 +648,26 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Containers by Server",
       "type": "table",
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 39 },
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 39
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
       "targets": [
         {
           "rawSql": "SELECT s.hostname AS \"Server\", COUNT(vc.id) AS \"Containers\", COUNT(CASE WHEN vc.status = 'running' THEN 1 END) AS \"Running\", COUNT(CASE WHEN vc.status = 'stopped' THEN 1 END) AS \"Stopped\", pg_size_pretty(SUM(vc.network_rx_bytes + vc.network_tx_bytes)) AS \"Total Traffic\" FROM virtual_containers vc JOIN servers s ON vc.server_id = s.id GROUP BY s.hostname ORDER BY COUNT(vc.id) DESC",
@@ -398,8 +679,16 @@
     {
       "title": "Top Containers by Network RX",
       "type": "bargauge",
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 39 },
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 39
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
       "targets": [
         {
           "rawSql": "SELECT vc.name AS metric, vc.network_rx_bytes AS \"RX Bytes\" FROM virtual_containers vc WHERE vc.status = 'running' ORDER BY vc.network_rx_bytes DESC LIMIT 10",
@@ -412,9 +701,18 @@
           "unit": "bytes",
           "thresholds": {
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1073741824 },
-              { "color": "red", "value": 10737418240 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1073741824
+              },
+              {
+                "color": "red",
+                "value": 10737418240
+              }
             ]
           }
         }
@@ -422,14 +720,26 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "All Containers",
       "type": "table",
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 49 },
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 49
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
       "targets": [
         {
           "rawSql": "SELECT vc.name AS \"Name\", vc.type AS \"Type\", vc.status AS \"Status\", vc.container_id AS \"Container ID\", s.hostname AS \"Server\", vc.ip_address AS \"IP Address\", pg_size_pretty(vc.network_rx_bytes) AS \"RX\", pg_size_pretty(vc.network_tx_bytes) AS \"TX\", vc.last_seen AS \"Last Seen\" FROM virtual_containers vc JOIN servers s ON vc.server_id = s.id ORDER BY vc.status, vc.name",
@@ -441,8 +751,16 @@
     {
       "title": "Recently Updated Containers",
       "type": "table",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 61 },
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 61
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
       "targets": [
         {
           "rawSql": "SELECT vc.name AS \"Name\", vc.type AS \"Type\", vc.status AS \"Status\", s.hostname AS \"Server\", vc.last_seen AS \"Last Seen\", vc.updated_at AS \"Updated\" FROM virtual_containers vc JOIN servers s ON vc.server_id = s.id WHERE vc.updated_at >= NOW() - INTERVAL '24 hours' ORDER BY vc.updated_at DESC LIMIT 20",
@@ -450,13 +768,454 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "title": "VG Total Size",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 69
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "nodeprism_lvm_vg_size_bytes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "id": 200
+    },
+    {
+      "title": "VG Used",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 69
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "nodeprism_lvm_vg_used_bytes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "id": 201
+    },
+    {
+      "title": "VG Free",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 69
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "nodeprism_lvm_vg_free_bytes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "id": 202
+    },
+    {
+      "title": "VG Usage %",
+      "type": "gauge",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 69
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * nodeprism_lvm_vg_used_bytes / nodeprism_lvm_vg_size_bytes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showThresholdMarkers": true,
+        "showThresholdLabels": false
+      },
+      "id": 203
+    },
+    {
+      "title": "VG Free Over Time",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 69
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "nodeprism_lvm_vg_free_bytes",
+          "legendFormat": "Free",
+          "refId": "A"
+        },
+        {
+          "expr": "nodeprism_lvm_vg_used_bytes",
+          "legendFormat": "Used",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "fillOpacity": 20,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 204
+    },
+    {
+      "title": "VM Disk Allocation (Top 20)",
+      "type": "barchart",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 74
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "topk(20, nodeprism_lvm_vm_disk_bytes)",
+          "legendFormat": "{{domain}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "barWidth": 0.8,
+        "showValue": "auto"
+      },
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "lastNotNull"
+            ]
+          }
+        }
+      ],
+      "id": 205
+    },
+    {
+      "title": "VM Disk Allocation Over Time (Top 10)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 74
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, nodeprism_lvm_vm_disk_bytes)",
+          "legendFormat": "{{domain}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 206
+    },
+    {
+      "title": "All VMs - Disk Allocation",
+      "type": "table",
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 84
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "nodeprism_lvm_vm_disk_bytes",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "domain"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "server_id": true,
+              "agent_type": true,
+              "environment": true,
+              "hostname": true
+            },
+            "renameByName": {
+              "Value": "Disk Size",
+              "domain": "VM Name"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Disk Size",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Disk Size"
+          ]
+        }
+      },
+      "id": 207
     }
   ],
   "refresh": "1m",
   "schemaVersion": 38,
-  "tags": ["nodeprism", "containers", "vm"],
-  "templating": { "list": [] },
-  "time": { "from": "now-24h", "to": "now" },
+  "tags": [
+    "nodeprism",
+    "containers",
+    "vm"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
   "title": "Container / VM Overview",
   "uid": "nodeprism-container-overview"
 }

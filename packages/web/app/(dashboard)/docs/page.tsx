@@ -49,7 +49,7 @@ server (API + Web UI) and lightweight agents deployed on monitored servers.`,
     title: 'Agent Setup',
     steps: [
       'SSH into the target server you want to monitor.',
-      'Run the agent installer: curl -sL http://66.85.173.55:4000/agent-install.sh | sudo bash',
+      'Run the agent installer: curl -sL http://{MANAGER_IP}/agent-install.sh | sudo bash',
       'Select "1) Install a new agent" and choose the agent type (e.g., Node Exporter for system metrics).',
       'The agent will automatically register with the manager and begin reporting metrics.',
       'Verify the agent appears in the Servers page with a "connected" status.',
@@ -114,6 +114,8 @@ on the main Dashboard page.`,
 ];
 
 export default function DocsPage() {
+  const managerIp = typeof window !== 'undefined' ? window.location.hostname : 'MANAGER_IP';
+
   return (
     <div className="space-y-6">
       <div>
@@ -157,7 +159,7 @@ export default function DocsPage() {
             {section.steps && (
               <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
                 {section.steps.map((step, i) => (
-                  <li key={i} className="leading-relaxed">{step}</li>
+                  <li key={i} className="leading-relaxed">{step.replace('{MANAGER_IP}', managerIp)}</li>
                 ))}
               </ol>
             )}

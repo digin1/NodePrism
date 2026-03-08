@@ -89,6 +89,9 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
         updates: {
           orderBy: { createdAt: 'asc' },
         },
+        server: {
+          select: { id: true, hostname: true, ipAddress: true },
+        },
       },
     });
 

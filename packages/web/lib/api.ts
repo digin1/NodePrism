@@ -213,6 +213,18 @@ export interface ContainerMetrics {
   netTxBytesPerSec: number | null;
 }
 
+export interface StoragePool {
+  name: string;
+  sizeBytes: number;
+  freeBytes: number;
+}
+
+export interface ContainerMetricsResponse {
+  success: boolean;
+  data: ContainerMetrics[];
+  storagePool: StoragePool | null;
+}
+
 export const containerApi = {
   listByServer: (serverId: string) =>
     getData<VirtualContainer[]>(api.get(`/api/containers/server/${serverId}`)),
@@ -221,7 +233,7 @@ export const containerApi = {
       api.get(`/api/containers/${id}`)
     ),
   metrics: (serverId: string) =>
-    getData<ContainerMetrics[]>(api.get(`/api/containers/server/${serverId}/metrics`)),
+    getRaw<ContainerMetricsResponse>(api.get(`/api/containers/server/${serverId}/metrics`)),
 };
 
 // Agent API

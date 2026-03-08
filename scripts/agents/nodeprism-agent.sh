@@ -949,6 +949,136 @@ detect_installed() {
   echo "${installed[@]}"
 }
 
+# ─── Firewall Management ─────────────────────────────────────────────
+
+# Detect which firewall is active
+detect_firewall() {
+  if command -v csf &>/dev/null && [[ -f /etc/csf/csf.conf ]]; then
+    echo "csf"
+  elif command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "active"; then
+    echo "ufw"
+  elif command -v firewall-cmd &>/dev/null && firewall-cmd --state 2>/dev/null | grep -q "running"; then
+    echo "firewalld"
+  elif command -v iptables &>/dev/null; then
+    # Only count as iptables firewall if there are non-default rules
+    local rules
+    rules=$(iptables -S INPUT 2>/dev/null | grep -v '^-P ' | wc -l)
+    if [[ "$rules" -gt 0 ]]; then
+      echo "iptables"
+    else
+      echo "none"
+    fi
+  else
+    echo "none"
+  fi
+}
+
+# Open a TCP port in the detected firewall
+open_firewall_port() {
+  local port="$1"
+  local fw
+  fw=$(detect_firewall)
+
+  log_step "Firewall Configuration"
+  log_info "Detected firewall: ${fw}"
+
+  case "$fw" in
+    csf)
+      # Check if port is already in TCP_IN
+      if grep -q "TCP_IN.*${port}" /etc/csf/csf.conf 2>/dev/null; then
+        log_info "Port ${port} already allowed in CSF"
+        return 0
+      fi
+
+      # Add port to TCP_IN
+      local current_tcp_in
+      current_tcp_in=$(grep '^TCP_IN' /etc/csf/csf.conf | head -1 | cut -d'"' -f2)
+      if [[ -n "$current_tcp_in" ]]; then
+        local new_tcp_in="${current_tcp_in},${port}"
+        sed -i "s/^TCP_IN = \"${current_tcp_in}\"/TCP_IN = \"${new_tcp_in}\"/" /etc/csf/csf.conf
+        csf -r >/dev/null 2>&1
+        log_info "Port ${port}/tcp added to CSF TCP_IN and firewall restarted"
+      else
+        log_warn "Could not parse CSF TCP_IN — add port ${port} manually"
+        log_warn "  Edit /etc/csf/csf.conf → TCP_IN, add ${port}, then: csf -r"
+      fi
+      ;;
+
+    ufw)
+      ufw allow "${port}/tcp" >/dev/null 2>&1
+      log_info "Port ${port}/tcp allowed in UFW"
+      ;;
+
+    firewalld)
+      firewall-cmd --permanent --add-port="${port}/tcp" >/dev/null 2>&1
+      firewall-cmd --reload >/dev/null 2>&1
+      log_info "Port ${port}/tcp allowed in firewalld"
+      ;;
+
+    iptables)
+      # Insert rule to accept TCP on the port
+      iptables -I INPUT -p tcp --dport "${port}" -j ACCEPT 2>/dev/null
+      # Try to save rules persistently
+      if command -v iptables-save &>/dev/null; then
+        if [[ -f /etc/sysconfig/iptables ]]; then
+          iptables-save > /etc/sysconfig/iptables
+        elif command -v netfilter-persistent &>/dev/null; then
+          netfilter-persistent save 2>/dev/null
+        fi
+      fi
+      log_info "Port ${port}/tcp allowed in iptables"
+      ;;
+
+    none)
+      log_info "No active firewall detected — port ${port} should be accessible"
+      ;;
+  esac
+}
+
+# Close a TCP port in the detected firewall
+close_firewall_port() {
+  local port="$1"
+  local fw
+  fw=$(detect_firewall)
+
+  case "$fw" in
+    csf)
+      local current_tcp_in
+      current_tcp_in=$(grep '^TCP_IN' /etc/csf/csf.conf | head -1 | cut -d'"' -f2)
+      if [[ -n "$current_tcp_in" ]]; then
+        # Remove the port (handle both ",port" and "port," patterns)
+        local new_tcp_in
+        new_tcp_in=$(echo "$current_tcp_in" | sed "s/,${port}\b//g; s/\b${port},//g; s/^${port}$//g")
+        if [[ "$new_tcp_in" != "$current_tcp_in" ]]; then
+          sed -i "s/^TCP_IN = \"${current_tcp_in}\"/TCP_IN = \"${new_tcp_in}\"/" /etc/csf/csf.conf
+          csf -r >/dev/null 2>&1
+          log_info "Port ${port}/tcp removed from CSF"
+        fi
+      fi
+      ;;
+    ufw)
+      ufw delete allow "${port}/tcp" >/dev/null 2>&1
+      log_info "Port ${port}/tcp removed from UFW"
+      ;;
+    firewalld)
+      firewall-cmd --permanent --remove-port="${port}/tcp" >/dev/null 2>&1
+      firewall-cmd --reload >/dev/null 2>&1
+      log_info "Port ${port}/tcp removed from firewalld"
+      ;;
+    iptables)
+      iptables -D INPUT -p tcp --dport "${port}" -j ACCEPT 2>/dev/null || true
+      if command -v iptables-save &>/dev/null; then
+        if [[ -f /etc/sysconfig/iptables ]]; then
+          iptables-save > /etc/sysconfig/iptables
+        elif command -v netfilter-persistent &>/dev/null; then
+          netfilter-persistent save 2>/dev/null
+        fi
+      fi
+      log_info "Port ${port}/tcp removed from iptables"
+      ;;
+  esac
+}
+
 # ─── Banner ───────────────────────────────────────────────────────────
 print_banner() {
   echo ""
@@ -1453,6 +1583,12 @@ uninstall_agent() {
   echo ""
   log_info "Uninstalling ${agent}..."
 
+  # Detect port before removing service file (needed for firewall cleanup)
+  local agent_port=""
+  if [[ -f "/etc/systemd/system/${agent}.service" ]]; then
+    agent_port=$(grep -oP 'listen-address=:?\K[0-9]+' "/etc/systemd/system/${agent}.service" 2>/dev/null || echo "")
+  fi
+
   # Stop and disable service
   if systemctl is-active --quiet "$agent" 2>/dev/null; then
     log_info "  Stopping service..."
@@ -1509,6 +1645,11 @@ uninstall_agent() {
         log_info "  User removed"
       fi
     fi
+  fi
+
+  # Close firewall port
+  if [[ -n "$agent_port" ]]; then
+    close_firewall_port "$agent_port"
   fi
 
   log_info "${agent} uninstalled"
@@ -3920,6 +4061,7 @@ do_install() {
   create_env_file
   create_systemd_service
   start_service
+  open_firewall_port "$LISTEN_PORT"
   verify_installation
   generate_agent_certs
   register_with_api
@@ -3941,7 +4083,27 @@ main() {
     update)      do_update ;;
     auto-update) setup_auto_update_cron ;;
     status)      do_status ;;
-    "")          main_menu ;;
+    "")
+      if [[ "${NODEPRISM_NO_TTY:-}" == "1" ]]; then
+        echo ""
+        log_error "No terminal available for interactive mode."
+        echo ""
+        echo "  Usage:  curl -sL http://<manager>:4000/agent-install.sh | sudo bash -s -- <command>"
+        echo ""
+        echo "  Commands:"
+        echo "    install --non-interactive --type node_exporter    Install node_exporter"
+        echo "    install --non-interactive --type promtail         Install promtail"
+        echo "    status                                            Show agent status"
+        echo "    install                                           Interactive install (needs TTY)"
+        echo ""
+        echo "  Interactive mode (save script first):"
+        echo "    curl -sL http://<manager>:4000/agent-install.sh -o nodeprism-agent.sh"
+        echo "    sudo bash nodeprism-agent.sh"
+        echo ""
+        exit 1
+      fi
+      main_menu
+      ;;
     *)
       log_error "Unknown command: $COMMAND"
       echo "Run '$0 --help' for usage."
@@ -3959,8 +4121,16 @@ main
 
 # Close the wrapper function and run it.
 # If piped (curl | bash), reconnect stdin to /dev/tty for interactive prompts.
-if [ ! -t 0 ] && [ -e /dev/tty ]; then
+# Use a subshell test to verify /dev/tty is actually openable (not just present as a node).
+if [ -t 0 ]; then
+  # Already have a terminal — run directly
+  _nodeprism_main "$@"
+elif (exec < /dev/tty) 2>/dev/null; then
+  # Piped but /dev/tty is available — reconnect for interactive prompts
   _nodeprism_main "$@" < /dev/tty
 else
+  # No terminal available at all (e.g. cron, certain SSH/sudo contexts)
+  # Force non-interactive if no command given, or run the command as-is
+  export NODEPRISM_NO_TTY=1
   _nodeprism_main "$@"
 fi

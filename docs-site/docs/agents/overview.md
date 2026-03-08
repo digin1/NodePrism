@@ -9,16 +9,41 @@ A single script to install, uninstall, and manage monitoring agents on your serv
 
 ## Quick Start
 
-Copy `scripts/agents/nodeprism-agent.sh` to your target server and run:
+### One-Liner Install (Recommended)
+
+Install agents directly from your NodePrism manager via `curl`. The script is served through **nginx on port 80**, so it works even on servers with restrictive firewalls (e.g., CSF/cPanel):
 
 ```bash
-# Interactive menu (install, uninstall, or check status)
-sudo ./nodeprism-agent.sh
+# Install node_exporter (non-interactive)
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type node_exporter
 
-# Direct commands
-sudo ./nodeprism-agent.sh install
-sudo ./nodeprism-agent.sh uninstall
-sudo ./nodeprism-agent.sh status
+# Install promtail
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install --non-interactive --type promtail
+
+# Check agent status
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- status
+
+# Uninstall an agent
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- uninstall --type node_exporter --non-interactive
+```
+
+> **Note:** The script is served on port 80 (via nginx reverse proxy) because many servers with CSF or strict firewalls block non-standard outbound ports like 3000 or 4000. Port 80 is universally allowed.
+
+### Interactive Mode
+
+For interactive mode (menus/prompts), download the script first:
+
+```bash
+curl -sL http://MANAGER_IP/agent-install.sh -o nodeprism-agent.sh
+sudo bash nodeprism-agent.sh
+```
+
+Or copy `scripts/agents/nodeprism-agent.sh` to the target server manually:
+
+```bash
+sudo ./nodeprism-agent.sh              # Interactive menu
+sudo ./nodeprism-agent.sh install      # Interactive install
+sudo ./nodeprism-agent.sh status       # Show agent status
 ```
 
 ## Available Agents
@@ -43,18 +68,18 @@ sudo ./nodeprism-agent.sh status
 # Install node_exporter with defaults
 sudo ./nodeprism-agent.sh install --non-interactive --type node_exporter
 
-# Install and register with manager
+# Install and register with manager (auto-detected when using curl one-liner)
 sudo ./nodeprism-agent.sh install --non-interactive --type node_exporter \
-  --api-url http://manager:4000
+  --api-url http://manager-ip
 
 # Custom port
 sudo ./nodeprism-agent.sh install --non-interactive --type node_exporter --port 9101
 
 # Uninstall specific agent
-sudo ./nodeprism-agent.sh uninstall --type node_exporter
+sudo ./nodeprism-agent.sh uninstall --type node_exporter --non-interactive
 
 # Uninstall all agents
-sudo ./nodeprism-agent.sh uninstall --type all
+sudo ./nodeprism-agent.sh uninstall --type all --non-interactive
 ```
 
 ## What the Installer Does
@@ -63,7 +88,23 @@ sudo ./nodeprism-agent.sh uninstall --type all
 2. Downloads the official binary from GitHub releases
 3. Creates a systemd service with security hardening
 4. Starts and enables the service
-5. Optionally registers with your NodePrism manager API
+5. **Auto-detects and configures firewall** (CSF, UFW, firewalld, iptables) — opens the agent port
+6. Registers with your NodePrism manager API (auto-detected from the download URL)
+7. Detects containers/VMs on virtualization hosts and reports them
+
+## Firewall Auto-Configuration
+
+The installer automatically detects and opens the agent port in your firewall:
+
+| Firewall | Detection | Action |
+|----------|-----------|--------|
+| **CSF** (cPanel/WHM) | `/etc/csf/csf.conf` exists | Adds port to `TCP_IN`, runs `csf -r` |
+| **UFW** (Ubuntu) | `ufw status` is active | `ufw allow <port>/tcp` |
+| **firewalld** (CentOS/RHEL) | `firewall-cmd --state` is running | `firewall-cmd --permanent --add-port` + reload |
+| **iptables** | Non-default rules exist | `iptables -I INPUT` + saves rules |
+| **None** | No firewall detected | Skips (port already accessible) |
+
+On uninstall, the port is automatically closed/removed from the firewall.
 
 ## Container / VM Detection
 

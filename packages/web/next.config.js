@@ -29,6 +29,11 @@ const nextConfig = {
           source: '/socket.io/:path*',
           destination: 'http://localhost:4000/socket.io/:path*',
         },
+        // Agent install script - served through port 3000 so remote servers can access it
+        {
+          source: '/agent-install.sh',
+          destination: 'http://localhost:4000/agent-install.sh',
+        },
       ],
       afterFiles: [],
       fallback: [

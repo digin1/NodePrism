@@ -72,6 +72,29 @@ groups:
           summary: "Critical disk space on {{ $labels.instance }}"
           description: "Disk {{ $labels.mountpoint }} usage is above 95% (current value: {{ $value }}%)"
 
+  - name: storage_alerts
+    interval: 30s
+    rules:
+      # LVM Volume Group low space (KVM hosts)
+      - alert: LVMVolumeGroupLowSpace
+        expr: (1 - (nodeprism_lvm_vg_free_bytes / nodeprism_lvm_vg_size_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LVM VG {{ $labels.vg }} low on space on {{ $labels.instance }}"
+          description: "Volume group {{ $labels.vg }} is {{ $value | printf \"%.1f\" }}% full"
+
+      # LVM Volume Group critical space (KVM hosts)
+      - alert: LVMVolumeGroupCriticalSpace
+        expr: (1 - (nodeprism_lvm_vg_free_bytes / nodeprism_lvm_vg_size_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LVM VG {{ $labels.vg }} critically full on {{ $labels.instance }}"
+          description: "Volume group {{ $labels.vg }} is {{ $value | printf \"%.1f\" }}% full — VM provisioning may fail"
+
   - name: monitoring_alerts
     interval: 30s
     rules:

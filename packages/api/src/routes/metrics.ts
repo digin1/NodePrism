@@ -464,6 +464,82 @@ router.get('/server/:serverId/chart-data', async (req: Request, res: Response, n
   }
 });
 
+// Get cPanel account details from Prometheus
+router.get('/server/:serverId/cpanel-accounts', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId } = req.params;
+
+    // Query per-account disk usage and addon domains from Prometheus
+    const [diskRes, domainsRes] = await Promise.all([
+      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        params: { query: `cpanel_account_disk_usage_bytes{server_id="${serverId}"}` },
+      }),
+      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        params: { query: `cpanel_account_addon_domains{server_id="${serverId}"}` },
+      }),
+    ]);
+
+    const diskData = diskRes.data?.data?.result || [];
+    const domainData = domainsRes.data?.data?.result || [];
+
+    // Build account map
+    const accounts: Record<string, { account: string; diskUsage: number; domains: number }> = {};
+
+    for (const item of diskData) {
+      const account = item.metric?.account;
+      if (account) {
+        accounts[account] = {
+          account,
+          diskUsage: parseFloat(item.value[1]) || 0,
+          domains: 0,
+        };
+      }
+    }
+
+    for (const item of domainData) {
+      const account = item.metric?.account;
+      if (account) {
+        if (!accounts[account]) {
+          accounts[account] = { account, diskUsage: 0, domains: 0 };
+        }
+        accounts[account].domains = parseFloat(item.value[1]) || 0;
+      }
+    }
+
+    // Sort by disk usage descending
+    const sorted = Object.values(accounts).sort((a, b) => b.diskUsage - a.diskUsage);
+
+    res.json({ success: true, data: sorted });
+  } catch (error: any) {
+    logger.error('cPanel accounts error', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to fetch cPanel accounts' });
+  }
+});
+
+// Get Exim per-domain email stats from Prometheus
+router.get('/server/:serverId/exim-domains', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId } = req.params;
+
+    const sentRes = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+      params: { query: `exim_domain_sent_today{server_id="${serverId}"}` },
+    });
+
+    const sentData = sentRes.data?.data?.result || [];
+    const domains = sentData
+      .map((item: any) => ({
+        domain: item.metric?.domain || 'unknown',
+        sentToday: parseFloat(item.value[1]) || 0,
+      }))
+      .sort((a: any, b: any) => b.sentToday - a.sentToday);
+
+    res.json({ success: true, data: domains });
+  } catch (error: any) {
+    logger.error('Exim domains error', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to fetch Exim domain stats' });
+  }
+});
+
 // Get top-N servers by bandwidth usage
 router.get('/bandwidth/top', async (req: Request, res: Response, next: NextFunction) => {
   try {

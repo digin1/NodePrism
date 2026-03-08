@@ -112,7 +112,24 @@ Database exporters (MySQL, PostgreSQL, MongoDB) require credentials to connect t
 
 ### MySQL Exporter
 
-**1. Create a read-only MySQL monitoring user:**
+**Automatic setup (recommended):** Pass `--mysql-password` and the installer creates the MySQL user and config for you:
+
+```bash
+curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install \
+  --non-interactive --type mysql_exporter --mysql-password 'YourSecurePassword'
+```
+
+This automatically:
+1. Creates a `exporter@localhost` MySQL user (via socket auth as root)
+2. Grants read-only permissions (`PROCESS`, `REPLICATION CLIENT`, `SELECT`)
+3. Writes the config to `/etc/mysql_exporter.env`
+4. Starts the exporter
+
+You can also specify `--mysql-user` to use a different username (default: `exporter`).
+
+**Manual setup** (if automatic creation fails or you prefer manual control):
+
+1. Create a read-only MySQL monitoring user:
 
 ```bash
 mysql -e "CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY 'YourSecurePassword';
@@ -125,7 +142,7 @@ The grants are fully **read-only**:
 - `REPLICATION CLIENT` — view replication status
 - `SELECT` — read-only queries for metric collection
 
-**2. Configure the exporter credentials:**
+2. Configure the exporter credentials:
 
 ```bash
 cat > /etc/mysql_exporter.env << 'EOF'
@@ -138,13 +155,13 @@ EOF
 chmod 600 /etc/mysql_exporter.env
 ```
 
-**3. Restart the exporter:**
+3. Restart the exporter:
 
 ```bash
 systemctl restart mysql_exporter && systemctl status mysql_exporter
 ```
 
-> **Note:** If you installed via the interactive installer and left the password blank, the exporter will fail to start with `"no user specified in section or parent"`. Follow the steps above to fix it.
+> **Note:** If you installed without `--mysql-password` and left the password blank, the exporter will fail to start with `"no user specified in section or parent"`. Follow the manual steps above to fix it.
 
 ### PostgreSQL Exporter
 
@@ -210,6 +227,10 @@ Options (install):
   --log-dir DIR        Custom log directory (promtail)
   --api-url URL        NodePrism manager URL
   --api-token TOKEN    Auth token for API
+  --mysql-user USER    MySQL monitoring user (default: exporter)
+  --mysql-password PW  MySQL password (auto-creates user)
+  --db-user USER       Database user (postgres/mongodb)
+  --db-password PW     Database password (postgres/mongodb)
   --skip-register      Skip API registration
 
 Options (uninstall):

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { agentLimiter } from '../middleware/rateLimit';
 import { generateTargetFiles, reloadPrometheus } from '../services/targetGenerator';
+import { autoLabelServer } from '../services/serverAutoLabel';
 
 const router: ExpressRouter = Router();
 
@@ -150,6 +151,9 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     } catch (err) {
       logger.warn('Failed to regenerate Prometheus targets', { error: err });
     }
+
+    // Auto-label server type based on registered agents
+    autoLabelServer(server.id).catch(() => {});
 
     // Emit socket event
     const io = req.app.get('io');

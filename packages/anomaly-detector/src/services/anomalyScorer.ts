@@ -58,8 +58,8 @@ export class AnomalyScorer {
       // Get all valid models for this metric
       const models = await this.modelTrainer.getValidModels(metricName, serverId);
 
-      if (models.length === 0) {
-        return null; // No models available
+      if (models.length < 2) {
+        return null; // Need at least 2 models for meaningful consensus
       }
 
       const resolvedBase = baseMetricName || metricName.replace(/\{.*\}/, '');

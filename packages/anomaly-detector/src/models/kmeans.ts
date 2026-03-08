@@ -31,7 +31,9 @@ export class KMeansAnomalyModel {
 
   /**
    * Extract feature vectors from raw time series data
-   * Creates sliding windows of normalized values
+   * Creates sliding windows with per-window normalization (like Netdata)
+   * Each window is normalized independently so training and scoring
+   * produce comparable feature vectors regardless of absolute value scale.
    */
   extractFeatures(data: number[]): FeatureVector[] {
     if (data.length < this.windowSize) {
@@ -40,16 +42,14 @@ export class KMeansAnomalyModel {
 
     const features: FeatureVector[] = [];
 
-    // Normalize the data
-    const mean = ss.mean(data);
-    const stdDev = ss.standardDeviation(data) || 1;
-    const normalized = data.map((v) => (v - mean) / stdDev);
-
-    // Create sliding windows
-    for (let i = 0; i <= normalized.length - this.windowSize; i++) {
-      const window = normalized.slice(i, i + this.windowSize);
+    // Create sliding windows, normalizing each window independently
+    for (let i = 0; i <= data.length - this.windowSize; i++) {
+      const window = data.slice(i, i + this.windowSize);
+      const mean = ss.mean(window);
+      const stdDev = ss.standardDeviation(window) || 1;
+      const normalized = window.map((v) => (v - mean) / stdDev);
       features.push({
-        values: window,
+        values: normalized,
         timestamp: new Date(),
       });
     }
@@ -85,8 +85,8 @@ export class KMeansAnomalyModel {
       // Calculate distances to centroids for all training points
       const distances = featureMatrix.map((point) => this.minDistanceToCentroid(point));
 
-      // Set threshold at 99th percentile of distances
-      this.threshold = ss.quantile(distances, 0.99);
+      // Set threshold at 99.9th percentile of distances to reduce false positives
+      this.threshold = ss.quantile(distances, 0.999);
 
       logger.debug('Model trained', {
         centroids: this.centroids.length,

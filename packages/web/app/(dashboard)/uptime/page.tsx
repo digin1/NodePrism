@@ -268,7 +268,11 @@ export default function UptimePage() {
                   <div className="mt-2 ml-7 text-xs text-muted-foreground">
                     Last checked: {new Date(monitor.lastCheck.checkedAt).toLocaleString()}
                     {monitor.lastCheck.message && (
-                      <span className="ml-2 text-red-500">{monitor.lastCheck.message}</span>
+                      <span className={`ml-2 ${
+                        monitor.lastCheck.status === 'UP' ? 'text-green-500' :
+                        monitor.lastCheck.status === 'DEGRADED' ? 'text-yellow-500' :
+                        'text-red-500'
+                      }`}>{monitor.lastCheck.message}</span>
                     )}
                   </div>
                 )}

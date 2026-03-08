@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { api } from '@/lib/api';
+import { logsApi } from '@/lib/api';
 
 interface LogEntry {
   timestamp: string;
@@ -34,6 +34,18 @@ function detectSeverity(line: string): string {
   return 'info';
 }
 
+function buildLogQLQuery(hostname: string, job: string, level: string): string {
+  const matchers: string[] = [];
+  if (hostname) matchers.push(`hostname="${hostname}"`);
+  if (job) matchers.push(`job="${job}"`);
+  if (level) matchers.push(`level="${level}"`);
+
+  if (matchers.length === 0) {
+    return '{job=~".+"}';
+  }
+  return `{${matchers.join(', ')}}`;
+}
+
 export default function InfrastructureLogsPage() {
   const [query, setQuery] = useState('{job=~".+"}');
   const [submittedQuery, setSubmittedQuery] = useState('{job=~".+"}');
@@ -45,17 +57,43 @@ export default function InfrastructureLogsPage() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch labels for the query builder
-  const { data: labels } = useQuery({
-    queryKey: ['lokiLabels'],
-    queryFn: async () => {
-      const res = await api.get('/api/logs/labels');
-      return res.data.data as string[];
-    },
+  // Dropdown filter state
+  const [hostnameFilter, setHostnameFilter] = useState('');
+  const [jobFilter, setJobFilter] = useState('');
+  const [levelFilter, setLevelFilter] = useState('');
+  const isManualQuery = useRef(false);
+
+  // Fetch label values for dropdowns
+  const { data: hostnames } = useQuery({
+    queryKey: ['lokiLabelValues', 'hostname'],
+    queryFn: () => logsApi.labelValues('hostname'),
     staleTime: 60000,
   });
 
-  // Fetch log data - API returns already-parsed { timestamp, message, labels } objects
+  const { data: jobs } = useQuery({
+    queryKey: ['lokiLabelValues', 'job'],
+    queryFn: () => logsApi.labelValues('job'),
+    staleTime: 60000,
+  });
+
+  const { data: levels } = useQuery({
+    queryKey: ['lokiLabelValues', 'level'],
+    queryFn: () => logsApi.labelValues('level'),
+    staleTime: 60000,
+  });
+
+  // Auto-build query from dropdown selections
+  useEffect(() => {
+    if (isManualQuery.current) {
+      isManualQuery.current = false;
+      return;
+    }
+    const built = buildLogQLQuery(hostnameFilter, jobFilter, levelFilter);
+    setQuery(built);
+    setSubmittedQuery(built);
+  }, [hostnameFilter, jobFilter, levelFilter]);
+
+  // Fetch log data
   const { data: logResults, isLoading, error, refetch } = useQuery({
     queryKey: ['lokiLogs', submittedQuery, timeRange, limit],
     queryFn: async () => {
@@ -69,24 +107,19 @@ export default function InfrastructureLogsPage() {
       };
       const start = new Date(now - (ranges[timeRange] || ranges['1h'])).toISOString();
       const end = new Date(now).toISOString();
-
-      const res = await api.get('/api/logs', {
-        params: { query: submittedQuery, start, end, limit },
-      });
-      return (res.data.data || []) as LogEntry[];
+      return logsApi.query({ query: submittedQuery, start, end, limit });
     },
     enabled: !!submittedQuery && !isTailing,
   });
 
-  // The API already returns sorted, parsed log entries
-  const logEntries: LogEntry[] = logResults || [];
+  const logEntries: LogEntry[] = (logResults as LogEntry[] | undefined) || [];
 
   // Filter by text
   const filteredLogs = filterText
     ? logEntries.filter(e => e.message.toLowerCase().includes(filterText.toLowerCase()))
     : logEntries;
 
-  // Tail mode via SSE - the tail endpoint sends raw Loki result arrays
+  // Tail mode via SSE
   useEffect(() => {
     if (!isTailing) {
       if (eventSourceRef.current) {
@@ -145,8 +178,29 @@ export default function InfrastructureLogsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    isManualQuery.current = true;
     setSubmittedQuery(query);
+    setHostnameFilter('');
+    setJobFilter('');
+    setLevelFilter('');
   };
+
+  const handleQuickQuery = (q: string) => {
+    isManualQuery.current = true;
+    setQuery(q);
+    setSubmittedQuery(q);
+    setHostnameFilter('');
+    setJobFilter('');
+    setLevelFilter('');
+  };
+
+  const clearFilters = () => {
+    setHostnameFilter('');
+    setJobFilter('');
+    setLevelFilter('');
+  };
+
+  const hasActiveFilters = hostnameFilter || jobFilter || levelFilter;
 
   const displayLogs = isTailing ? tailLogs : filteredLogs;
 
@@ -193,6 +247,54 @@ export default function InfrastructureLogsPage() {
           <CardTitle className="text-sm">LogQL Query</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Filter dropdowns */}
+          <div className="flex flex-wrap gap-3">
+            <div className="min-w-[180px]">
+              <label className="text-xs text-muted-foreground mb-1 block">Hostname</label>
+              <Select
+                value={hostnameFilter}
+                onChange={(e) => setHostnameFilter(e.target.value)}
+              >
+                <option value="">All Hosts</option>
+                {hostnames?.map((h: string) => (
+                  <option key={h} value={h}>{h}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="min-w-[140px]">
+              <label className="text-xs text-muted-foreground mb-1 block">Job</label>
+              <Select
+                value={jobFilter}
+                onChange={(e) => setJobFilter(e.target.value)}
+              >
+                <option value="">All Jobs</option>
+                {jobs?.map((j: string) => (
+                  <option key={j} value={j}>{j}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="min-w-[140px]">
+              <label className="text-xs text-muted-foreground mb-1 block">Level</label>
+              <Select
+                value={levelFilter}
+                onChange={(e) => setLevelFilter(e.target.value)}
+              >
+                <option value="">All Levels</option>
+                {levels?.map((l: string) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </Select>
+            </div>
+            {hasActiveFilters && (
+              <div className="flex items-end">
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  Clear Filters
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Manual query input */}
           <form onSubmit={handleSubmit} className="flex gap-3">
             <Input
               value={query}
@@ -218,23 +320,13 @@ export default function InfrastructureLogsPage() {
               <button
                 key={q.label}
                 type="button"
-                onClick={() => {
-                  setQuery(q.query);
-                  setSubmittedQuery(q.query);
-                }}
+                onClick={() => handleQuickQuery(q.query)}
                 className="px-3 py-1 text-sm bg-muted hover:bg-muted/80 rounded-full transition-colors text-muted-foreground hover:text-foreground"
               >
                 {q.label}
               </button>
             ))}
           </div>
-
-          {/* Available labels */}
-          {labels && labels.length > 0 && (
-            <div className="text-xs text-muted-foreground">
-              Labels: {labels.filter((l: string) => l !== '__name__').join(', ')}
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -305,7 +397,7 @@ export default function InfrastructureLogsPage() {
                         </td>
                         <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap align-top">
                           <span className="px-1.5 py-0.5 rounded bg-muted text-[10px]">
-                            {entry.labels.job || entry.labels.filename?.split('/').pop() || '-'}
+                            {entry.labels.hostname?.split('.')[0] || entry.labels.job || entry.labels.filename?.split('/').pop() || '-'}
                           </span>
                         </td>
                         <td className={`px-3 py-1.5 whitespace-pre-wrap break-all ${severityColors[severity] || 'text-foreground'}`}>

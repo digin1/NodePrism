@@ -72,17 +72,21 @@ scrape_configs:
         target_label: hostname
 
   # Database Exporters - File-based service discovery
+  # 30s interval: each scrape runs SQL queries against the database
   - job_name: 'mysql-exporter'
+    scrape_interval: 30s
     file_sd_configs:
       - files:
           - '/etc/prometheus/targets/mysql-exporter/*.json'
 
   - job_name: 'postgres-exporter'
+    scrape_interval: 30s
     file_sd_configs:
       - files:
           - '/etc/prometheus/targets/postgres-exporter/*.json'
 
   - job_name: 'mongodb-exporter'
+    scrape_interval: 30s
     file_sd_configs:
       - files:
           - '/etc/prometheus/targets/mongodb-exporter/*.json'
@@ -104,7 +108,10 @@ scrape_configs:
           - '/etc/prometheus/targets/redis-exporter/*.json'
 
   # Libvirt Exporter - KVM/QEMU per-VM metrics
+  # Generous timeout for hosts with many VMs (200+ domains)
   - job_name: 'libvirt-exporter'
+    scrape_interval: 30s
+    scrape_timeout: 25s
     file_sd_configs:
       - files:
           - '/etc/prometheus/targets/libvirt-exporter/*.json'
@@ -126,7 +133,9 @@ scrape_configs:
         target_label: hostname
 
   # Exim Exporter - Mail queue, deliveries, per-domain stats
+  # 30s interval: parses mail queue and log files each scrape
   - job_name: 'exim-exporter'
+    scrape_interval: 30s
     file_sd_configs:
       - files:
           - '/etc/prometheus/targets/exim-exporter/*.json'

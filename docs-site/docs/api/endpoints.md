@@ -203,6 +203,7 @@ Base path: `/api/metrics`
 | GET | `/metrics/server/:serverId/cpanel-accounts` | - | localhost:9090'; |
 | GET | `/metrics/server/:serverId/exim-domains` | - | localhost:9090'; |
 | GET | `/metrics/bandwidth/top` | - | localhost:9090'; |
+| GET | `/metrics/server/:serverId/disk-usage` | - | localhost:9090'; |
 
 ## Notifications
 

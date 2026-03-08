@@ -1,6 +1,8 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 
+const COOLDOWN_MINUTES = 5; // Don't re-create event within 5 min of resolving
+
 export class AnomalyEventStore {
   async recordEvent(
     serverId: string,
@@ -9,6 +11,7 @@ export class AnomalyEventStore {
     severity: number
   ): Promise<void> {
     try {
+      // Check if there's already an open event
       const existing = await prisma.anomalyEvent.findFirst({
         where: {
           serverId,
@@ -26,6 +29,21 @@ export class AnomalyEventStore {
           },
         });
         return;
+      }
+
+      // Cooldown: don't re-create if recently resolved
+      const cooldownCutoff = new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000);
+      const recentlyResolved = await prisma.anomalyEvent.findFirst({
+        where: {
+          serverId,
+          metricName,
+          endedAt: { gte: cooldownCutoff },
+        },
+        orderBy: { endedAt: 'desc' },
+      });
+
+      if (recentlyResolved) {
+        return; // Still in cooldown period
       }
 
       await prisma.anomalyEvent.create({

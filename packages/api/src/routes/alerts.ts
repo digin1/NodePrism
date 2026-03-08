@@ -64,6 +64,9 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         rule: {
           select: { id: true, name: true },
         },
+        template: {
+          select: { id: true, name: true },
+        },
       },
       orderBy: { startsAt: 'desc' },
     });

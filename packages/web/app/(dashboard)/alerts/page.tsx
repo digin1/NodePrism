@@ -24,6 +24,15 @@ const statusColors: Record<string, 'danger' | 'success' | 'secondary' | 'warning
   SILENCED: 'secondary',
 };
 
+const SILENCE_DURATIONS = [
+  { label: '30 min', value: 30 },
+  { label: '1 hour', value: 60 },
+  { label: '2 hours', value: 120 },
+  { label: '4 hours', value: 240 },
+  { label: '8 hours', value: 480 },
+  { label: '24 hours', value: 1440 },
+];
+
 interface Alert {
   id: string;
   message: string;
@@ -34,8 +43,10 @@ interface Alert {
   acknowledgedBy?: string;
   serverId?: string;
   rule?: { name: string };
+  template?: { name: string };
   server?: { id: string; hostname: string; ipAddress?: string };
   labels?: { instance?: string; hostname?: string; alertname?: string; [key: string]: string | undefined };
+  annotations?: { summary?: string; description?: string; value?: string; [key: string]: string | undefined };
 }
 
 interface AlertStats {
@@ -52,6 +63,7 @@ export default function AlertsPage() {
   const [statusFilter, setStatusFilter] = useState('FIRING');
   const [severityFilter, setSeverityFilter] = useState('');
   const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
+  const [silenceDuration, setSilenceDuration] = useState(60);
 
   const { data: alerts, isLoading } = useQuery({
     queryKey: ['alerts', { status: statusFilter, severity: severityFilter }],
@@ -76,7 +88,7 @@ export default function AlertsPage() {
   });
 
   const silenceMutation = useMutation({
-    mutationFn: (id: string) => alertApi.silence(id, 'Admin', 60),
+    mutationFn: (id: string) => alertApi.silence(id, 'Admin', silenceDuration),
     onSuccess: invalidateAlerts,
   });
 
@@ -86,7 +98,7 @@ export default function AlertsPage() {
   });
 
   const bulkSilenceMutation = useMutation({
-    mutationFn: (alertIds: string[]) => alertApi.bulkSilence(alertIds, 'Admin', 60),
+    mutationFn: (alertIds: string[]) => alertApi.bulkSilence(alertIds, 'Admin', silenceDuration),
     onSuccess: () => { invalidateAlerts(); setSelectedAlerts(new Set()); },
   });
 
@@ -111,13 +123,15 @@ export default function AlertsPage() {
     }
   };
 
-  // Only show bulk actions for firing alerts
   const selectedFiringIds = alertList
     ?.filter(a => selectedAlerts.has(a.id) && (a.status === 'FIRING' || a.status === 'ACKNOWLEDGED'))
     .map(a => a.id) || [];
 
+  const silenceLabel = SILENCE_DURATIONS.find(d => d.value === silenceDuration)?.label || `${silenceDuration}m`;
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Alerts</h2>
@@ -125,16 +139,21 @@ export default function AlertsPage() {
         </div>
         <div className="flex gap-2">
           <a href="/alerts/templates">
-            <Button variant="outline">Templates</Button>
+            <Button variant="outline" size="sm">
+              <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Templates
+            </Button>
           </a>
           <a href="/alerts/rules">
-            <Button variant="outline">
-              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Manage Rules
-          </Button>
+            <Button variant="outline" size="sm">
+              <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Rules
+            </Button>
           </a>
         </div>
       </div>
@@ -179,10 +198,10 @@ export default function AlertsPage() {
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Filters + Silence Duration */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4 items-center">
             <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Status</option>
               <option value="FIRING">Firing</option>
@@ -196,6 +215,17 @@ export default function AlertsPage() {
               <option value="WARNING">Warning</option>
               <option value="INFO">Info</option>
             </Select>
+            <div className="flex items-center gap-2 ml-auto">
+              <label className="text-xs text-muted-foreground whitespace-nowrap">Silence for:</label>
+              <Select
+                value={String(silenceDuration)}
+                onChange={(e) => setSilenceDuration(Number(e.target.value))}
+              >
+                {SILENCE_DURATIONS.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -222,7 +252,7 @@ export default function AlertsPage() {
                 onClick={() => bulkSilenceMutation.mutate(selectedFiringIds)}
                 disabled={bulkSilenceMutation.isPending}
               >
-                {bulkSilenceMutation.isPending ? 'Silencing...' : 'Silence Selected (1h)'}
+                {bulkSilenceMutation.isPending ? 'Silencing...' : `Silence Selected (${silenceLabel})`}
               </Button>
             </>
           )}
@@ -287,8 +317,13 @@ export default function AlertsPage() {
                     </TableCell>
                     <TableCell>
                       <p className="font-medium">{alert.message}</p>
-                      {alert.rule && (
-                        <p className="text-xs text-muted-foreground">{alert.rule.name}</p>
+                      {alert.annotations?.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{alert.annotations.description}</p>
+                      )}
+                      {(alert.rule || alert.template) && (
+                        <p className="text-xs text-muted-foreground opacity-60">
+                          {alert.rule?.name || alert.template?.name}
+                        </p>
                       )}
                     </TableCell>
                     <TableCell>
@@ -343,8 +378,9 @@ export default function AlertsPage() {
                               variant="outline"
                               onClick={() => silenceMutation.mutate(alert.id)}
                               disabled={silenceMutation.isPending}
+                              title={`Silence for ${silenceLabel}`}
                             >
-                              Silence
+                              Silence ({silenceLabel})
                             </Button>
                           </>
                         )}
@@ -354,8 +390,9 @@ export default function AlertsPage() {
                             variant="outline"
                             onClick={() => silenceMutation.mutate(alert.id)}
                             disabled={silenceMutation.isPending}
+                            title={`Silence for ${silenceLabel}`}
                           >
-                            Silence
+                            Silence ({silenceLabel})
                           </Button>
                         )}
                       </div>

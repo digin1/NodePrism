@@ -1867,10 +1867,14 @@ configure_mysql_exporter() {
     MYSQL_PASSWORD="${MYSQL_PASSWORD:-}"
   fi
 
+  # Generate a random password if none provided
   if [[ -z "$MYSQL_PASSWORD" ]]; then
-    log_warn "No password set. You can edit /etc/mysql_exporter.env later."
-    MYSQL_PASSWORD=""
+    MYSQL_PASSWORD=$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
+    log_info "Generated random password for MySQL user '${MYSQL_USER}'"
   fi
+
+  # Try to auto-create the MySQL monitoring user
+  setup_mysql_user
 
   MYSQL_INNODB_METRICS=true
   MYSQL_PROCESSLIST=true
@@ -1883,11 +1887,50 @@ configure_mysql_exporter() {
     prompt_yn "Collect processlist?" "y" && MYSQL_PROCESSLIST=true || MYSQL_PROCESSLIST=false
     prompt_yn "Collect slow query log stats?" "n" && MYSQL_SLOW_QUERIES=true || MYSQL_SLOW_QUERIES=false
   fi
+}
 
-  echo ""
-  echo -e "  ${DIM}Tip: Create a dedicated MySQL user for the exporter:${NC}"
-  echo -e "  ${DIM}  CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'password';${NC}"
-  echo -e "  ${DIM}  GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';${NC}"
+setup_mysql_user() {
+  # Try to create the MySQL monitoring user automatically
+  # Works if: root can access MySQL via socket auth (default on most Linux installs)
+  if ! command -v mysql &>/dev/null; then
+    log_warn "mysql client not found — skipping automatic user creation"
+    echo -e "  ${DIM}Create the user manually:${NC}"
+    echo -e "  ${DIM}  mysql -e \"CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'localhost' IDENTIFIED BY '<password>';\"${NC}"
+    echo -e "  ${DIM}  mysql -e \"GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '${MYSQL_USER}'@'localhost'; FLUSH PRIVILEGES;\"${NC}"
+    return
+  fi
+
+  log_info "Creating MySQL monitoring user '${MYSQL_USER}'..."
+
+  # Try socket auth first (works as root on most systems), then passwordless
+  local mysql_cmd=""
+  if mysql -e "SELECT 1" &>/dev/null; then
+    mysql_cmd="mysql"
+  elif mysql -u root -e "SELECT 1" &>/dev/null; then
+    mysql_cmd="mysql -u root"
+  else
+    log_warn "Cannot connect to MySQL as root (socket auth failed)"
+    echo -e "  ${DIM}Create the user manually:${NC}"
+    echo -e "  ${DIM}  mysql -e \"CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';\"${NC}"
+    echo -e "  ${DIM}  mysql -e \"GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '${MYSQL_USER}'@'localhost'; FLUSH PRIVILEGES;\"${NC}"
+    return
+  fi
+
+  # Escape single quotes in password for SQL
+  local escaped_password="${MYSQL_PASSWORD//\'/\\\'}"
+
+  # Create user and grant read-only permissions
+  if $mysql_cmd -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${escaped_password}';" 2>/dev/null && \
+     $mysql_cmd -e "ALTER USER '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${escaped_password}';" 2>/dev/null && \
+     $mysql_cmd -e "GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '${MYSQL_USER}'@'localhost';" 2>/dev/null && \
+     $mysql_cmd -e "FLUSH PRIVILEGES;" 2>/dev/null; then
+    log_ok "MySQL user '${MYSQL_USER}' created with read-only grants (PROCESS, REPLICATION CLIENT, SELECT)"
+  else
+    log_warn "Failed to create MySQL user automatically"
+    echo -e "  ${DIM}Create the user manually:${NC}"
+    echo -e "  ${DIM}  mysql -e \"CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${escaped_password}';\"${NC}"
+    echo -e "  ${DIM}  mysql -e \"GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '${MYSQL_USER}'@'localhost'; FLUSH PRIVILEGES;\"${NC}"
+  fi
 }
 
 configure_postgres_exporter() {
@@ -3147,9 +3190,12 @@ PYEOF
 create_env_file() {
   case $AGENT_TYPE in
     mysql_exporter)
-      local dsn="${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/"
       cat > /etc/mysql_exporter.env << EOF
-DATA_SOURCE_NAME=${dsn}
+[client]
+user=${MYSQL_USER}
+password=${MYSQL_PASSWORD}
+host=${MYSQL_HOST}
+port=${MYSQL_PORT}
 EOF
       chmod 600 /etc/mysql_exporter.env
       chown "$SERVICE_USER:$SERVICE_USER" /etc/mysql_exporter.env

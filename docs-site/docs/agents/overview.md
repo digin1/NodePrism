@@ -106,6 +106,68 @@ The installer automatically detects and opens the agent port in your firewall:
 
 On uninstall, the port is automatically closed/removed from the firewall.
 
+## Database Exporter Setup
+
+Database exporters (MySQL, PostgreSQL, MongoDB) require credentials to connect to the database. The exporter runs as a dedicated system user (e.g., `mysql_exporter`), not as root, so it cannot use socket authentication — explicit credentials are required.
+
+### MySQL Exporter
+
+**1. Create a read-only MySQL monitoring user:**
+
+```bash
+mysql -e "CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY 'YourSecurePassword';
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
+FLUSH PRIVILEGES;"
+```
+
+The grants are fully **read-only**:
+- `PROCESS` — view running queries (`SHOW PROCESSLIST`)
+- `REPLICATION CLIENT` — view replication status
+- `SELECT` — read-only queries for metric collection
+
+**2. Configure the exporter credentials:**
+
+```bash
+cat > /etc/mysql_exporter.env << 'EOF'
+[client]
+user=exporter
+password=YourSecurePassword
+host=localhost
+port=3306
+EOF
+chmod 600 /etc/mysql_exporter.env
+```
+
+**3. Restart the exporter:**
+
+```bash
+systemctl restart mysql_exporter && systemctl status mysql_exporter
+```
+
+> **Note:** If you installed via the interactive installer and left the password blank, the exporter will fail to start with `"no user specified in section or parent"`. Follow the steps above to fix it.
+
+### PostgreSQL Exporter
+
+```bash
+sudo -u postgres psql -c "CREATE USER exporter WITH PASSWORD 'YourSecurePassword'; GRANT pg_monitor TO exporter;"
+```
+
+The connection string is configured in the systemd service as `DATA_SOURCE_NAME`.
+
+### MongoDB Exporter
+
+```bash
+# In mongo shell:
+use admin
+db.createUser({
+  user: "exporter",
+  pwd: "YourSecurePassword",
+  roles: [{role: "clusterMonitor", db: "admin"}, {role: "read", db: "local"}]
+})
+```
+
+The connection URI is configured in the systemd service as `MONGODB_URI`.
+
 ## Container / VM Detection
 
 When installed on a virtualization host, the agent automatically detects and reports containers/VMs:

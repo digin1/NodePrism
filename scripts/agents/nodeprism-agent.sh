@@ -250,7 +250,7 @@ print_help() {
   echo "  --api-url URL        NodePrism manager URL for auto-registration"
   echo "  --api-token TOKEN    Auth token for API"
   echo "  --skip-register      Skip API registration"
-  echo "  --mysql-user USER    MySQL monitoring user (default: exporter)"
+  echo "  --mysql-user USER    MySQL monitoring user (default: nodeprism)"
   echo "  --mysql-password PW  MySQL password for the monitoring user"
   echo "  --db-user USER       Database user (postgres/mongodb exporters)"
   echo "  --db-password PW     Database password (postgres/mongodb exporters)"
@@ -1438,7 +1438,7 @@ load_existing_config() {
     mysql_exporter)
       if [[ -f /etc/mysql_exporter.env ]]; then
         # Parse .my.cnf [client] format
-        MYSQL_USER=$(grep -oP '^\s*user\s*=\s*\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "exporter")
+        MYSQL_USER=$(grep -oP '^\s*user\s*=\s*\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "nodeprism")
         MYSQL_PASSWORD=$(grep -oP '^\s*password\s*=\s*\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "")
         MYSQL_HOST=$(grep -oP '^\s*host\s*=\s*\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "localhost")
         MYSQL_PORT=$(grep -oP '^\s*port\s*=\s*\K.+' /etc/mysql_exporter.env 2>/dev/null || echo "3306")
@@ -1875,7 +1875,7 @@ configure_mysql_exporter() {
 
   prompt MYSQL_HOST "MySQL host" "localhost"
   prompt MYSQL_PORT "MySQL port" "3306"
-  prompt MYSQL_USER "MySQL user" "${MYSQL_USER:-exporter}"
+  prompt MYSQL_USER "MySQL user" "${MYSQL_USER:-nodeprism}"
 
   if [[ "$NON_INTERACTIVE" != "true" ]]; then
     if [[ -z "$MYSQL_PASSWORD" ]]; then
@@ -1968,7 +1968,7 @@ configure_postgres_exporter() {
 
   prompt PG_HOST "PostgreSQL host" "localhost"
   prompt PG_PORT "PostgreSQL port" "5432"
-  prompt PG_USER "PostgreSQL user" "${PG_USER:-postgres_exporter}"
+  prompt PG_USER "PostgreSQL user" "${PG_USER:-nodeprism}"
   prompt PG_DATABASE "PostgreSQL database" "postgres"
 
   if [[ "$NON_INTERACTIVE" != "true" ]]; then
@@ -2019,7 +2019,7 @@ configure_mongodb_exporter() {
 
   echo ""
   echo -e "  ${DIM}Tip: Create a dedicated read-only MongoDB user:${NC}"
-  echo -e "  ${DIM}  db.createUser({user:'exporter',pwd:'password',roles:[{role:'clusterMonitor',db:'admin'},{role:'read',db:'admin'}]})${NC}"
+  echo -e "  ${DIM}  db.createUser({user:'nodeprism',pwd:'password',roles:[{role:'clusterMonitor',db:'admin'},{role:'read',db:'admin'}]})${NC}"
 }
 
 configure_nginx_exporter() {

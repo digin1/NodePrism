@@ -157,7 +157,7 @@ wget https://github.com/prometheus/mysqld_exporter/releases/download/v0.15.1/mys
 tar xvfz mysqld_exporter-*.tar.gz
 sudo mv mysqld_exporter-*/mysqld_exporter /usr/local/bin/
 
-mysql -u root -p -e "CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'password'; GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost'; FLUSH PRIVILEGES;"
+mysql -u root -p -e "CREATE USER 'nodeprism'@'localhost' IDENTIFIED BY 'password'; GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'nodeprism'@'localhost'; FLUSH PRIVILEGES;"
 
 sudo tee /etc/.mysqld_exporter.cnf <<EOF
 [client]

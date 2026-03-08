@@ -120,20 +120,20 @@ curl -sL http://MANAGER_IP/agent-install.sh | sudo bash -s -- install \
 ```
 
 This automatically:
-1. Creates a `exporter@localhost` MySQL user (via socket auth as root)
+1. Creates a `nodeprism@localhost` MySQL user (via socket auth as root)
 2. Grants read-only permissions (`PROCESS`, `REPLICATION CLIENT`, `SELECT`)
 3. Writes the config to `/etc/mysql_exporter.env`
 4. Starts the exporter
 
-You can also specify `--mysql-user` to use a different username (default: `exporter`).
+You can also specify `--mysql-user` to use a different username (default: `nodeprism`).
 
 **Manual setup** (if automatic creation fails or you prefer manual control):
 
 1. Create a read-only MySQL monitoring user:
 
 ```bash
-mysql -e "CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY 'YourSecurePassword';
-GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
+mysql -e "CREATE USER IF NOT EXISTS 'nodeprism'@'localhost' IDENTIFIED BY 'YourSecurePassword';
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'nodeprism'@'localhost';
 FLUSH PRIVILEGES;"
 ```
 
@@ -147,7 +147,7 @@ The grants are fully **read-only**:
 ```bash
 cat > /etc/mysql_exporter.env << 'EOF'
 [client]
-user=exporter
+user=nodeprism
 password=YourSecurePassword
 host=localhost
 port=3306
@@ -166,7 +166,7 @@ systemctl restart mysql_exporter && systemctl status mysql_exporter
 ### PostgreSQL Exporter
 
 ```bash
-sudo -u postgres psql -c "CREATE USER exporter WITH PASSWORD 'YourSecurePassword'; GRANT pg_monitor TO exporter;"
+sudo -u postgres psql -c "CREATE USER nodeprism WITH PASSWORD 'YourSecurePassword'; GRANT pg_monitor TO nodeprism;"
 ```
 
 The connection string is configured in the systemd service as `DATA_SOURCE_NAME`.
@@ -177,7 +177,7 @@ The connection string is configured in the systemd service as `DATA_SOURCE_NAME`
 # In mongo shell:
 use admin
 db.createUser({
-  user: "exporter",
+  user: "nodeprism",
   pwd: "YourSecurePassword",
   roles: [{role: "clusterMonitor", db: "admin"}, {role: "read", db: "local"}]
 })
@@ -227,7 +227,7 @@ Options (install):
   --log-dir DIR        Custom log directory (promtail)
   --api-url URL        NodePrism manager URL
   --api-token TOKEN    Auth token for API
-  --mysql-user USER    MySQL monitoring user (default: exporter)
+  --mysql-user USER    MySQL monitoring user (default: nodeprism)
   --mysql-password PW  MySQL password (auto-creates user)
   --db-user USER       Database user (postgres/mongodb)
   --db-password PW     Database password (postgres/mongodb)

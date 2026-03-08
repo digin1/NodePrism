@@ -639,6 +639,41 @@ router.get('/server/:serverId/disk-usage', async (req: Request, res: Response, n
       })
       .sort((a: any, b: any) => a.mount.localeCompare(b.mount));
 
+    // Also check for LVM Volume Groups (KVM hosts)
+    try {
+      const [vgSizeResp, vgFreeResp] = await Promise.all([
+        axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+          params: { query: `nodeprism_lvm_vg_size_bytes{server_id="${serverId}"}` },
+          timeout: 5000,
+        }),
+        axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+          params: { query: `nodeprism_lvm_vg_free_bytes{server_id="${serverId}"}` },
+          timeout: 5000,
+        }),
+      ]);
+      const vgSizeResults = vgSizeResp.data?.data?.result || [];
+      const vgFreeResults = vgFreeResp.data?.data?.result || [];
+      const vgFreeByName: Record<string, number> = {};
+      for (const r of vgFreeResults) {
+        vgFreeByName[r.metric.vg || 'unknown'] = parseFloat(r.value?.[1] || '0');
+      }
+      for (const r of vgSizeResults) {
+        const vgName = r.metric.vg || 'unknown';
+        const sizeBytes = parseFloat(r.value?.[1] || '0');
+        const freeBytes = vgFreeByName[vgName] ?? 0;
+        mounts.push({
+          mount: `LVM VG: ${vgName}`,
+          device: 'lvm',
+          fstype: 'lvm',
+          sizeBytes,
+          availBytes: freeBytes,
+          usedBytes: sizeBytes - freeBytes,
+        });
+      }
+    } catch {
+      // LVM data not available — skip
+    }
+
     res.json({ success: true, data: mounts });
   } catch (error: any) {
     logger.error('Disk usage query error', { error: error.message });

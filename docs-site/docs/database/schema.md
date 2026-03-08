@@ -72,6 +72,7 @@ AlertTemplate ──── NotificationChannel
 | eventLogs | EventLog[] | ✓ | - |
 | maintenanceWindows | MaintenanceWindow[] | ✓ | - |
 | uptimeMonitors | UptimeMonitor[] | ✓ | - |
+| incidents | Incident[] | ✓ | - |
 
 ---
 
@@ -399,6 +400,7 @@ AlertTemplate ──── NotificationChannel
 | createdBy | String | - | - |
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
+| server | Server | - | Relation |
 | updates | IncidentUpdate[] | ✓ | - |
 
 **Indexes:**

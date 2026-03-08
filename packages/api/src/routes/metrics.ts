@@ -592,4 +592,58 @@ router.get('/bandwidth/top', async (req: Request, res: Response, next: NextFunct
   }
 });
 
+// GET /api/metrics/server/:serverId/disk-usage - Get filesystem mount usage for a server
+router.get('/server/:serverId/disk-usage', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId } = req.params;
+
+    // Query filesystem size and available bytes, excluding noise mounts
+    const [sizeResp, availResp] = await Promise.all([
+      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        params: { query: `node_filesystem_size_bytes{server_id="${serverId}",fstype!~"tmpfs|fuse.*",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"}` },
+        timeout: 5000,
+      }),
+      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        params: { query: `node_filesystem_avail_bytes{server_id="${serverId}",fstype!~"tmpfs|fuse.*",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"}` },
+        timeout: 5000,
+      }),
+    ]);
+
+    const sizeResults = sizeResp.data?.data?.result || [];
+    const availResults = availResp.data?.data?.result || [];
+
+    // Build avail lookup by mountpoint
+    const availByMount: Record<string, number> = {};
+    for (const r of availResults) {
+      availByMount[r.metric.mountpoint] = parseFloat(r.value?.[1] || '0');
+    }
+
+    // Deduplicate by device (e.g. /tmp and /var/tmp may share /dev/sda4 with /)
+    const seenDevices = new Set<string>();
+    const mounts = sizeResults
+      .map((r: any) => {
+        const mount = r.metric.mountpoint;
+        const device = r.metric.device;
+        const fstype = r.metric.fstype;
+        const sizeBytes = parseFloat(r.value?.[1] || '0');
+        const availBytes = availByMount[mount] ?? 0;
+        return { mount, device, fstype, sizeBytes, availBytes, usedBytes: sizeBytes - availBytes };
+      })
+      .filter((m: any) => {
+        // Skip very small mounts (< 100MB)
+        if (m.sizeBytes < 100 * 1024 * 1024) return false;
+        // Deduplicate by device — keep the shortest (root) mountpoint
+        if (seenDevices.has(m.device)) return false;
+        seenDevices.add(m.device);
+        return true;
+      })
+      .sort((a: any, b: any) => a.mount.localeCompare(b.mount));
+
+    res.json({ success: true, data: mounts });
+  } catch (error: any) {
+    logger.error('Disk usage query error', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to fetch disk usage' });
+  }
+});
+
 export { router as metricRoutes };

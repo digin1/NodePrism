@@ -146,7 +146,18 @@ export const metricsApi = {
   rules: () => getData(api.get('/api/metrics/rules')),
   bandwidthTop: (params?: { period?: string; limit?: number }) =>
     getData(api.get('/api/metrics/bandwidth/top', { params })),
+  diskUsage: (serverId: string) =>
+    getData<DiskMount[]>(api.get(`/api/metrics/server/${serverId}/disk-usage`)),
 };
+
+export interface DiskMount {
+  mount: string;
+  device: string;
+  fstype: string;
+  sizeBytes: number;
+  availBytes: number;
+  usedBytes: number;
+}
 
 // Health API
 export const healthApi = {

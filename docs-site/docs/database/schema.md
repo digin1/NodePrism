@@ -13,19 +13,16 @@ NodePrism uses PostgreSQL with Prisma ORM.
 ```
 Server (1) ──── (*) Agent
    │
-   ├──── (*) VirtualContainer
+   ├──── (*) Deployment
    ├──── (*) Alert
    ├──── (*) AnomalyEvent
-   ├──── (*) AnomalyModel
    ├──── (*) MetricHistory
-   ├──── (*) EventLog
-   └──── (*) MaintenanceWindow
+   └──── (*) EventLog
 
 User (1) ──── (*) AuditLog
 
 AlertRule ──── Alert
 AlertTemplate ──── NotificationChannel
-NotificationChannel (1) ──── (*) NotificationLog
 ```
 
 ---
@@ -74,6 +71,7 @@ NotificationChannel (1) ──── (*) NotificationLog
 | metricHistory | MetricHistory[] | ✓ | - |
 | eventLogs | EventLog[] | ✓ | - |
 | maintenanceWindows | MaintenanceWindow[] | ✓ | - |
+| uptimeMonitors | UptimeMonitor[] | ✓ | - |
 
 ---
 
@@ -342,6 +340,90 @@ NotificationChannel (1) ──── (*) NotificationLog
 
 ---
 
+### UptimeMonitor
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| type | UptimeCheckType | ✓ | Default: HTTP |
+| target | String | ✓ | - |
+| interval | Int | ✓ | Default: 60 |
+| timeout | Int | ✓ | Default: 10 |
+| method | String | ✓ | Default: "GET" |
+| expectedStatus | Int | - | - |
+| keyword | String | - | - |
+| headers | Json | - | - |
+| enabled | Boolean | ✓ | Default: true |
+| serverId | String | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| server | Server | - | Relation |
+| checks | UptimeCheck[] | ✓ | - |
+
+---
+
+### UptimeCheck
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| monitorId | String | ✓ | - |
+| status | UptimeCheckStatus | ✓ | - |
+| responseTime | Int | - | - |
+| statusCode | Int | - | - |
+| message | String | - | - |
+| checkedAt | DateTime | ✓ | Default: now( |
+| monitor | UptimeMonitor | ✓ | Relation |
+
+**Indexes:**
+- `@@index([monitorId, checkedAt])`
+- `@@index([checkedAt])`
+
+---
+
+### Incident
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| title | String | ✓ | - |
+| description | String | - | - |
+| status | IncidentStatus | ✓ | Default: INVESTIGATING |
+| severity | AlertSeverity | ✓ | - |
+| alertId | String | - | - |
+| serverId | String | - | - |
+| assignee | String | - | - |
+| startedAt | DateTime | ✓ | Default: now( |
+| resolvedAt | DateTime | - | - |
+| createdBy | String | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| updates | IncidentUpdate[] | ✓ | - |
+
+**Indexes:**
+- `@@index([status])`
+- `@@index([startedAt])`
+
+---
+
+### IncidentUpdate
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| incidentId | String | ✓ | - |
+| message | String | ✓ | - |
+| status | IncidentStatus | - | - |
+| createdBy | String | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| incident | Incident | ✓ | Relation |
+
+**Indexes:**
+- `@@index([incidentId, createdAt])`
+
+---
+
 ### AnomalyEvent
 
 | Field | Type | Required | Constraints |
@@ -406,19 +488,19 @@ NotificationChannel (1) ──── (*) NotificationLog
 
 | Value | Description |
 |-------|-------------|
-| `NODE_EXPORTER` | System metrics (CPU, memory, disk, network) |
-| `APP_AGENT` | Custom application metrics |
-| `MYSQL_EXPORTER` | MySQL/MariaDB metrics |
-| `POSTGRES_EXPORTER` | PostgreSQL metrics |
-| `MONGODB_EXPORTER` | MongoDB metrics |
-| `NGINX_EXPORTER` | Nginx metrics |
-| `APACHE_EXPORTER` | Apache metrics |
-| `REDIS_EXPORTER` | Redis metrics |
-| `LIBVIRT_EXPORTER` | KVM/QEMU per-VM metrics |
-| `LITESPEED_EXPORTER` | LiteSpeed web server metrics |
-| `EXIM_EXPORTER` | Exim mail server metrics |
-| `CPANEL_EXPORTER` | cPanel hosting metrics |
-| `PROMTAIL` | Log shipping to Loki |
+| `NODE_EXPORTER` | - |
+| `APP_AGENT` | - |
+| `MYSQL_EXPORTER` | - |
+| `POSTGRES_EXPORTER` | - |
+| `MONGODB_EXPORTER` | - |
+| `NGINX_EXPORTER` | - |
+| `APACHE_EXPORTER` | - |
+| `REDIS_EXPORTER` | - |
+| `LIBVIRT_EXPORTER` | - |
+| `LITESPEED_EXPORTER` | - |
+| `EXIM_EXPORTER` | - |
+| `CPANEL_EXPORTER` | - |
+| `PROMTAIL` | - |
 
 ### AgentStatus
 
@@ -509,4 +591,32 @@ NotificationChannel (1) ──── (*) NotificationLog
 | `INFO` | - |
 | `WARNING` | - |
 | `CRITICAL` | - |
+
+### UptimeCheckType
+
+| Value | Description |
+|-------|-------------|
+| `HTTP` | - |
+| `HTTPS` | - |
+| `TCP` | - |
+| `PING` | - |
+| `DNS` | - |
+
+### UptimeCheckStatus
+
+| Value | Description |
+|-------|-------------|
+| `UP` | - |
+| `DOWN` | - |
+| `DEGRADED` | - |
+
+### IncidentStatus
+
+| Value | Description |
+|-------|-------------|
+| `INVESTIGATING` | - |
+| `IDENTIFIED` | - |
+| `MONITORING` | - |
+| `RESOLVED` | - |
+| `POSTMORTEM` | - |
 

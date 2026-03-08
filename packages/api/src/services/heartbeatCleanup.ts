@@ -247,7 +247,7 @@ export async function deepHealthCheck(): Promise<{
 
   const agents = await prisma.agent.findMany({
     where: {
-      status: { in: ['RUNNING', 'STOPPED'] },
+      status: { in: ['RUNNING', 'STOPPED', 'FAILED'] },
     },
     include: { server: true },
   });

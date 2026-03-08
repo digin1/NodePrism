@@ -23,22 +23,22 @@
   },
   {
     "targets": [
-      "184.95.32.178:9100"
+      "23.83.135.198:9100"
     ],
     "labels": {
-      "server_id": "27a362a7-19e4-496b-a774-14fa5377669c",
-      "hostname": "azvz6.veeblehosting.com",
+      "server_id": "8feaf8bc-ade2-4cf3-86b3-a2a74db9340e",
+      "hostname": "safebox.us.veeblehosting.com",
       "environment": "production",
       "agent_type": "node_exporter"
     }
   },
   {
     "targets": [
-      "23.83.135.198:9100"
+      "184.95.32.178:9100"
     ],
     "labels": {
-      "server_id": "8feaf8bc-ade2-4cf3-86b3-a2a74db9340e",
-      "hostname": "safebox.us.veeblehosting.com",
+      "server_id": "27a362a7-19e4-496b-a774-14fa5377669c",
+      "hostname": "azvz6.veeblehosting.com",
       "environment": "production",
       "agent_type": "node_exporter"
     }

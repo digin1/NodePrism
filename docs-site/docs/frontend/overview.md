@@ -11,7 +11,7 @@ title: Frontend
 - **Framework:** Next.js 14 (App Router)
 - **UI Library:** React 18
 - **Styling:** Tailwind CSS + shadcn/ui
-- **State Management:** TanStack Query (React Query)
+- **State Management:** Zustand + React Query
 - **Real-time:** Socket.IO Client
 
 ## Pages
@@ -20,24 +20,24 @@ title: Frontend
 |-------|------|-------------|
 | `/login` | `(auth)/login/page.tsx` | User authentication |
 | `/register` | `(auth)/register/page.tsx` | User registration |
-| `/dashboard` | `(dashboard)/dashboard/page.tsx` | Main dashboard with overview |
-| `/servers` | `(dashboard)/servers/page.tsx` | Server list and management |
-| `/servers/:id` | `(dashboard)/servers/[id]/page.tsx` | Server details, metrics, and container/VM monitoring |
-| `/servers/new` | `(dashboard)/servers/new/page.tsx` | Add new server |
 | `/alerts` | `(dashboard)/alerts/page.tsx` | Active alerts list |
 | `/alerts/rules` | `(dashboard)/alerts/rules/page.tsx` | Alert rules management |
-| `/alerts/templates` | `(dashboard)/alerts/templates/page.tsx` | Alert template management |
+| `/alerts/templates` | `(dashboard)/alerts/templates/page.tsx` | - |
+| `/dashboard` | `(dashboard)/dashboard/page.tsx` | Main dashboard with overview |
+| `/dashboards` | `(dashboard)/dashboards/page.tsx` | - |
+| `/docs` | `(dashboard)/docs/page.tsx` | - |
+| `/incidents` | `(dashboard)/incidents/page.tsx` | - |
+| `/infrastructure-logs` | `(dashboard)/infrastructure-logs/page.tsx` | - |
+| `/logs` | `(dashboard)/logs/page.tsx` | Log aggregation view |
 | `/metrics` | `(dashboard)/metrics/page.tsx` | Metrics explorer (PromQL) |
-| `/dashboards` | `(dashboard)/dashboards/page.tsx` | Custom dashboards |
-| `/uptime` | `(dashboard)/uptime/page.tsx` | Uptime monitoring |
-| `/incidents` | `(dashboard)/incidents/page.tsx` | Incident management |
-| `/logs` | `(dashboard)/logs/page.tsx` | Log aggregation view (Loki) |
-| `/infrastructure-logs` | `(dashboard)/infrastructure-logs/page.tsx` | Infrastructure event logs |
-| `/docs` | `(dashboard)/docs/page.tsx` | Documentation reference |
+| `/servers/:id` | `(dashboard)/servers/[id]/page.tsx` | Server details and metrics |
+| `/servers/new` | `(dashboard)/servers/new/page.tsx` | Add new server |
+| `/servers` | `(dashboard)/servers/page.tsx` | Server list and management |
+| `/settings/audit` | `(dashboard)/settings/audit/page.tsx` | - |
+| `/settings/notifications` | `(dashboard)/settings/notifications/page.tsx` | - |
 | `/settings` | `(dashboard)/settings/page.tsx` | System settings |
-| `/settings/users` | `(dashboard)/settings/users/page.tsx` | User management |
-| `/settings/notifications` | `(dashboard)/settings/notifications/page.tsx` | Notification channels |
-| `/settings/audit` | `(dashboard)/settings/audit/page.tsx` | Audit log |
+| `/settings/users` | `(dashboard)/settings/users/page.tsx` | - |
+| `/uptime` | `(dashboard)/uptime/page.tsx` | - |
 | `/` | `page.tsx` | Home page / redirect |
 
 

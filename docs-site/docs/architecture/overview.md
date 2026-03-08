@@ -119,23 +119,12 @@ flowchart LR
 |---------|------|
 | Web UI | 3000 |
 | API | 4000 |
-| Config Sync | 4002 |
-| Anomaly Detector | 4003 |
-| Docusaurus Docs | 3080 |
 | PostgreSQL | 5432 |
 | Redis | 6379 |
+| RabbitMQ | 5672 |
+| RabbitMQ Management | 15672 |
 | Prometheus | 9090 |
 | Grafana | 3030 |
 | Loki | 3100 |
 | AlertManager | 9093 |
 | Node Exporter | 9100 |
-| Agent App | 9101 |
-| Nginx Exporter | 9113 |
-| Redis Exporter | 9121 |
-| LiteSpeed Exporter | 9122 |
-| Exim Exporter | 9123 |
-| cPanel Exporter | 9124 |
-| MySQL Exporter | 9104 |
-| Libvirt Exporter | 9177 |
-| PostgreSQL Exporter | 9187 |
-| MongoDB Exporter | 9216 |

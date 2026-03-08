@@ -76,7 +76,6 @@ interface Metrics {
   load15: number | null;
   networkIn: number | null;
   networkOut: number | null;
-  // MySQL metrics (only present when MySQL exporter is running)
   mysqlConnections: number | null;
   mysqlMaxConnections: number | null;
   mysqlQueriesPerSec: number | null;
@@ -279,11 +278,15 @@ function MetricCard({
   );
 }
 
+type TabKey = 'overview' | 'metrics' | 'containers' | 'agents' | 'alerts';
+
 export default function ServerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
   const serverId = params?.id as string;
+
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
   // State for manual agent registration
   const [showRegisterForm, setShowRegisterForm] = useState(false);
@@ -309,14 +312,14 @@ export default function ServerDetailPage() {
     queryKey: ['serverMetrics', serverId],
     queryFn: () => metricsApi.serverMetrics(serverId),
     enabled: !!server,
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 5000,
   });
 
   const { data: containers } = useQuery({
     queryKey: ['serverContainers', serverId],
     queryFn: () => containerApi.listByServer(serverId),
     enabled: !!server,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
   });
 
   const containerList = containers as VirtualContainer[] | undefined;
@@ -462,6 +465,18 @@ export default function ServerDetailPage() {
     );
   }
 
+  const containerCount = containerList?.length ?? 0;
+  const alertCount = serverData.alerts?.length ?? 0;
+  const agentCount = serverData.agents?.length ?? 0;
+
+  const tabs: { key: TabKey; label: string; count?: number }[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'metrics', label: 'Metrics' },
+    { key: 'containers', label: 'Containers', count: containerCount > 0 ? containerCount : undefined },
+    { key: 'agents', label: 'Agents', count: agentCount > 0 ? agentCount : undefined },
+    { key: 'alerts', label: 'Alerts', count: alertCount > 0 ? alertCount : undefined },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -537,482 +552,539 @@ export default function ServerDetailPage() {
         </div>
       </div>
 
-      {/* Metrics */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-        <MetricCard label="CPU Usage" value={metricsData?.cpu ?? null} unit="%" />
-        <MetricCard
-          label="Memory Usage"
-          value={metricsData?.memory ?? null}
-          unit="%"
-          subtext={metricsData?.memoryTotal ? `${formatBytes(metricsData.memoryAvailable)} free of ${formatBytes(metricsData.memoryTotal)}` : undefined}
-        />
-        <MetricCard
-          label="Disk Usage"
-          value={metricsData?.disk ?? null}
-          unit="%"
-          subtext={metricsData?.diskTotal ? `${formatBytes(metricsData.diskAvailable)} free of ${formatBytes(metricsData.diskTotal)}` : undefined}
-        />
-        <MetricCard
-          label="Load Average"
-          value={metricsData?.load1 ?? null}
-          decimals={2}
-          subtext={metricsData?.load5 != null && metricsData?.load15 != null ? `5m: ${metricsData.load5.toFixed(2)} / 15m: ${metricsData.load15.toFixed(2)}` : undefined}
-        />
-        <div className="p-4 bg-muted/50 rounded-lg">
-          <p className="text-sm text-muted-foreground">Network In</p>
-          <p className="text-2xl font-bold mt-1 text-green-600">{formatNetworkSpeed(metricsData?.networkIn ?? null)}</p>
-          <p className="text-xs text-muted-foreground mt-1">Download</p>
-        </div>
-        <div className="p-4 bg-muted/50 rounded-lg">
-          <p className="text-sm text-muted-foreground">Network Out</p>
-          <p className="text-2xl font-bold mt-1 text-blue-600">{formatNetworkSpeed(metricsData?.networkOut ?? null)}</p>
-          <p className="text-xs text-muted-foreground mt-1">Upload</p>
-        </div>
+      {/* Tab Navigation */}
+      <div className="border-b border-border">
+        <nav className="flex gap-0 -mb-px">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }`}
+            >
+              {tab.label}
+              {tab.count != null && (
+                <span className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
+                  activeTab === tab.key
+                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                    : 'bg-muted text-muted-foreground'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* MySQL Metrics - Only shown when MySQL exporter is running */}
-      {serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING') && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-              </svg>
-              MySQL Database
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-7">
-              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
-                <p className="text-sm text-muted-foreground">Connections</p>
-                <p className="text-2xl font-bold mt-1 text-orange-600">
-                  {metricsData?.mysqlConnections ?? 'N/A'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Max: {metricsData?.mysqlMaxConnections ?? 'N/A'}
-                </p>
-              </div>
-              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
-                <p className="text-sm text-muted-foreground">Queries/sec</p>
-                <p className="text-2xl font-bold mt-1 text-orange-600">
-                  {metricsData?.mysqlQueriesPerSec?.toFixed(1) ?? 'N/A'}
-                </p>
-              </div>
-              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
-                <p className="text-sm text-muted-foreground">Slow Queries</p>
-                <p className="text-2xl font-bold mt-1 text-orange-600">
-                  {metricsData?.mysqlSlowQueries ?? 'N/A'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Total</p>
-              </div>
-              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
-                <p className="text-sm text-muted-foreground">Buffer Pool</p>
-                <p className="text-2xl font-bold mt-1 text-orange-600">
-                  {metricsData?.mysqlBufferPoolSize && metricsData?.mysqlBufferPoolUsed
-                    ? `${((metricsData.mysqlBufferPoolUsed / metricsData.mysqlBufferPoolSize) * 100).toFixed(1)}%`
-                    : 'N/A'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {metricsData?.mysqlBufferPoolSize
-                    ? `${formatBytes(metricsData.mysqlBufferPoolSize)} total`
-                    : ''}
-                </p>
-              </div>
-              <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
-                <p className="text-sm text-muted-foreground">Uptime</p>
-                <p className="text-2xl font-bold mt-1 text-orange-600">
-                  {formatUptime(metricsData?.mysqlUptime ?? null)}
-                </p>
-              </div>
+      {/* Tab Content */}
+
+      {/* ===== OVERVIEW TAB ===== */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Metric Cards */}
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+            <MetricCard label="CPU Usage" value={metricsData?.cpu ?? null} unit="%" />
+            <MetricCard
+              label="Memory Usage"
+              value={metricsData?.memory ?? null}
+              unit="%"
+              subtext={metricsData?.memoryTotal ? `${formatBytes(metricsData.memoryAvailable)} free of ${formatBytes(metricsData.memoryTotal)}` : undefined}
+            />
+            <MetricCard
+              label="Disk Usage"
+              value={metricsData?.disk ?? null}
+              unit="%"
+              subtext={metricsData?.diskTotal ? `${formatBytes(metricsData.diskAvailable)} free of ${formatBytes(metricsData.diskTotal)}` : undefined}
+            />
+            <MetricCard
+              label="Load Average"
+              value={metricsData?.load1 ?? null}
+              decimals={2}
+              subtext={metricsData?.load5 != null && metricsData?.load15 != null ? `5m: ${metricsData.load5.toFixed(2)} / 15m: ${metricsData.load15.toFixed(2)}` : undefined}
+            />
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">Network In</p>
+              <p className="text-2xl font-bold mt-1 text-green-600">{formatNetworkSpeed(metricsData?.networkIn ?? null)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Download</p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">Network Out</p>
+              <p className="text-2xl font-bold mt-1 text-blue-600">{formatNetworkSpeed(metricsData?.networkOut ?? null)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Upload</p>
+            </div>
+          </div>
+
+          {/* MySQL Metrics */}
+          {serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING') && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                  </svg>
+                  MySQL Database
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-7">
+                  <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Connections</p>
+                    <p className="text-2xl font-bold mt-1 text-orange-600">
+                      {metricsData?.mysqlConnections ?? 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Max: {metricsData?.mysqlMaxConnections ?? 'N/A'}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Queries/sec</p>
+                    <p className="text-2xl font-bold mt-1 text-orange-600">
+                      {metricsData?.mysqlQueriesPerSec?.toFixed(1) ?? 'N/A'}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Slow Queries</p>
+                    <p className="text-2xl font-bold mt-1 text-orange-600">
+                      {metricsData?.mysqlSlowQueries ?? 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Total</p>
+                  </div>
+                  <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Buffer Pool</p>
+                    <p className="text-2xl font-bold mt-1 text-orange-600">
+                      {metricsData?.mysqlBufferPoolSize && metricsData?.mysqlBufferPoolUsed
+                        ? `${((metricsData.mysqlBufferPoolUsed / metricsData.mysqlBufferPoolSize) * 100).toFixed(1)}%`
+                        : 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {metricsData?.mysqlBufferPoolSize
+                        ? `${formatBytes(metricsData.mysqlBufferPoolSize)} total`
+                        : ''}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Uptime</p>
+                    <p className="text-2xl font-bold mt-1 text-orange-600">
+                      {formatUptime(metricsData?.mysqlUptime ?? null)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Server Info + System Details */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Server Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="space-y-4">
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Hostname</dt>
+                    <dd className="font-medium">{serverData.hostname}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">IP Address</dt>
+                    <dd className="font-mono">{serverData.ipAddress}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Environment</dt>
+                    <dd><Badge variant="outline">{serverData.environment}</Badge></dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Region</dt>
+                    <dd>{serverData.region || 'Not set'}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Created</dt>
+                    <dd>{new Date(serverData.createdAt).toLocaleDateString()}</dd>
+                  </div>
+                  {serverData.metadata?.lastBootUptime != null && (
+                    <div className="flex justify-between">
+                      <dt className="text-muted-foreground">Uptime</dt>
+                      <dd>{formatUptime(serverData.metadata.lastBootUptime as number)}</dd>
+                    </div>
+                  )}
+                </dl>
+              </CardContent>
+            </Card>
+
+            {(serverData.metadata?.os || serverData.metadata?.hardware) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    System Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <dl className="space-y-4">
+                    {serverData.metadata.os?.distro && (
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">OS</dt>
+                        <dd className="font-medium text-right">{serverData.metadata.os.distro}</dd>
+                      </div>
+                    )}
+                    {serverData.metadata.os?.kernel && (
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Kernel</dt>
+                        <dd className="font-mono text-sm">{serverData.metadata.os.kernel}</dd>
+                      </div>
+                    )}
+                    {serverData.metadata.os?.arch && (
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Architecture</dt>
+                        <dd>{serverData.metadata.os.arch}</dd>
+                      </div>
+                    )}
+                    {serverData.metadata.os?.platform && !['Unknown', 'none', 'nonenone', 'physical'].includes(serverData.metadata.os.platform) && (
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Platform</dt>
+                        <dd>{serverData.metadata.os.platform}</dd>
+                      </div>
+                    )}
+                    {serverData.metadata.os?.controlPanel && (
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Control Panel</dt>
+                        <dd className="font-medium">{serverData.metadata.os.controlPanel}</dd>
+                      </div>
+                    )}
+                    {serverData.metadata.hardware?.cpuModel && (
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">CPU</dt>
+                        <dd className="text-right text-sm max-w-[60%]">
+                          {serverData.metadata.hardware.cpuModel}
+                          {serverData.metadata.hardware.cpuCores && (
+                            <span className="text-muted-foreground ml-1">({serverData.metadata.hardware.cpuCores} cores)</span>
+                          )}
+                        </dd>
+                      </div>
+                    )}
+                    {serverData.metadata.hardware?.memoryTotal != null && (
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Total Memory</dt>
+                        <dd className="font-medium">{formatMemoryBytes(serverData.metadata.hardware.memoryTotal)}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Server Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Server Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="space-y-4">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Hostname</dt>
-                <dd className="font-medium">{serverData.hostname}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">IP Address</dt>
-                <dd className="font-mono">{serverData.ipAddress}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Environment</dt>
-                <dd><Badge variant="outline">{serverData.environment}</Badge></dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Region</dt>
-                <dd>{serverData.region || 'Not set'}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Created</dt>
-                <dd>{new Date(serverData.createdAt).toLocaleDateString()}</dd>
-              </div>
-              {serverData.metadata?.lastBootUptime != null && (
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Uptime</dt>
-                  <dd>{formatUptime(serverData.metadata.lastBootUptime as number)}</dd>
-                </div>
-              )}
-            </dl>
-          </CardContent>
-        </Card>
+      {/* ===== METRICS TAB ===== */}
+      {activeTab === 'metrics' && (
+        <div className="space-y-6">
+          <BandwidthSummary serverId={serverId} />
+          <ServerForecasting serverId={serverId} />
+          <MetricsCharts serverId={serverId} hasMySQLExporter={serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING')} />
+        </div>
+      )}
 
-        {/* OS & Hardware Info */}
-        {(serverData.metadata?.os || serverData.metadata?.hardware) && (
+      {/* ===== CONTAINERS TAB ===== */}
+      {activeTab === 'containers' && (
+        <div className="space-y-6">
+          {containerList && containerList.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  Virtual Machines / Containers
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({containerList.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const running = containerList.filter(c => c.status === 'running').length;
+                  const stopped = containerList.length - running;
+                  const totalMemUsed = containerMetricsList?.reduce((sum, m) => sum + (m.memoryUsageBytes ?? 0), 0) ?? 0;
+                  const totalMemMax = containerMetricsList?.reduce((sum, m) => sum + (m.memoryMaxBytes ?? 0), 0) ?? 0;
+                  const totalCpu = containerMetricsList?.reduce((sum, m) => sum + (m.cpuPercent ?? 0), 0) ?? 0;
+                  const totalVCPUs = containerMetricsList?.reduce((sum, m) => sum + (m.vCPUs ?? 0), 0) ?? 0;
+                  const hasCpu = containerMetricsList?.some(m => m.cpuPercent != null);
+                  const hasMem = totalMemMax > 0 || totalMemUsed > 0;
+                  return (
+                    <div className="flex flex-wrap gap-4 mb-4 text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                        <span className="text-muted-foreground">{running} running</span>
+                      </div>
+                      {stopped > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+                          <span className="text-muted-foreground">{stopped} stopped</span>
+                        </div>
+                      )}
+                      {totalVCPUs > 0 && (
+                        <div className="text-muted-foreground">
+                          {totalVCPUs} vCPUs
+                        </div>
+                      )}
+                      {hasCpu && (
+                        <div className="text-muted-foreground">
+                          CPU: {totalCpu.toFixed(1)}%
+                        </div>
+                      )}
+                      {hasMem && (
+                        <div className="text-muted-foreground">
+                          Memory: {totalMemUsed > 0 ? `${formatBytes(totalMemUsed)} / ` : ''}{formatBytes(totalMemMax)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8"></TableHead>
+                      {[
+                        { key: 'name', label: 'Name', align: '' },
+                        { key: 'type', label: 'Type', align: '' },
+                        { key: 'status', label: 'Status', align: '' },
+                        { key: 'ip', label: 'IP Address', align: '' },
+                        { key: 'cpu', label: 'CPU', align: 'text-right' },
+                        { key: 'memory', label: 'Memory', align: 'text-right' },
+                        { key: 'rx', label: 'RX', align: 'text-right' },
+                        { key: 'tx', label: 'TX', align: 'text-right' },
+                      ].map(col => (
+                        <TableHead
+                          key={col.key}
+                          className={`${col.align} cursor-pointer select-none hover:text-foreground`}
+                          onClick={() => setContainerSort(prev =>
+                            prev.key === col.key
+                              ? { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+                              : { key: col.key, dir: 'asc' }
+                          )}
+                        >
+                          {col.label}
+                          {containerSort.key === col.key && (
+                            <span className="ml-1 text-xs">{containerSort.dir === 'asc' ? '▲' : '▼'}</span>
+                          )}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      const getMetrics = (c: VirtualContainer) =>
+                        containerMetricsList?.find(m => m.domain === c.name || m.domain === c.containerId);
+                      const sorted = [...containerList].sort((a, b) => {
+                        const dir = containerSort.dir === 'asc' ? 1 : -1;
+                        const ma = getMetrics(a);
+                        const mb = getMetrics(b);
+                        switch (containerSort.key) {
+                          case 'name': return dir * a.name.localeCompare(b.name);
+                          case 'type': return dir * a.type.localeCompare(b.type);
+                          case 'status': return dir * a.status.localeCompare(b.status);
+                          case 'ip': return dir * (a.ipAddress || '').localeCompare(b.ipAddress || '');
+                          case 'cpu': return dir * ((ma?.cpuPercent ?? -1) - (mb?.cpuPercent ?? -1));
+                          case 'memory': return dir * ((ma?.memoryUsageBytes ?? ma?.memoryMaxBytes ?? -1) - (mb?.memoryUsageBytes ?? mb?.memoryMaxBytes ?? -1));
+                          case 'rx': return dir * (Number(a.networkRxBytes) - Number(b.networkRxBytes));
+                          case 'tx': return dir * (Number(a.networkTxBytes) - Number(b.networkTxBytes));
+                          default: return 0;
+                        }
+                      });
+                      return sorted.map((c) => (
+                        <ContainerRow
+                          key={c.id}
+                          container={c}
+                          metrics={getMetrics(c)}
+                        />
+                      ));
+                    })()}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <p className="text-center text-muted-foreground">No containers or VMs detected on this server.</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* ===== AGENTS TAB ===== */}
+      {activeTab === 'agents' && (
+        <div className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                System Details
-              </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Installed Agents</CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowRegisterForm(!showRegisterForm)}
+              >
+                {showRegisterForm ? 'Cancel' : 'Register Agent'}
+              </Button>
             </CardHeader>
             <CardContent>
-              <dl className="space-y-4">
-                {serverData.metadata.os?.distro && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">OS</dt>
-                    <dd className="font-medium text-right">{serverData.metadata.os.distro}</dd>
-                  </div>
-                )}
-                {serverData.metadata.os?.kernel && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Kernel</dt>
-                    <dd className="font-mono text-sm">{serverData.metadata.os.kernel}</dd>
-                  </div>
-                )}
-                {serverData.metadata.os?.arch && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Architecture</dt>
-                    <dd>{serverData.metadata.os.arch}</dd>
-                  </div>
-                )}
-                {serverData.metadata.os?.platform && !['Unknown', 'none', 'nonenone', 'physical'].includes(serverData.metadata.os.platform) && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Platform</dt>
-                    <dd>{serverData.metadata.os.platform}</dd>
-                  </div>
-                )}
-                {serverData.metadata.os?.controlPanel && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Control Panel</dt>
-                    <dd className="font-medium">{serverData.metadata.os.controlPanel}</dd>
-                  </div>
-                )}
-                {serverData.metadata.hardware?.cpuModel && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">CPU</dt>
-                    <dd className="text-right text-sm max-w-[60%]">
-                      {serverData.metadata.hardware.cpuModel}
-                      {serverData.metadata.hardware.cpuCores && (
-                        <span className="text-muted-foreground ml-1">({serverData.metadata.hardware.cpuCores} cores)</span>
-                      )}
-                    </dd>
-                  </div>
-                )}
-                {serverData.metadata.hardware?.memoryTotal != null && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Total Memory</dt>
-                    <dd className="font-medium">{formatMemoryBytes(serverData.metadata.hardware.memoryTotal)}</dd>
-                  </div>
-                )}
-              </dl>
-            </CardContent>
-          </Card>
-        )}
+              {showRegisterForm && (
+                <form onSubmit={handleRegisterAgent} className="mb-6 p-4 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg border border-blue-500/20">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-3">Register Existing Exporter</h4>
+                  <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
+                    Use this to register an exporter that is already installed and running on the server.
+                  </p>
 
-        {/* Agents */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Installed Agents</CardTitle>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowRegisterForm(!showRegisterForm)}
-            >
-              {showRegisterForm ? 'Cancel' : 'Register Agent'}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {/* Manual Registration Form */}
-            {showRegisterForm && (
-              <form onSubmit={handleRegisterAgent} className="mb-6 p-4 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg border border-blue-500/20">
-                <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-3">Register Existing Exporter</h4>
-                <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
-                  Use this to register an exporter that is already installed and running on the server.
-                </p>
+                  {registerError && (
+                    <div className="mb-4 p-3 bg-red-500/10 dark:bg-red-500/20 border border-red-500/20 rounded text-red-700 dark:text-red-400 text-sm">
+                      {registerError}
+                    </div>
+                  )}
 
-                {registerError && (
-                  <div className="mb-4 p-3 bg-red-500/10 dark:bg-red-500/20 border border-red-500/20 rounded text-red-700 dark:text-red-400 text-sm">
-                    {registerError}
-                  </div>
-                )}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
+                        Exporter Type
+                      </label>
+                      <select
+                        value={agentType}
+                        onChange={(e) => handleAgentTypeChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
+                      >
+                        {AGENT_TYPES.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Exporter Type
-                    </label>
-                    <select
-                      value={agentType}
-                      onChange={(e) => handleAgentTypeChange(e.target.value)}
-                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
+                    <div>
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
+                        Port
+                      </label>
+                      <input
+                        type="number"
+                        value={agentPort}
+                        onChange={(e) => setAgentPort(parseInt(e.target.value, 10))}
+                        min={1}
+                        max={65535}
+                        className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        The port where the exporter is listening (e.g., 9100 for node_exporter)
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-muted-foreground mb-1">
+                        Version (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={agentVersion}
+                        onChange={(e) => setAgentVersion(e.target.value)}
+                        placeholder="e.g., 1.6.1"
+                        className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
+                      />
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={registerAgentMutation.isPending}
+                      className="w-full"
                     >
-                      {AGENT_TYPES.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
+                      {registerAgentMutation.isPending ? 'Registering...' : 'Register Agent'}
+                    </Button>
                   </div>
+                </form>
+              )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Port
-                    </label>
-                    <input
-                      type="number"
-                      value={agentPort}
-                      onChange={(e) => setAgentPort(parseInt(e.target.value, 10))}
-                      min={1}
-                      max={65535}
-                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      The port where the exporter is listening (e.g., 9100 for node_exporter)
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Version (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={agentVersion}
-                      onChange={(e) => setAgentVersion(e.target.value)}
-                      placeholder="e.g., 1.6.1"
-                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={registerAgentMutation.isPending}
-                    className="w-full"
-                  >
-                    {registerAgentMutation.isPending ? 'Registering...' : 'Register Agent'}
+              {serverData.agents && serverData.agents.length > 0 ? (
+                <div className="space-y-3">
+                  {serverData.agents.map((agent) => (
+                    <div key={agent.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div>
+                        <p className="font-medium">{agent.type.replace('_', ' ')}</p>
+                        <p className="text-sm text-muted-foreground">Port: {agent.port}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={agent.status === 'RUNNING' ? 'success' : 'secondary'}>
+                          {agent.status}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to unregister this agent?')) {
+                              unregisterAgentMutation.mutate(agent.id);
+                            }
+                          }}
+                          disabled={unregisterAgentMutation.isPending}
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : !showRegisterForm ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">No agents installed</p>
+                  <Button variant="outline" onClick={() => setShowRegisterForm(true)}>
+                    Register Existing
                   </Button>
                 </div>
-              </form>
-            )}
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-            {serverData.agents && serverData.agents.length > 0 ? (
-              <div className="space-y-3">
-                {serverData.agents.map((agent) => (
-                  <div key={agent.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">{agent.type.replace('_', ' ')}</p>
-                      <p className="text-sm text-muted-foreground">Port: {agent.port}</p>
+      {/* ===== ALERTS TAB ===== */}
+      {activeTab === 'alerts' && (
+        <div className="space-y-6">
+          {serverData.alerts && serverData.alerts.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Active Alerts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {serverData.alerts.map((alert) => (
+                    <div key={alert.id} className="flex items-center justify-between p-3 bg-red-500/10 dark:bg-red-500/20 rounded-lg border border-red-500/20">
+                      <div>
+                        <p className="font-medium text-red-800">{alert.message}</p>
+                        <p className="text-sm text-red-600">
+                          Started: {new Date(alert.startsAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <Badge variant="danger">{alert.severity}</Badge>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={agent.status === 'RUNNING' ? 'success' : 'secondary'}>
-                        {agent.status}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to unregister this agent?')) {
-                            unregisterAgentMutation.mutate(agent.id);
-                          }
-                        }}
-                        disabled={unregisterAgentMutation.isPending}
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : !showRegisterForm ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No agents installed</p>
-                <Button variant="outline" onClick={() => setShowRegisterForm(true)}>
-                  Register Existing
-                </Button>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Virtual Containers / VMs */}
-      {containerList && containerList.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              Virtual Machines / Containers
-              <span className="text-sm font-normal text-muted-foreground">
-                ({containerList.length})
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const running = containerList.filter(c => c.status === 'running').length;
-              const stopped = containerList.length - running;
-              const totalMemUsed = containerMetricsList?.reduce((sum, m) => sum + (m.memoryUsageBytes ?? 0), 0) ?? 0;
-              const totalMemMax = containerMetricsList?.reduce((sum, m) => sum + (m.memoryMaxBytes ?? 0), 0) ?? 0;
-              const totalCpu = containerMetricsList?.reduce((sum, m) => sum + (m.cpuPercent ?? 0), 0) ?? 0;
-              const totalVCPUs = containerMetricsList?.reduce((sum, m) => sum + (m.vCPUs ?? 0), 0) ?? 0;
-              const hasCpu = containerMetricsList?.some(m => m.cpuPercent != null);
-              const hasMem = totalMemMax > 0 || totalMemUsed > 0;
-              return (
-                <div className="flex flex-wrap gap-4 mb-4 text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                    <span className="text-muted-foreground">{running} running</span>
-                  </div>
-                  {stopped > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
-                      <span className="text-muted-foreground">{stopped} stopped</span>
-                    </div>
-                  )}
-                  {totalVCPUs > 0 && (
-                    <div className="text-muted-foreground">
-                      {totalVCPUs} vCPUs
-                    </div>
-                  )}
-                  {hasCpu && (
-                    <div className="text-muted-foreground">
-                      CPU: {totalCpu.toFixed(1)}%
-                    </div>
-                  )}
-                  {hasMem && (
-                    <div className="text-muted-foreground">
-                      Memory: {totalMemUsed > 0 ? `${formatBytes(totalMemUsed)} / ` : ''}{formatBytes(totalMemMax)}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8"></TableHead>
-                  {[
-                    { key: 'name', label: 'Name', align: '' },
-                    { key: 'type', label: 'Type', align: '' },
-                    { key: 'status', label: 'Status', align: '' },
-                    { key: 'ip', label: 'IP Address', align: '' },
-                    { key: 'cpu', label: 'CPU', align: 'text-right' },
-                    { key: 'memory', label: 'Memory', align: 'text-right' },
-                    { key: 'rx', label: 'RX', align: 'text-right' },
-                    { key: 'tx', label: 'TX', align: 'text-right' },
-                  ].map(col => (
-                    <TableHead
-                      key={col.key}
-                      className={`${col.align} cursor-pointer select-none hover:text-foreground`}
-                      onClick={() => setContainerSort(prev =>
-                        prev.key === col.key
-                          ? { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-                          : { key: col.key, dir: 'asc' }
-                      )}
-                    >
-                      {col.label}
-                      {containerSort.key === col.key && (
-                        <span className="ml-1 text-xs">{containerSort.dir === 'asc' ? '▲' : '▼'}</span>
-                      )}
-                    </TableHead>
                   ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(() => {
-                  const getMetrics = (c: VirtualContainer) =>
-                    containerMetricsList?.find(m => m.domain === c.name || m.domain === c.containerId);
-                  const sorted = [...containerList].sort((a, b) => {
-                    const dir = containerSort.dir === 'asc' ? 1 : -1;
-                    const ma = getMetrics(a);
-                    const mb = getMetrics(b);
-                    switch (containerSort.key) {
-                      case 'name': return dir * a.name.localeCompare(b.name);
-                      case 'type': return dir * a.type.localeCompare(b.type);
-                      case 'status': return dir * a.status.localeCompare(b.status);
-                      case 'ip': return dir * (a.ipAddress || '').localeCompare(b.ipAddress || '');
-                      case 'cpu': return dir * ((ma?.cpuPercent ?? -1) - (mb?.cpuPercent ?? -1));
-                      case 'memory': return dir * ((ma?.memoryUsageBytes ?? ma?.memoryMaxBytes ?? -1) - (mb?.memoryUsageBytes ?? mb?.memoryMaxBytes ?? -1));
-                      case 'rx': return dir * (Number(a.networkRxBytes) - Number(b.networkRxBytes));
-                      case 'tx': return dir * (Number(a.networkTxBytes) - Number(b.networkTxBytes));
-                      default: return 0;
-                    }
-                  });
-                  return sorted.map((c) => (
-                    <ContainerRow
-                      key={c.id}
-                      container={c}
-                      metrics={getMetrics(c)}
-                    />
-                  ));
-                })()}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Active Alerts */}
-      {serverData.alerts && serverData.alerts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Active Alerts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {serverData.alerts.map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between p-3 bg-red-500/10 dark:bg-red-500/20 rounded-lg border border-red-500/20">
-                  <div>
-                    <p className="font-medium text-red-800">{alert.message}</p>
-                    <p className="text-sm text-red-600">
-                      Started: {new Date(alert.startsAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <Badge variant="danger">{alert.severity}</Badge>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <p className="text-center text-muted-foreground">No active alerts for this server.</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
-
-      {/* Bandwidth Summary */}
-      <BandwidthSummary serverId={serverId} />
-
-      {/* Resource Forecasting */}
-      <ServerForecasting serverId={serverId} />
-
-      {/* Real-time Metrics Charts */}
-      <MetricsCharts serverId={serverId} hasMySQLExporter={serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING')} />
     </div>
   );
 }

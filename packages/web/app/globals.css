@@ -55,6 +55,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  code, pre, .font-mono, [class*="tabular-nums"] {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
   }
 }
 

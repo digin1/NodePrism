@@ -103,7 +103,7 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
       },
     });
 
-    // Add MySQL metrics if MySQL exporter is running
+    // Add MySQL metrics if MySQL exporter is registered
     if (mysqlAgent) {
       queries.mysqlConnections = `mysql_global_status_threads_connected{server_id="${serverId}"}`;
       queries.mysqlMaxConnections = `mysql_global_variables_max_connections{server_id="${serverId}"}`;
@@ -112,6 +112,23 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
       queries.mysqlUptime = `mysql_global_status_uptime{server_id="${serverId}"}`;
       queries.mysqlBufferPoolSize = `mysql_global_variables_innodb_buffer_pool_size{server_id="${serverId}"}`;
       queries.mysqlBufferPoolUsed = `mysql_global_status_innodb_buffer_pool_bytes_data{server_id="${serverId}"}`;
+    }
+
+    // Add LiteSpeed metrics if LiteSpeed exporter is registered
+    const lsAgent = await prisma.agent.findFirst({
+      where: { serverId, type: 'LITESPEED_EXPORTER' },
+    });
+    if (lsAgent) {
+      queries.lsConnections = `litespeed_plainconn{server_id="${serverId}"} + litespeed_sslconn{server_id="${serverId}"}`;
+      queries.lsSSLConnections = `litespeed_sslconn{server_id="${serverId}"}`;
+      queries.lsMaxConnections = `litespeed_maxconn{server_id="${serverId}"}`;
+      queries.lsReqPerSec = `litespeed_req_per_sec{server_id="${serverId}"}`;
+      queries.lsReqProcessing = `litespeed_req_processing{server_id="${serverId}"}`;
+      queries.lsTotalRequests = `litespeed_tot_reqs{server_id="${serverId}"}`;
+      queries.lsBpsIn = `litespeed_bps_in{server_id="${serverId}"} + litespeed_ssl_bps_in{server_id="${serverId}"}`;
+      queries.lsBpsOut = `litespeed_bps_out{server_id="${serverId}"} + litespeed_ssl_bps_out{server_id="${serverId}"}`;
+      queries.lsCacheHitsPerSec = `litespeed_pub_cache_hits_per_sec{server_id="${serverId}"}`;
+      queries.lsStaticHitsPerSec = `litespeed_static_hits_per_sec{server_id="${serverId}"}`;
     }
 
     const results: Record<string, any> = {};

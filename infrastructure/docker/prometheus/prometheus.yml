@@ -97,3 +97,53 @@ scrape_configs:
     file_sd_configs:
       - files:
           - '/etc/prometheus/targets/apache-exporter/*.json'
+
+  - job_name: 'redis-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/redis-exporter/*.json'
+
+  # Libvirt Exporter - KVM/QEMU per-VM metrics
+  - job_name: 'libvirt-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/libvirt-exporter/*.json'
+    relabel_configs:
+      - source_labels: [server_id]
+        target_label: server_id
+      - source_labels: [hostname]
+        target_label: hostname
+
+  # LiteSpeed Exporter - Web server metrics from .rtreport
+  - job_name: 'litespeed-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/litespeed-exporter/*.json'
+    relabel_configs:
+      - source_labels: [server_id]
+        target_label: server_id
+      - source_labels: [hostname]
+        target_label: hostname
+
+  # Exim Exporter - Mail queue, deliveries, per-domain stats
+  - job_name: 'exim-exporter'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/exim-exporter/*.json'
+    relabel_configs:
+      - source_labels: [server_id]
+        target_label: server_id
+      - source_labels: [hostname]
+        target_label: hostname
+
+  # cPanel Exporter - Account, domain, bandwidth metrics
+  - job_name: 'cpanel-exporter'
+    scrape_interval: 60s
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/cpanel-exporter/*.json'
+    relabel_configs:
+      - source_labels: [server_id]
+        target_label: server_id
+      - source_labels: [hostname]
+        target_label: hostname

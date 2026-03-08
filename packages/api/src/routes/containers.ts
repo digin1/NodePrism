@@ -1,8 +1,11 @@
 import { Router, Request, Response, NextFunction, type Router as ExpressRouter } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
+import axios from 'axios';
 import { logger } from '../utils/logger';
 import { agentLimiter } from '../middleware/rateLimit';
+
+const PROMETHEUS_URL = process.env.PROMETHEUS_URL || 'http://localhost:9090';
 
 const router: ExpressRouter = Router();
 
@@ -167,6 +170,110 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
         networkTxBytes: container.networkTxBytes.toString(),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/containers/server/:serverId/metrics - Get live metrics for all VMs on a server
+router.get('/server/:serverId/metrics', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { serverId } = req.params;
+
+    // Check if server has a libvirt exporter (KVM — metrics come from Prometheus)
+    const agent = await prisma.agent.findFirst({
+      where: { serverId, type: 'LIBVIRT_EXPORTER' },
+      include: { server: { select: { ipAddress: true } } },
+    });
+
+    if (agent) {
+      // KVM path: query Prometheus for per-domain metrics
+      const queries = {
+        cpuTime: `rate(libvirt_domain_info_cpu_time_seconds_total{server_id="${serverId}"}[5m]) * 100`,
+        memoryUsage: `libvirt_domain_info_memory_usage_bytes{server_id="${serverId}"}`,
+        memoryMax: `libvirt_domain_info_maximum_memory_bytes{server_id="${serverId}"}`,
+        vCPUs: `libvirt_domain_info_virtual_cpus{server_id="${serverId}"}`,
+        diskRead: `rate(libvirt_domain_block_stats_read_bytes_total{server_id="${serverId}"}[5m])`,
+        diskWrite: `rate(libvirt_domain_block_stats_write_bytes_total{server_id="${serverId}"}[5m])`,
+        netRx: `rate(libvirt_domain_interface_stats_receive_bytes_total{server_id="${serverId}"}[5m])`,
+        netTx: `rate(libvirt_domain_interface_stats_transmit_bytes_total{server_id="${serverId}"}[5m])`,
+      };
+
+      const results = await Promise.all(
+        Object.entries(queries).map(async ([metric, query]) => {
+          try {
+            const resp = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+              params: { query },
+              timeout: 5000,
+            });
+            return { metric, data: resp.data?.data?.result || [] };
+          } catch {
+            return { metric, data: [] };
+          }
+        })
+      );
+
+      const domainMetrics: Record<string, Record<string, number>> = {};
+      for (const { metric, data } of results) {
+        for (const result of data) {
+          const domain = result.metric?.domain || result.metric?.name || 'unknown';
+          if (!domainMetrics[domain]) domainMetrics[domain] = {};
+          domainMetrics[domain][metric] = parseFloat(result.value?.[1] || '0');
+        }
+      }
+
+      const metricsArray = Object.entries(domainMetrics).map(([domain, metrics]) => ({
+        domain,
+        cpuPercent: metrics.cpuTime ?? null,
+        memoryUsageBytes: metrics.memoryUsage ?? null,
+        memoryMaxBytes: metrics.memoryMax ?? null,
+        vCPUs: metrics.vCPUs ?? null,
+        diskReadBytesPerSec: metrics.diskRead ?? null,
+        diskWriteBytesPerSec: metrics.diskWrite ?? null,
+        netRxBytesPerSec: metrics.netRx ?? null,
+        netTxBytesPerSec: metrics.netTx ?? null,
+      }));
+
+      return res.json({ success: true, data: metricsArray });
+    }
+
+    // Non-Prometheus path: metrics come from container metadata (reported by agent/collector)
+    const containers = await prisma.virtualContainer.findMany({
+      where: { serverId },
+    });
+
+    if (containers.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Include containers that have any useful metadata (OpenVZ cpu/mem, or KVM vcpus/memoryKB)
+    const metricsArray = containers
+      .filter(c => {
+        const meta = c.metadata as Record<string, unknown> | null;
+        return meta && (meta.cpuPercent !== undefined || meta.memoryUsageBytes !== undefined || meta.vcpus !== undefined || meta.memoryKB !== undefined);
+      })
+      .map(c => {
+        const meta = c.metadata as Record<string, unknown>;
+        // memoryKB is stored by KVM agent (from virsh dominfo), convert to bytes
+        const memMaxBytes = meta.memoryMaxBytes != null
+          ? Number(meta.memoryMaxBytes)
+          : meta.memoryKB != null
+            ? Number(meta.memoryKB) * 1024
+            : null;
+        return {
+          domain: c.name,
+          cpuPercent: meta.cpuPercent != null ? Number(meta.cpuPercent) : null,
+          memoryUsageBytes: meta.memoryUsageBytes != null ? Number(meta.memoryUsageBytes) : null,
+          memoryMaxBytes: memMaxBytes,
+          vCPUs: meta.vcpus != null ? Number(meta.vcpus) : null,
+          diskReadBytesPerSec: null,
+          diskWriteBytesPerSec: null,
+          netRxBytesPerSec: meta.netRxBytesPerSec != null ? Number(meta.netRxBytesPerSec) : null,
+          netTxBytesPerSec: meta.netTxBytesPerSec != null ? Number(meta.netTxBytesPerSec) : null,
+        };
+      });
+
+    res.json({ success: true, data: metricsArray });
   } catch (error) {
     next(error);
   }

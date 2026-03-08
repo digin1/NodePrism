@@ -24,6 +24,7 @@ server (API + Web UI) and lightweight agents deployed on monitored servers.`,
   },
   {
     title: 'API Endpoints',
+    docsUrl: process.env.NEXT_PUBLIC_DOCS_URL || 'http://66.85.173.55:3080',
     items: [
       { label: 'GET /health', desc: 'Health check with dependency status' },
       { label: 'POST /api/auth/login', desc: 'Authenticate and receive JWT token' },
@@ -48,10 +49,41 @@ server (API + Web UI) and lightweight agents deployed on monitored servers.`,
     title: 'Agent Setup',
     steps: [
       'SSH into the target server you want to monitor.',
-      'Run the agent installer script from the manager: curl -sL http://<manager-ip>:4000/agent-install.sh | bash',
+      'Run the agent installer: curl -sL http://66.85.173.55:4000/agent-install.sh | sudo bash',
+      'Select "1) Install a new agent" and choose the agent type (e.g., Node Exporter for system metrics).',
       'The agent will automatically register with the manager and begin reporting metrics.',
       'Verify the agent appears in the Servers page with a "connected" status.',
-      'To reconfigure an agent, run: nodeprism-agent reconfigure',
+      'To reconfigure an agent, run: sudo nodeprism-agent reconfigure',
+    ],
+  },
+  {
+    title: 'Available Agent Types',
+    items: [
+      { label: 'Node Exporter (port 9100)', desc: 'System metrics — CPU, memory, disk, network, load average. Required for basic server monitoring.' },
+      { label: 'MySQL Exporter (port 9104)', desc: 'MySQL/MariaDB metrics — connections, queries/sec, InnoDB stats, slow queries. Requires a read-only DB user (GRANT PROCESS, REPLICATION CLIENT, SELECT).' },
+      { label: 'PostgreSQL Exporter (port 9187)', desc: 'PostgreSQL metrics — connections, query stats, replication lag. Requires pg_monitor role.' },
+      { label: 'MongoDB Exporter (port 9216)', desc: 'MongoDB metrics — operations, connections, replication. Requires clusterMonitor + read role.' },
+      { label: 'Nginx Exporter (port 9113)', desc: 'Nginx metrics — active connections, requests/sec. Requires stub_status enabled.' },
+      { label: 'Redis Exporter (port 9121)', desc: 'Redis metrics — memory, keys, commands/sec. For Redis 6+ ACLs, use a read-only user.' },
+      { label: 'Libvirt Exporter (port 9177)', desc: 'KVM/QEMU per-VM metrics — CPU time, memory, disk I/O, network per domain. Auto-detected on KVM hosts. Uses read-only libvirt socket (cannot modify VMs).' },
+      { label: 'LiteSpeed Exporter (port 9122)', desc: 'LiteSpeed metrics — requests/sec, connections, bandwidth, per-vhost stats, LSAPI/PHP workers. Reads .rtreport files (read-only).' },
+      { label: 'Exim Exporter (port 9123)', desc: 'Exim mail metrics — queue size, frozen messages, deliveries/bounces/rejections per day, per-domain send/receive counts.' },
+      { label: 'cPanel Exporter (port 9124)', desc: 'cPanel metrics — total accounts, domains, suspended accounts, per-account bandwidth and disk usage. Read-only file access.' },
+      { label: 'Promtail (port 9080)', desc: 'Log collector — ships syslog, auth.log, journal, and custom logs to Loki for centralized log viewing.' },
+    ],
+  },
+  {
+    title: 'Container / VM Monitoring',
+    content: `NodePrism automatically detects and monitors virtual machines and containers on your hosts.
+When an agent is installed on a virtualization host (KVM, OpenVZ, or Virtuozzo), the installer gathers
+an inventory of all VMs/containers and reports them to the API. This data appears in the server detail
+page under "Virtual Machines / Containers" with sortable columns and summary stats.`,
+    items: [
+      { label: 'KVM / QEMU', desc: 'VMs detected via virsh. Install the Libvirt Exporter for live per-VM CPU, memory, disk I/O, and network metrics via Prometheus. The exporter uses the read-only libvirt socket for safety.' },
+      { label: 'OpenVZ', desc: 'Containers detected via vzlist. A periodic collector (systemd timer, every 30s) gathers per-container CPU% (vzstat), memory (/proc/user_beancounters), vCPUs, and network stats (/sys/class/net).' },
+      { label: 'Virtuozzo', desc: 'Containers/VMs detected via prlctl. Metrics gathered via prlctl statistics (CPU, memory) with a periodic collector.' },
+      { label: 'Grafana Dashboard', desc: 'The "Container / VM Overview" Grafana dashboard shows live status timeline, CPU/memory graphs (top 20), disk I/O and network rates (top 10), plus inventory tables from PostgreSQL.' },
+      { label: 'API Endpoints', desc: 'GET /api/containers/server/:id — list containers. GET /api/containers/server/:id/metrics — live metrics (Prometheus for KVM, metadata for OpenVZ/Virtuozzo). GET /api/containers/:id — single container details.' },
     ],
   },
   {
@@ -92,7 +124,19 @@ export default function DocsPage() {
       {sections.map((section) => (
         <Card key={section.title}>
           <CardHeader>
-            <CardTitle>{section.title}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>{section.title}</CardTitle>
+              {section.docsUrl && (
+                <a
+                  href={section.docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-blue-500 hover:text-blue-400 hover:underline"
+                >
+                  View Interactive API Docs &rarr;
+                </a>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {section.content && (

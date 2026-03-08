@@ -201,6 +201,18 @@ export interface VirtualContainer {
   lastSeen: string | null;
 }
 
+export interface ContainerMetrics {
+  domain: string;
+  cpuPercent: number | null;
+  memoryUsageBytes: number | null;
+  memoryMaxBytes: number | null;
+  vCPUs: number | null;
+  diskReadBytesPerSec: number | null;
+  diskWriteBytesPerSec: number | null;
+  netRxBytesPerSec: number | null;
+  netTxBytesPerSec: number | null;
+}
+
 export const containerApi = {
   listByServer: (serverId: string) =>
     getData<VirtualContainer[]>(api.get(`/api/containers/server/${serverId}`)),
@@ -208,6 +220,8 @@ export const containerApi = {
     getData<VirtualContainer & { server?: { id: string; hostname: string; ipAddress: string } }>(
       api.get(`/api/containers/${id}`)
     ),
+  metrics: (serverId: string) =>
+    getData<ContainerMetrics[]>(api.get(`/api/containers/server/${serverId}/metrics`)),
 };
 
 // Agent API

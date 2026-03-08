@@ -11,7 +11,7 @@
       "title": "Anomaly Events (Last 7 Days)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT date_trunc('hour', started_at) AS time, COUNT(*) AS anomalies FROM anomaly_events WHERE started_at >= NOW() - INTERVAL '7 days' GROUP BY 1 ORDER BY 1",
@@ -30,7 +30,7 @@
       "title": "Active Anomaly Events",
       "type": "stat",
       "gridPos": { "h": 6, "w": 6, "x": 0, "y": 8 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT COUNT(*) AS \"Active Anomalies\" FROM anomaly_events WHERE ended_at IS NULL",
@@ -55,7 +55,7 @@
       "title": "Trained Models",
       "type": "stat",
       "gridPos": { "h": 6, "w": 6, "x": 6, "y": 8 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT COUNT(*) AS \"Trained Models\" FROM anomaly_models WHERE expires_at > NOW()",
@@ -71,7 +71,7 @@
       "title": "Servers with Anomalies (24h)",
       "type": "stat",
       "gridPos": { "h": 6, "w": 6, "x": 12, "y": 8 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT COUNT(DISTINCT server_id) AS \"Affected Servers\" FROM anomaly_events WHERE started_at >= NOW() - INTERVAL '24 hours'",
@@ -96,7 +96,7 @@
       "title": "Expired Models",
       "type": "stat",
       "gridPos": { "h": 6, "w": 6, "x": 18, "y": 8 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT COUNT(*) AS \"Expired Models\" FROM anomaly_models WHERE expires_at <= NOW()",
@@ -112,7 +112,7 @@
       "title": "Anomaly Scores by Server (NAR)",
       "type": "table",
       "gridPos": { "h": 10, "w": 12, "x": 0, "y": 14 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT s.hostname, COUNT(ae.id) AS total_anomalies, COUNT(CASE WHEN ae.ended_at IS NULL THEN 1 END) AS active, ROUND(AVG(ae.score)::numeric, 3) AS avg_score, ROUND(AVG(ae.severity)::numeric, 1) AS avg_nar_pct FROM anomaly_events ae JOIN servers s ON ae.server_id = s.id WHERE ae.started_at >= NOW() - INTERVAL '7 days' GROUP BY s.hostname ORDER BY active DESC, total_anomalies DESC LIMIT 20",
@@ -125,7 +125,7 @@
       "title": "Top Anomalous Metrics",
       "type": "table",
       "gridPos": { "h": 10, "w": 12, "x": 12, "y": 14 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT metric_name, COUNT(*) AS occurrences, ROUND(AVG(score)::numeric, 3) AS avg_score, ROUND(MAX(score)::numeric, 3) AS max_score FROM anomaly_events WHERE started_at >= NOW() - INTERVAL '7 days' GROUP BY metric_name ORDER BY occurrences DESC LIMIT 20",
@@ -138,7 +138,7 @@
       "title": "Model Training Timeline",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT date_trunc('hour', trained_at) AS time, COUNT(*) AS models_trained, AVG(data_points) AS avg_data_points FROM anomaly_models WHERE trained_at >= NOW() - INTERVAL '7 days' GROUP BY 1 ORDER BY 1",
@@ -154,7 +154,7 @@
       "title": "Anomaly Duration Distribution",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT date_trunc('day', started_at) AS time, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)))::numeric, 0) AS avg_duration_seconds FROM anomaly_events WHERE started_at >= NOW() - INTERVAL '7 days' GROUP BY 1 ORDER BY 1",
@@ -170,7 +170,7 @@
       "title": "Models by Server",
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
-      "datasource": { "type": "postgres", "uid": "postgres" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "postgres" },
       "targets": [
         {
           "rawSql": "SELECT s.hostname AS metric, COUNT(am.id) AS \"Models\" FROM anomaly_models am JOIN servers s ON am.server_id = s.id WHERE am.expires_at > NOW() GROUP BY s.hostname ORDER BY COUNT(am.id) DESC LIMIT 15",

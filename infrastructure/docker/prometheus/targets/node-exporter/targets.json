@@ -1,23 +1,45 @@
 [
   {
     "targets": [
-      "66.85.173.27:9100"
-    ],
-    "labels": {
-      "server_id": "3426a123-159e-4b01-8cf7-a8e78dc5f9fd",
-      "hostname": "dummy-server",
-      "environment": "development",
-      "agent_type": "node_exporter"
-    }
-  },
-  {
-    "targets": [
       "66.85.173.55:9100"
     ],
     "labels": {
       "server_id": "c9b50c97-ee91-4037-b5a3-7992876ad554",
       "hostname": "nodeprism-manager",
       "environment": "development",
+      "agent_type": "node_exporter"
+    }
+  },
+  {
+    "targets": [
+      "66.85.129.250:9100"
+    ],
+    "labels": {
+      "server_id": "450f18bc-faf6-4909-a40f-750a710f90e7",
+      "hostname": "kvmaz5.veeblehosting.com",
+      "environment": "production",
+      "agent_type": "node_exporter"
+    }
+  },
+  {
+    "targets": [
+      "184.95.32.178:9100"
+    ],
+    "labels": {
+      "server_id": "27a362a7-19e4-496b-a774-14fa5377669c",
+      "hostname": "azvz6.veeblehosting.com",
+      "environment": "production",
+      "agent_type": "node_exporter"
+    }
+  },
+  {
+    "targets": [
+      "23.83.135.198:9100"
+    ],
+    "labels": {
+      "server_id": "8feaf8bc-ade2-4cf3-86b3-a2a74db9340e",
+      "hostname": "safebox.us.veeblehosting.com",
+      "environment": "production",
       "agent_type": "node_exporter"
     }
   }

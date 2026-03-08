@@ -13,16 +13,19 @@ NodePrism uses PostgreSQL with Prisma ORM.
 ```
 Server (1) ──── (*) Agent
    │
-   ├──── (*) Deployment
+   ├──── (*) VirtualContainer
    ├──── (*) Alert
    ├──── (*) AnomalyEvent
+   ├──── (*) AnomalyModel
    ├──── (*) MetricHistory
-   └──── (*) EventLog
+   ├──── (*) EventLog
+   └──── (*) MaintenanceWindow
 
 User (1) ──── (*) AuditLog
 
 AlertRule ──── Alert
 AlertTemplate ──── NotificationChannel
+NotificationChannel (1) ──── (*) NotificationLog
 ```
 
 ---
@@ -403,14 +406,19 @@ AlertTemplate ──── NotificationChannel
 
 | Value | Description |
 |-------|-------------|
-| `NODE_EXPORTER` | - |
-| `APP_AGENT` | - |
-| `MYSQL_EXPORTER` | - |
-| `POSTGRES_EXPORTER` | - |
-| `MONGODB_EXPORTER` | - |
-| `NGINX_EXPORTER` | - |
-| `APACHE_EXPORTER` | - |
-| `PROMTAIL` | - |
+| `NODE_EXPORTER` | System metrics (CPU, memory, disk, network) |
+| `APP_AGENT` | Custom application metrics |
+| `MYSQL_EXPORTER` | MySQL/MariaDB metrics |
+| `POSTGRES_EXPORTER` | PostgreSQL metrics |
+| `MONGODB_EXPORTER` | MongoDB metrics |
+| `NGINX_EXPORTER` | Nginx metrics |
+| `APACHE_EXPORTER` | Apache metrics |
+| `REDIS_EXPORTER` | Redis metrics |
+| `LIBVIRT_EXPORTER` | KVM/QEMU per-VM metrics |
+| `LITESPEED_EXPORTER` | LiteSpeed web server metrics |
+| `EXIM_EXPORTER` | Exim mail server metrics |
+| `CPANEL_EXPORTER` | cPanel hosting metrics |
+| `PROMTAIL` | Log shipping to Loki |
 
 ### AgentStatus
 

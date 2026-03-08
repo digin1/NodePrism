@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer, ContainerMetrics, forecastApi } from '@/lib/api';
+import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer, ContainerMetrics, ContainerMetricsResponse, forecastApi } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
 import { ServerForecasting } from './forecasting';
@@ -194,6 +194,9 @@ function ContainerRow({ container: c, metrics }: { container: VirtualContainer; 
             ? `${formatBytes(metrics.memoryUsageBytes)} / ${formatBytes(metrics.memoryMaxBytes)}`
             : '—'}
         </TableCell>
+        <TableCell className="text-right">
+          {meta?.diskSizeBytes ? formatBytes(Number(meta.diskSizeBytes)) : '—'}
+        </TableCell>
         <TableCell className="text-right text-green-600">
           {metrics?.netRxBytesPerSec != null ? formatBytesRate(metrics.netRxBytesPerSec) : formatTraffic(c.networkRxBytes)}
         </TableCell>
@@ -203,7 +206,7 @@ function ContainerRow({ container: c, metrics }: { container: VirtualContainer; 
       </TableRow>
       {expanded && (
         <TableRow>
-          <TableCell colSpan={9} className="bg-muted/30 p-4">
+          <TableCell colSpan={10} className="bg-muted/30 p-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Container ID</p>
@@ -427,8 +430,9 @@ export default function ServerDetailPage() {
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
-  // Container sort state
+  // Container sort & filter state
   const [containerSort, setContainerSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' });
+  const [containerSearch, setContainerSearch] = useState('');
 
   const { data: server, isLoading } = useQuery({
     queryKey: ['server', serverId],
@@ -451,14 +455,15 @@ export default function ServerDetailPage() {
 
   const containerList = containers as VirtualContainer[] | undefined;
 
-  const { data: containerMetrics } = useQuery({
+  const { data: containerMetricsResponse } = useQuery({
     queryKey: ['containerMetrics', serverId],
     queryFn: () => containerApi.metrics(serverId),
     enabled: !!containerList && containerList.length > 0,
     refetchInterval: 15000,
   });
 
-  const containerMetricsList = containerMetrics as ContainerMetrics[] | undefined;
+  const containerMetricsList = containerMetricsResponse?.data;
+  const storagePool = containerMetricsResponse?.storagePool;
 
   const { data: allTags } = useQuery({
     queryKey: ['serverTags'],
@@ -1119,6 +1124,10 @@ export default function ServerDetailPage() {
                   const totalVCPUs = containerMetricsList?.reduce((sum, m) => sum + (m.vCPUs ?? 0), 0) ?? 0;
                   const hasCpu = containerMetricsList?.some(m => m.cpuPercent != null);
                   const hasMem = totalMemMax > 0 || totalMemUsed > 0;
+                  const totalDiskAlloc = containerList.reduce((sum, c) => {
+                    const meta = c.metadata as Record<string, unknown> | null;
+                    return sum + (meta?.diskSizeBytes ? Number(meta.diskSizeBytes) : 0);
+                  }, 0);
                   return (
                     <div className="flex flex-wrap gap-4 mb-4 text-sm">
                       <div className="flex items-center gap-1.5">
@@ -1146,9 +1155,27 @@ export default function ServerDetailPage() {
                           Memory: {totalMemUsed > 0 ? `${formatBytes(totalMemUsed)} / ` : ''}{formatBytes(totalMemMax)}
                         </div>
                       )}
+                      {totalDiskAlloc > 0 && (
+                        <div className="text-muted-foreground">
+                          Disk Allocated: {formatBytes(totalDiskAlloc)}
+                        </div>
+                      )}
+                      {storagePool && (
+                        <div className="text-muted-foreground">
+                          VG {storagePool.name}: {formatBytes(storagePool.sizeBytes - storagePool.freeBytes)} / {formatBytes(storagePool.sizeBytes)} ({formatBytes(storagePool.freeBytes)} free)
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
+                <div className="mb-3">
+                  <Input
+                    placeholder="Search by name, IP, status..."
+                    value={containerSearch}
+                    onChange={(e) => setContainerSearch(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1160,6 +1187,7 @@ export default function ServerDetailPage() {
                         { key: 'ip', label: 'IP Address', align: '' },
                         { key: 'cpu', label: 'CPU', align: 'text-right' },
                         { key: 'memory', label: 'Memory', align: 'text-right' },
+                        { key: 'disk', label: 'Disk', align: 'text-right' },
                         { key: 'rx', label: 'RX', align: 'text-right' },
                         { key: 'tx', label: 'TX', align: 'text-right' },
                       ].map(col => (
@@ -1184,7 +1212,18 @@ export default function ServerDetailPage() {
                     {(() => {
                       const getMetrics = (c: VirtualContainer) =>
                         containerMetricsList?.find(m => m.domain === c.name || m.domain === c.containerId);
-                      const sorted = [...containerList].sort((a, b) => {
+                      const searchLower = containerSearch.toLowerCase().trim();
+                      const filtered = searchLower
+                        ? containerList.filter(c =>
+                            c.name.toLowerCase().includes(searchLower) ||
+                            c.containerId.toLowerCase().includes(searchLower) ||
+                            (c.ipAddress || '').toLowerCase().includes(searchLower) ||
+                            (c.hostname || '').toLowerCase().includes(searchLower) ||
+                            c.status.toLowerCase().includes(searchLower) ||
+                            c.type.toLowerCase().includes(searchLower)
+                          )
+                        : containerList;
+                      const sorted = [...filtered].sort((a, b) => {
                         const dir = containerSort.dir === 'asc' ? 1 : -1;
                         const ma = getMetrics(a);
                         const mb = getMetrics(b);
@@ -1195,8 +1234,13 @@ export default function ServerDetailPage() {
                           case 'ip': return dir * (a.ipAddress || '').localeCompare(b.ipAddress || '');
                           case 'cpu': return dir * ((ma?.cpuPercent ?? -1) - (mb?.cpuPercent ?? -1));
                           case 'memory': return dir * ((ma?.memoryUsageBytes ?? ma?.memoryMaxBytes ?? -1) - (mb?.memoryUsageBytes ?? mb?.memoryMaxBytes ?? -1));
-                          case 'rx': return dir * (Number(a.networkRxBytes) - Number(b.networkRxBytes));
-                          case 'tx': return dir * (Number(a.networkTxBytes) - Number(b.networkTxBytes));
+                          case 'disk': {
+                            const da = (a.metadata as Record<string, unknown>)?.diskSizeBytes;
+                            const db = (b.metadata as Record<string, unknown>)?.diskSizeBytes;
+                            return dir * ((da ? Number(da) : -1) - (db ? Number(db) : -1));
+                          }
+                          case 'rx': return dir * ((ma?.netRxBytesPerSec ?? Number(a.networkRxBytes)) - (mb?.netRxBytesPerSec ?? Number(b.networkRxBytes)));
+                          case 'tx': return dir * ((ma?.netTxBytesPerSec ?? Number(a.networkTxBytes)) - (mb?.netTxBytesPerSec ?? Number(b.networkTxBytes)));
                           default: return 0;
                         }
                       });

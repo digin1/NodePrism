@@ -17,10 +17,11 @@ const severityColors: Record<string, 'danger' | 'warning' | 'secondary' | 'defau
   DEBUG: 'default',
 };
 
-const statusColors: Record<string, 'danger' | 'success' | 'secondary'> = {
+const statusColors: Record<string, 'danger' | 'success' | 'secondary' | 'warning'> = {
   FIRING: 'danger',
   RESOLVED: 'success',
-  ACKNOWLEDGED: 'secondary',
+  ACKNOWLEDGED: 'warning',
+  SILENCED: 'secondary',
 };
 
 interface Alert {
@@ -29,8 +30,11 @@ interface Alert {
   severity: string;
   status: string;
   startsAt: string;
+  acknowledgedAt?: string;
+  acknowledgedBy?: string;
+  serverId?: string;
   rule?: { name: string };
-  server?: { hostname: string; ipAddress?: string };
+  server?: { id: string; hostname: string; ipAddress?: string };
   labels?: { instance?: string; hostname?: string; alertname?: string; [key: string]: string | undefined };
 }
 
@@ -39,6 +43,8 @@ interface AlertStats {
   critical: number;
   warning: number;
   resolved: number;
+  silenced: number;
+  acknowledged: number;
 }
 
 export default function AlertsPage() {
@@ -50,11 +56,13 @@ export default function AlertsPage() {
   const { data: alerts, isLoading } = useQuery({
     queryKey: ['alerts', { status: statusFilter, severity: severityFilter }],
     queryFn: () => alertApi.list({ status: statusFilter || undefined, severity: severityFilter || undefined }),
+    refetchInterval: 15000,
   });
 
   const { data: stats } = useQuery({
     queryKey: ['alertStats'],
     queryFn: () => alertApi.stats(),
+    refetchInterval: 15000,
   });
 
   const invalidateAlerts = () => {
@@ -64,6 +72,11 @@ export default function AlertsPage() {
 
   const acknowledgeMutation = useMutation({
     mutationFn: (id: string) => alertApi.acknowledge(id, 'Admin'),
+    onSuccess: invalidateAlerts,
+  });
+
+  const silenceMutation = useMutation({
+    mutationFn: (id: string) => alertApi.silence(id, 'Admin', 60),
     onSuccess: invalidateAlerts,
   });
 
@@ -127,7 +140,7 @@ export default function AlertsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <Card className="stat-card-accent" style={{ '--accent-color': '#ef4444' } as React.CSSProperties}>
           <CardContent className="p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Firing</p>
@@ -144,6 +157,18 @@ export default function AlertsPage() {
           <CardContent className="p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Warning</p>
             <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">{alertStats?.warning || 0}</p>
+          </CardContent>
+        </Card>
+        <Card className="stat-card-accent" style={{ '--accent-color': '#6366f1' } as React.CSSProperties}>
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Acknowledged</p>
+            <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{alertStats?.acknowledged || 0}</p>
+          </CardContent>
+        </Card>
+        <Card className="stat-card-accent" style={{ '--accent-color': '#8b5cf6' } as React.CSSProperties}>
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Silenced</p>
+            <p className="text-3xl font-bold text-violet-600 dark:text-violet-400 mt-1">{alertStats?.silenced || 0}</p>
           </CardContent>
         </Card>
         <Card className="stat-card-accent" style={{ '--accent-color': '#10b981' } as React.CSSProperties}>
@@ -268,12 +293,12 @@ export default function AlertsPage() {
                     </TableCell>
                     <TableCell>
                       {alert.server ? (
-                        <div>
+                        <a href={`/servers/${alert.server.id}`} className="hover:underline">
                           <span className="font-mono text-sm">{alert.server.hostname}</span>
                           {alert.server.ipAddress && (
                             <p className="text-xs text-muted-foreground">{alert.server.ipAddress}</p>
                           )}
-                        </div>
+                        </a>
                       ) : alert.labels?.instance || alert.labels?.hostname ? (
                         <span className="font-mono text-sm text-muted-foreground">
                           {alert.labels.hostname || alert.labels.instance}
@@ -291,21 +316,49 @@ export default function AlertsPage() {
                       <Badge variant={statusColors[alert.status] || 'secondary'}>
                         {alert.status}
                       </Badge>
+                      {alert.acknowledgedBy && (alert.status === 'ACKNOWLEDGED' || alert.status === 'SILENCED') && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          by {alert.acknowledgedBy}
+                          {alert.acknowledgedAt && <> at {new Date(alert.acknowledgedAt).toLocaleTimeString()}</>}
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(alert.startsAt).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      {alert.status === 'FIRING' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => acknowledgeMutation.mutate(alert.id)}
-                          disabled={acknowledgeMutation.isPending}
-                        >
-                          Acknowledge
-                        </Button>
-                      )}
+                      <div className="flex gap-1 justify-end">
+                        {alert.status === 'FIRING' && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => acknowledgeMutation.mutate(alert.id)}
+                              disabled={acknowledgeMutation.isPending}
+                            >
+                              Ack
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => silenceMutation.mutate(alert.id)}
+                              disabled={silenceMutation.isPending}
+                            >
+                              Silence
+                            </Button>
+                          </>
+                        )}
+                        {alert.status === 'ACKNOWLEDGED' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => silenceMutation.mutate(alert.id)}
+                            disabled={silenceMutation.isPending}
+                          >
+                            Silence
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

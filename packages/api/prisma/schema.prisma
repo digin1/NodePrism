@@ -58,6 +58,7 @@ model Server {
   eventLogs          EventLog[]
   maintenanceWindows MaintenanceWindow[]
   uptimeMonitors     UptimeMonitor[]
+  incidents          Incident[]
 
   @@map("servers")
 }
@@ -538,6 +539,7 @@ model Incident {
   updatedAt   DateTime        @updatedAt @map("updated_at")
 
   // Relations
+  server  Server?          @relation(fields: [serverId], references: [id], onDelete: SetNull)
   updates IncidentUpdate[]
 
   @@index([status])

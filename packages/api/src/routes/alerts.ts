@@ -370,74 +370,8 @@ router.delete('/rules/:id', async (req: Request, res: Response, next: NextFuncti
   }
 });
 
-// POST /api/alerts/:id/acknowledge - Acknowledge an alert
-router.post('/:id/acknowledge', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const { acknowledgedBy } = req.body;
-
-    const alert = await prisma.alert.update({
-      where: { id },
-      data: {
-        status: 'ACKNOWLEDGED',
-        acknowledgedAt: new Date(),
-        acknowledgedBy,
-      },
-    });
-
-    logger.info(`Alert acknowledged: ${id}`);
-    audit(req, { action: 'alert.acknowledge', entityType: 'alert', entityId: id });
-
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('alert:acknowledged', alert);
-    }
-
-    res.json({
-      success: true,
-      data: alert,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// POST /api/alerts/:id/silence - Silence an alert
-router.post('/:id/silence', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const { silencedBy, duration } = req.body; // duration in minutes
-
-    const silencedUntil = duration ? new Date(Date.now() + duration * 60 * 1000) : null;
-
-    const alert = await prisma.alert.update({
-      where: { id },
-      data: {
-        status: 'SILENCED',
-        acknowledgedAt: new Date(),
-        acknowledgedBy: silencedBy,
-        // Note: In a full implementation, you'd store silence metadata separately
-      },
-    });
-
-    logger.info(`Alert silenced: ${id}`, { duration, silencedUntil });
-    audit(req, { action: 'alert.silence', entityType: 'alert', entityId: id, details: { duration, silencedUntil } });
-
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('alert:silenced', alert);
-    }
-
-    res.json({
-      success: true,
-      data: alert,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
 // POST /api/alerts/bulk/acknowledge - Bulk acknowledge alerts
+// NOTE: Bulk routes MUST be defined before /:id routes to avoid Express matching "bulk" as :id
 router.post('/bulk/acknowledge', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schema = z.object({
@@ -486,6 +420,72 @@ router.post('/bulk/silence', async (req: Request, res: Response, next: NextFunct
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: 'Validation error', details: error.errors });
     }
+    next(error);
+  }
+});
+
+// POST /api/alerts/:id/acknowledge - Acknowledge an alert
+router.post('/:id/acknowledge', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { acknowledgedBy } = req.body;
+
+    const alert = await prisma.alert.update({
+      where: { id },
+      data: {
+        status: 'ACKNOWLEDGED',
+        acknowledgedAt: new Date(),
+        acknowledgedBy,
+      },
+    });
+
+    logger.info(`Alert acknowledged: ${id}`);
+    audit(req, { action: 'alert.acknowledge', entityType: 'alert', entityId: id });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('alert:acknowledged', alert);
+    }
+
+    res.json({
+      success: true,
+      data: alert,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/alerts/:id/silence - Silence an alert
+router.post('/:id/silence', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { silencedBy, duration } = req.body; // duration in minutes
+
+    const silencedUntil = duration ? new Date(Date.now() + duration * 60 * 1000) : null;
+
+    const alert = await prisma.alert.update({
+      where: { id },
+      data: {
+        status: 'SILENCED',
+        acknowledgedAt: new Date(),
+        acknowledgedBy: silencedBy,
+      },
+    });
+
+    logger.info(`Alert silenced: ${id}`, { duration, silencedUntil });
+    audit(req, { action: 'alert.silence', entityType: 'alert', entityId: id, details: { duration, silencedUntil } });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('alert:silenced', alert);
+    }
+
+    res.json({
+      success: true,
+      data: alert,
+    });
+  } catch (error) {
     next(error);
   }
 });

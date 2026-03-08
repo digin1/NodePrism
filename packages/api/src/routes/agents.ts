@@ -22,6 +22,8 @@ const registerAgentSchema = z.object({
     'MONGODB_EXPORTER',
     'NGINX_EXPORTER',
     'APACHE_EXPORTER',
+    'REDIS_EXPORTER',
+    'LIBVIRT_EXPORTER',
     'PROMTAIL',
   ]),
   port: z.number().int().min(1).max(65535),

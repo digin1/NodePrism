@@ -25,13 +25,17 @@ sudo ./nodeprism-agent.sh status
 
 | Agent | Default Port | Description |
 |-------|-------------|-------------|
-| `node_exporter` | 9100 | System metrics (CPU, memory, disk, network) |
-| `mysql_exporter` | 9104 | MySQL database metrics |
-| `postgres_exporter` | 9187 | PostgreSQL database metrics |
-| `mongodb_exporter` | 9216 | MongoDB database metrics |
-| `nginx_exporter` | 9113 | Nginx web server metrics |
-| `redis_exporter` | 9121 | Redis cache metrics |
-| `promtail` | 9080 | Log collector (ships to Loki) |
+| `node_exporter` | 9100 | System metrics (CPU, memory, disk, network, load average) |
+| `mysql_exporter` | 9104 | MySQL/MariaDB metrics (connections, queries/sec, InnoDB stats, slow queries) |
+| `postgres_exporter` | 9187 | PostgreSQL metrics (connections, query stats, replication lag) |
+| `mongodb_exporter` | 9216 | MongoDB metrics (operations, connections, replication) |
+| `nginx_exporter` | 9113 | Nginx metrics (active connections, requests/sec) |
+| `redis_exporter` | 9121 | Redis metrics (memory, keys, commands/sec) |
+| `libvirt_exporter` | 9177 | KVM/QEMU per-VM metrics (CPU time, memory, disk I/O, network per domain) |
+| `litespeed_exporter` | 9122 | LiteSpeed metrics (requests/sec, connections, bandwidth, per-vhost stats) |
+| `exim_exporter` | 9123 | Exim mail metrics (queue size, frozen messages, deliveries/bounces per day) |
+| `cpanel_exporter` | 9124 | cPanel metrics (accounts, domains, bandwidth, disk usage) |
+| `promtail` | 9080 | Log collector (ships syslog, auth.log, journal to Loki) |
 
 ## Non-Interactive Mode
 
@@ -61,6 +65,18 @@ sudo ./nodeprism-agent.sh uninstall --type all
 4. Starts and enables the service
 5. Optionally registers with your NodePrism manager API
 
+## Container / VM Detection
+
+When installed on a virtualization host, the agent automatically detects and reports containers/VMs:
+
+| Platform | Detection Method | Metrics Source |
+|----------|-----------------|----------------|
+| KVM/QEMU | `virsh list` | Libvirt Exporter (Prometheus) |
+| OpenVZ / Virtuozzo 7 | `vzlist` | Periodic collector (`/proc/vz/vestat` for CPU, `vznetstat` for network) |
+| Virtuozzo | `prlctl list` | `prlctl statistics` |
+
+A **container collector** (systemd timer, every 30s) runs on OpenVZ/VZ7 hosts to gather per-container CPU%, memory, and network rates (delta-based computation from `vznetstat` counters).
+
 ## Files Created
 
 | File | Purpose |
@@ -69,6 +85,8 @@ sudo ./nodeprism-agent.sh uninstall --type all
 | `/etc/systemd/system/<agent>.service` | Systemd service |
 | `/etc/<agent>.env` | Credentials (database exporters) |
 | `/etc/promtail/config.yml` | Promtail config (promtail only) |
+| `/usr/local/bin/nodeprism-container-collector` | Container metrics collector (virtualization hosts) |
+| `/tmp/nodeprism-vznet-prev.dat` | VZ7 network rate snapshot (temporary) |
 
 ## CLI Options
 

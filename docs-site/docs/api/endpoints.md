@@ -105,9 +105,10 @@ Base path: `/api/containers`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/containers` | - | Validation schemas |
-| GET | `/containers/server/:serverId` | - | Validation schemas |
-| GET | `/containers/:id` | - | Validation schemas |
+| POST | `/containers` | - | Agent reports container/VM data (rate-limited) |
+| GET | `/containers/server/:serverId` | - | List containers/VMs for a server |
+| GET | `/containers/server/:serverId/metrics` | - | Get live metrics for all VMs on a server (Prometheus for KVM, metadata for OpenVZ/VZ7) |
+| GET | `/containers/:id` | - | Get single container details |
 
 ## Dashboards
 

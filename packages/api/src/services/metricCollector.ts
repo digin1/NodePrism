@@ -23,8 +23,8 @@ const NODE_METRIC_QUERIES: Record<string, (serverId: string) => string> = {
   load1: (serverId) => `node_load1{server_id="${serverId}"}`,
   load5: (serverId) => `node_load5{server_id="${serverId}"}`,
   load15: (serverId) => `node_load15{server_id="${serverId}"}`,
-  networkIn: (serverId) => `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*"}[5m]))`,
-  networkOut: (serverId) => `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*"}[5m]))`,
+  networkIn: (serverId) => `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))`,
+  networkOut: (serverId) => `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))`,
 };
 
 // MySQL exporter metric queries (only collected when MYSQL_EXPORTER agent is running)
@@ -46,6 +46,87 @@ const METRIC_QUERIES: Record<string, (serverId: string) => string> = {
 // In-memory cache of last successful metric values per server
 const metricCache = new Map<string, { value: number; timestamp: number }>();
 const CACHE_TTL_MS = 120_000; // 2 minutes
+
+// Track which servers have had their OS info populated (only query once per startup)
+const osInfoPopulated = new Set<string>();
+
+/**
+ * Fetch OS and hardware info from Prometheus and store in server metadata.
+ * Only runs once per server per process lifetime.
+ */
+async function populateServerOsInfo(serverId: string): Promise<void> {
+  if (osInfoPopulated.has(serverId)) return;
+  osInfoPopulated.add(serverId);
+
+  try {
+    // Fetch node_uname_info, node_os_info, CPU count, and memory total in parallel
+    const [unameRes, osRes, cpuRes, memRes] = await Promise.all([
+      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        params: { query: `node_uname_info{server_id="${serverId}"}` },
+        timeout: 5000,
+      }).catch(() => null),
+      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        params: { query: `node_os_info{server_id="${serverId}"}` },
+        timeout: 5000,
+      }).catch(() => null),
+      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        params: { query: `count(node_cpu_seconds_total{server_id="${serverId}",mode="idle"})` },
+        timeout: 5000,
+      }).catch(() => null),
+      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        params: { query: `node_memory_MemTotal_bytes{server_id="${serverId}"}` },
+        timeout: 5000,
+      }).catch(() => null),
+    ]);
+
+    const uname = unameRes?.data?.data?.result?.[0]?.metric || {};
+    const osInfo = osRes?.data?.data?.result?.[0]?.metric || {};
+    const cpuCores = cpuRes?.data?.data?.result?.[0]?.value?.[1]
+      ? parseInt(cpuRes.data.data.result[0].value[1])
+      : null;
+    const memTotal = memRes?.data?.data?.result?.[0]?.value?.[1]
+      ? parseInt(memRes.data.data.result[0].value[1])
+      : null;
+
+    // Only update if we got at least some info
+    if (!uname.sysname && !osInfo.pretty_name) return;
+
+    const server = await prisma.server.findUnique({
+      where: { id: serverId },
+      select: { metadata: true },
+    });
+
+    const existingMetadata = (server?.metadata as Record<string, unknown>) || {};
+
+    const metadata = {
+      ...existingMetadata,
+      os: {
+        distro: osInfo.pretty_name || osInfo.name || uname.sysname || null,
+        distroId: osInfo.id || null,
+        distroVersion: osInfo.version_id || null,
+        distroCodename: osInfo.version_codename || null,
+        kernel: uname.release || null,
+        arch: uname.machine || null,
+        platform: uname.sysname || null,
+      },
+      hardware: {
+        cpuCores: cpuCores,
+        memoryTotal: memTotal,
+      },
+    };
+
+    await prisma.server.update({
+      where: { id: serverId },
+      data: { metadata },
+    });
+
+    logger.info(`Populated OS info for server ${serverId}: ${osInfo.pretty_name || uname.sysname}`);
+  } catch (error) {
+    // Don't prevent future retries on error
+    osInfoPopulated.delete(serverId);
+    logger.debug(`Failed to populate OS info for server ${serverId}`, { error });
+  }
+}
 
 /**
  * Query a single metric from Prometheus.
@@ -221,6 +302,9 @@ export async function collectAllMetrics(): Promise<{
             if (hasMySQLMetrics) {
               await updatePassiveAgentHealthCheck(server.id, AgentType.MYSQL_EXPORTER);
             }
+
+            // Populate OS info from Prometheus (only once per server per startup)
+            await populateServerOsInfo(server.id);
 
             logger.debug(`Collected ${storedCount} metrics for ${server.hostname}`);
           }

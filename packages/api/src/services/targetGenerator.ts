@@ -16,14 +16,15 @@ interface PrometheusTarget {
  */
 // Passive exporter types that don't send heartbeats - include them even if not marked RUNNING
 // since their status depends on whether we can scrape them
-const PASSIVE_EXPORTER_TYPES = ['NODE_EXPORTER', 'MYSQL_EXPORTER', 'POSTGRES_EXPORTER', 'MONGODB_EXPORTER', 'NGINX_EXPORTER', 'APACHE_EXPORTER', 'REDIS_EXPORTER'];
+const PASSIVE_EXPORTER_TYPES = ['NODE_EXPORTER', 'MYSQL_EXPORTER', 'POSTGRES_EXPORTER', 'MONGODB_EXPORTER', 'NGINX_EXPORTER', 'APACHE_EXPORTER', 'REDIS_EXPORTER', 'LIBVIRT_EXPORTER', 'LITESPEED_EXPORTER', 'EXIM_EXPORTER', 'CPANEL_EXPORTER'];
 
 export async function generateTargetFiles(): Promise<void> {
   try {
+    // Include all servers (not just ONLINE) for passive exporters.
+    // Prometheus will determine reachability via scrape — this avoids a chicken-and-egg
+    // problem where new servers can't get scraped because heartbeat cleanup marks them
+    // OFFLINE before Prometheus ever discovers them.
     const servers = await prisma.server.findMany({
-      where: {
-        status: { in: ['ONLINE', 'WARNING', 'CRITICAL'] },
-      },
       include: {
         agents: {
           where: {
@@ -47,6 +48,11 @@ export async function generateTargetFiles(): Promise<void> {
       'mongodb-exporter': [],
       'nginx-exporter': [],
       'apache-exporter': [],
+      'redis-exporter': [],
+      'libvirt-exporter': [],
+      'litespeed-exporter': [],
+      'exim-exporter': [],
+      'cpanel-exporter': [],
     };
 
     for (const server of servers) {
@@ -89,6 +95,21 @@ export async function generateTargetFiles(): Promise<void> {
           case 'APACHE_EXPORTER':
             targetsByType['apache-exporter'].push(target);
             break;
+          case 'REDIS_EXPORTER':
+            targetsByType['redis-exporter'].push(target);
+            break;
+          case 'LIBVIRT_EXPORTER':
+            targetsByType['libvirt-exporter'].push(target);
+            break;
+          case 'LITESPEED_EXPORTER':
+            targetsByType['litespeed-exporter'].push(target);
+            break;
+          case 'EXIM_EXPORTER':
+            targetsByType['exim-exporter'].push(target);
+            break;
+          case 'CPANEL_EXPORTER':
+            targetsByType['cpanel-exporter'].push(target);
+            break;
         }
       }
     }
@@ -127,6 +148,11 @@ export async function generateTargetFileForType(agentType: string): Promise<void
     'mongodb-exporter': 'MONGODB_EXPORTER',
     'nginx-exporter': 'NGINX_EXPORTER',
     'apache-exporter': 'APACHE_EXPORTER',
+    'redis-exporter': 'REDIS_EXPORTER',
+    'libvirt-exporter': 'LIBVIRT_EXPORTER',
+    'litespeed-exporter': 'LITESPEED_EXPORTER',
+    'exim-exporter': 'EXIM_EXPORTER',
+    'cpanel-exporter': 'CPANEL_EXPORTER',
   };
 
   const dbType = typeMap[agentType];

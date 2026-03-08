@@ -180,6 +180,24 @@ app.get('/health', async (req, res) => {
   });
 });
 
+// Serve agent install script (public, no auth)
+// Injects the manager URL so the script auto-detects where it was downloaded from
+app.get('/agent-install.sh', (req, res) => {
+  const scriptPath = path.resolve(__dirname, '../../../scripts/agents/nodeprism-agent.sh');
+  if (fs.existsSync(scriptPath)) {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || req.hostname;
+    const managerUrl = `${protocol}://${host}`;
+    let script = fs.readFileSync(scriptPath, 'utf-8');
+    // Inject manager URL as default so users don't have to type it
+    script = script.replace('API_URL=""', `API_URL="${managerUrl}"`);
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(script);
+  } else {
+    res.status(404).send('# Agent install script not found\nexit 1\n');
+  }
+});
+
 // API routes
 app.use('/api', routes);
 

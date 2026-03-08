@@ -3,7 +3,7 @@ import { ZodError } from 'zod';
 import { logger } from '../utils/logger';
 
 export const errorHandler = (
-  err: Error,
+  err: Error & { status?: number; type?: string },
   req: Request,
   res: Response,
   next: NextFunction
@@ -23,9 +23,16 @@ export const errorHandler = (
     });
   }
 
+  // JSON parse errors from express.json() middleware
+  if (err instanceof SyntaxError && err.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      error: `Invalid JSON: ${err.message}`,
+    });
+  }
+
   // Default error
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
+  const status = err.status || 500;
+  res.status(status).json({
+    error: err.message || 'Internal Server Error',
   });
 };

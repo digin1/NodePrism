@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer, forecastApi } from '@/lib/api';
+import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer, ContainerMetrics, forecastApi } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
 import { ServerForecasting } from './forecasting';
@@ -115,22 +115,29 @@ function formatUptime(seconds: number | null): string {
   return `${mins}m`;
 }
 
-function formatMemoryKB(kb: number): string {
-  const gb = kb / (1024 * 1024);
+function formatMemoryBytes(bytes: number): string {
+  const gb = bytes / (1024 * 1024 * 1024);
   if (gb >= 1) return `${gb.toFixed(1)} GB`;
-  const mb = kb / 1024;
+  const mb = bytes / (1024 * 1024);
   return `${mb.toFixed(0)} MB`;
 }
 
 function formatTraffic(bytesStr: string): string {
   const bytes = Number(bytesStr);
   if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.max(0, Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024))));
   return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
-function ContainerRow({ container: c }: { container: VirtualContainer }) {
+function formatBytesRate(bytesPerSec: number | null): string {
+  if (bytesPerSec === null || bytesPerSec === 0) return '0 B/s';
+  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s', 'TB/s'];
+  const i = Math.max(0, Math.min(units.length - 1, Math.floor(Math.log(bytesPerSec) / Math.log(1024))));
+  return `${(bytesPerSec / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+}
+
+function ContainerRow({ container: c, metrics }: { container: VirtualContainer; metrics?: ContainerMetrics }) {
   const [expanded, setExpanded] = useState(false);
   const meta = c.metadata as Record<string, unknown> | null;
 
@@ -153,11 +160,19 @@ function ContainerRow({ container: c }: { container: VirtualContainer }) {
           </Badge>
         </TableCell>
         <TableCell className="font-mono text-sm">{c.ipAddress || '—'}</TableCell>
-        <TableCell>{c.hostname || '—'}</TableCell>
-        <TableCell className="text-right text-green-600">{formatTraffic(c.networkRxBytes)}</TableCell>
-        <TableCell className="text-right text-blue-600">{formatTraffic(c.networkTxBytes)}</TableCell>
-        <TableCell className="text-sm text-muted-foreground">
-          {c.lastSeen ? new Date(c.lastSeen).toLocaleString() : '—'}
+        <TableCell className="text-right">
+          {metrics?.cpuPercent != null ? `${metrics.cpuPercent.toFixed(1)}%` : '—'}
+        </TableCell>
+        <TableCell className="text-right">
+          {metrics?.memoryUsageBytes != null && metrics?.memoryMaxBytes
+            ? `${formatBytes(metrics.memoryUsageBytes)} / ${formatBytes(metrics.memoryMaxBytes)}`
+            : '—'}
+        </TableCell>
+        <TableCell className="text-right text-green-600">
+          {metrics?.netRxBytesPerSec != null ? formatBytesRate(metrics.netRxBytesPerSec) : formatTraffic(c.networkRxBytes)}
+        </TableCell>
+        <TableCell className="text-right text-blue-600">
+          {metrics?.netTxBytesPerSec != null ? formatBytesRate(metrics.netTxBytesPerSec) : formatTraffic(c.networkTxBytes)}
         </TableCell>
       </TableRow>
       {expanded && (
@@ -172,38 +187,54 @@ function ContainerRow({ container: c }: { container: VirtualContainer }) {
                 <p className="text-xs text-muted-foreground mb-1">Type</p>
                 <p className="text-sm">{c.type}</p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Network RX</p>
-                <p className="text-sm text-green-600 font-medium">{formatTraffic(c.networkRxBytes)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Network TX</p>
-                <p className="text-sm text-blue-600 font-medium">{formatTraffic(c.networkTxBytes)}</p>
-              </div>
-              {meta && Object.keys(meta).length > 0 && (
+              {metrics?.vCPUs != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">vCPUs</p>
+                  <p className="text-sm">{metrics.vCPUs}</p>
+                </div>
+              )}
+              {metrics?.cpuPercent != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">CPU Usage</p>
+                  <p className="text-sm font-medium">{metrics.cpuPercent.toFixed(1)}%</p>
+                </div>
+              )}
+              {metrics?.memoryUsageBytes != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Memory Used</p>
+                  <p className="text-sm font-medium">{formatBytes(metrics.memoryUsageBytes)}</p>
+                </div>
+              )}
+              {metrics?.memoryMaxBytes != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Memory Max</p>
+                  <p className="text-sm">{formatBytes(metrics.memoryMaxBytes)}</p>
+                </div>
+              )}
+              {metrics?.diskReadBytesPerSec != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Disk Read</p>
+                  <p className="text-sm">{formatBytesRate(metrics.diskReadBytesPerSec)}</p>
+                </div>
+              )}
+              {metrics?.diskWriteBytesPerSec != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Disk Write</p>
+                  <p className="text-sm">{formatBytesRate(metrics.diskWriteBytesPerSec)}</p>
+                </div>
+              )}
+              {!metrics && meta && Object.keys(meta).length > 0 && (
                 <>
-                  {meta.vCPUs !== undefined && (
+                  {meta.vcpus !== undefined && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">vCPUs</p>
-                      <p className="text-sm">{String(meta.vCPUs)}</p>
+                      <p className="text-sm">{String(meta.vcpus)}</p>
                     </div>
                   )}
-                  {meta.memory !== undefined && (
+                  {meta.memoryKB !== undefined && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Memory</p>
-                      <p className="text-sm">{String(meta.memory)}</p>
-                    </div>
-                  )}
-                  {meta.disk !== undefined && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Disk</p>
-                      <p className="text-sm">{String(meta.disk)}</p>
-                    </div>
-                  )}
-                  {meta.interfaces !== undefined && (
-                    <div className="col-span-2">
-                      <p className="text-xs text-muted-foreground mb-1">Network Interfaces</p>
-                      <p className="text-sm font-mono">{JSON.stringify(meta.interfaces)}</p>
+                      <p className="text-sm">{formatBytes(Number(meta.memoryKB) * 1024)}</p>
                     </div>
                   )}
                 </>
@@ -212,7 +243,7 @@ function ContainerRow({ container: c }: { container: VirtualContainer }) {
             {c.lastSeen && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-xs text-muted-foreground">
-                  Status history: Container was last seen {new Date(c.lastSeen).toLocaleString()}.
+                  Last seen: {new Date(c.lastSeen).toLocaleString()}.
                   {c.status === 'running' ? ' Currently active.' : ` Currently ${c.status}.`}
                 </p>
               </div>
@@ -266,6 +297,9 @@ export default function ServerDetailPage() {
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
+  // Container sort state
+  const [containerSort, setContainerSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' });
+
   const { data: server, isLoading } = useQuery({
     queryKey: ['server', serverId],
     queryFn: () => serverApi.get(serverId),
@@ -286,6 +320,15 @@ export default function ServerDetailPage() {
   });
 
   const containerList = containers as VirtualContainer[] | undefined;
+
+  const { data: containerMetrics } = useQuery({
+    queryKey: ['containerMetrics', serverId],
+    queryFn: () => containerApi.metrics(serverId),
+    enabled: !!containerList && containerList.length > 0,
+    refetchInterval: 15000,
+  });
+
+  const containerMetricsList = containerMetrics as ContainerMetrics[] | undefined;
 
   const { data: allTags } = useQuery({
     queryKey: ['serverTags'],
@@ -655,7 +698,7 @@ export default function ServerDetailPage() {
                     <dd>{serverData.metadata.os.arch}</dd>
                   </div>
                 )}
-                {serverData.metadata.os?.platform && serverData.metadata.os.platform !== 'Unknown' && (
+                {serverData.metadata.os?.platform && !['Unknown', 'none', 'nonenone', 'physical'].includes(serverData.metadata.os.platform) && (
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Platform</dt>
                     <dd>{serverData.metadata.os.platform}</dd>
@@ -681,7 +724,7 @@ export default function ServerDetailPage() {
                 {serverData.metadata.hardware?.memoryTotal != null && (
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Total Memory</dt>
-                    <dd className="font-medium">{formatMemoryKB(serverData.metadata.hardware.memoryTotal)}</dd>
+                    <dd className="font-medium">{formatMemoryBytes(serverData.metadata.hardware.memoryTotal)}</dd>
                   </div>
                 )}
               </dl>
@@ -834,24 +877,104 @@ export default function ServerDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {(() => {
+              const running = containerList.filter(c => c.status === 'running').length;
+              const stopped = containerList.length - running;
+              const totalMemUsed = containerMetricsList?.reduce((sum, m) => sum + (m.memoryUsageBytes ?? 0), 0) ?? 0;
+              const totalMemMax = containerMetricsList?.reduce((sum, m) => sum + (m.memoryMaxBytes ?? 0), 0) ?? 0;
+              const totalCpu = containerMetricsList?.reduce((sum, m) => sum + (m.cpuPercent ?? 0), 0) ?? 0;
+              const totalVCPUs = containerMetricsList?.reduce((sum, m) => sum + (m.vCPUs ?? 0), 0) ?? 0;
+              const hasCpu = containerMetricsList?.some(m => m.cpuPercent != null);
+              const hasMem = totalMemMax > 0 || totalMemUsed > 0;
+              return (
+                <div className="flex flex-wrap gap-4 mb-4 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                    <span className="text-muted-foreground">{running} running</span>
+                  </div>
+                  {stopped > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+                      <span className="text-muted-foreground">{stopped} stopped</span>
+                    </div>
+                  )}
+                  {totalVCPUs > 0 && (
+                    <div className="text-muted-foreground">
+                      {totalVCPUs} vCPUs
+                    </div>
+                  )}
+                  {hasCpu && (
+                    <div className="text-muted-foreground">
+                      CPU: {totalCpu.toFixed(1)}%
+                    </div>
+                  )}
+                  {hasMem && (
+                    <div className="text-muted-foreground">
+                      Memory: {totalMemUsed > 0 ? `${formatBytes(totalMemUsed)} / ` : ''}{formatBytes(totalMemMax)}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8"></TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>IP Address</TableHead>
-                  <TableHead>Hostname</TableHead>
-                  <TableHead className="text-right">RX</TableHead>
-                  <TableHead className="text-right">TX</TableHead>
-                  <TableHead>Last Seen</TableHead>
+                  {[
+                    { key: 'name', label: 'Name', align: '' },
+                    { key: 'type', label: 'Type', align: '' },
+                    { key: 'status', label: 'Status', align: '' },
+                    { key: 'ip', label: 'IP Address', align: '' },
+                    { key: 'cpu', label: 'CPU', align: 'text-right' },
+                    { key: 'memory', label: 'Memory', align: 'text-right' },
+                    { key: 'rx', label: 'RX', align: 'text-right' },
+                    { key: 'tx', label: 'TX', align: 'text-right' },
+                  ].map(col => (
+                    <TableHead
+                      key={col.key}
+                      className={`${col.align} cursor-pointer select-none hover:text-foreground`}
+                      onClick={() => setContainerSort(prev =>
+                        prev.key === col.key
+                          ? { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+                          : { key: col.key, dir: 'asc' }
+                      )}
+                    >
+                      {col.label}
+                      {containerSort.key === col.key && (
+                        <span className="ml-1 text-xs">{containerSort.dir === 'asc' ? '▲' : '▼'}</span>
+                      )}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {containerList.map((c) => (
-                  <ContainerRow key={c.id} container={c} />
-                ))}
+                {(() => {
+                  const getMetrics = (c: VirtualContainer) =>
+                    containerMetricsList?.find(m => m.domain === c.name || m.domain === c.containerId);
+                  const sorted = [...containerList].sort((a, b) => {
+                    const dir = containerSort.dir === 'asc' ? 1 : -1;
+                    const ma = getMetrics(a);
+                    const mb = getMetrics(b);
+                    switch (containerSort.key) {
+                      case 'name': return dir * a.name.localeCompare(b.name);
+                      case 'type': return dir * a.type.localeCompare(b.type);
+                      case 'status': return dir * a.status.localeCompare(b.status);
+                      case 'ip': return dir * (a.ipAddress || '').localeCompare(b.ipAddress || '');
+                      case 'cpu': return dir * ((ma?.cpuPercent ?? -1) - (mb?.cpuPercent ?? -1));
+                      case 'memory': return dir * ((ma?.memoryUsageBytes ?? ma?.memoryMaxBytes ?? -1) - (mb?.memoryUsageBytes ?? mb?.memoryMaxBytes ?? -1));
+                      case 'rx': return dir * (Number(a.networkRxBytes) - Number(b.networkRxBytes));
+                      case 'tx': return dir * (Number(a.networkTxBytes) - Number(b.networkTxBytes));
+                      default: return 0;
+                    }
+                  });
+                  return sorted.map((c) => (
+                    <ContainerRow
+                      key={c.id}
+                      container={c}
+                      metrics={getMetrics(c)}
+                    />
+                  ));
+                })()}
               </TableBody>
             </Table>
           </CardContent>

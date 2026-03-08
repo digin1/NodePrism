@@ -7,8 +7,8 @@ describe('Load: Metric Collection - PromQL Query Generation', () => {
     load1: (serverId) => `node_load1{server_id="${serverId}"}`,
     load5: (serverId) => `node_load5{server_id="${serverId}"}`,
     load15: (serverId) => `node_load15{server_id="${serverId}"}`,
-    networkIn: (serverId) => `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*"}[5m]))`,
-    networkOut: (serverId) => `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*"}[5m]))`,
+    networkIn: (serverId) => `sum(irate(node_network_receive_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))`,
+    networkOut: (serverId) => `sum(irate(node_network_transmit_bytes_total{server_id="${serverId}", device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))`,
   };
 
   it('should generate valid PromQL for each metric type', () => {

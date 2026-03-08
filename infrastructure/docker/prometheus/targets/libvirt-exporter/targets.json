@@ -1,0 +1,13 @@
+[
+  {
+    "targets": [
+      "66.85.129.250:9177"
+    ],
+    "labels": {
+      "server_id": "450f18bc-faf6-4909-a40f-750a710f90e7",
+      "hostname": "kvmaz5.veeblehosting.com",
+      "environment": "production",
+      "agent_type": "libvirt_exporter"
+    }
+  }
+]

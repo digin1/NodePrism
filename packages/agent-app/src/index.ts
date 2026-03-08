@@ -195,10 +195,24 @@ async function main() {
   logger.info(`Hostname: ${config.agent.hostname}`);
   logger.info('='.repeat(50));
 
-  // Start metrics server first
-  const server = app.listen(config.agent.port, '0.0.0.0', () => {
-    logger.info(`Metrics server listening on port ${config.agent.port}`);
-  });
+  // Start metrics server with retry (handles port still releasing from previous run)
+  const startServer = (retries = 5): Promise<ReturnType<typeof app.listen>> =>
+    new Promise((resolve, reject) => {
+      const server = app.listen(config.agent.port, '0.0.0.0', () => {
+        logger.info(`Metrics server listening on port ${config.agent.port}`);
+        resolve(server);
+      });
+      server.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE' && retries > 0) {
+          logger.warn(`Port ${config.agent.port} in use, retrying in 2s... (${retries} attempts left)`);
+          server.close();
+          setTimeout(() => startServer(retries - 1).then(resolve, reject), 2000);
+        } else {
+          reject(err);
+        }
+      });
+    });
+  const server = await startServer();
 
   // Create registration handler
   registration = new AgentRegistration(config);

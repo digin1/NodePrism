@@ -111,6 +111,7 @@ const navigation = [
 ];
 
 const externalLinks = [
+  { name: 'API Docs', href: process.env.NEXT_PUBLIC_DOCS_URL || 'http://66.85.173.55:3080', color: '#3B82F6' },
   { name: 'Grafana', href: process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030', color: '#F46800' },
   { name: 'Prometheus', href: process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090', color: '#E6522C' },
   { name: 'AlertManager', href: process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093', color: '#DB4437' },

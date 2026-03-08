@@ -121,6 +121,8 @@ services:
     container_name: nodeprism-prometheus
     restart: unless-stopped
     logging: *default-logging
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'

@@ -210,6 +210,10 @@ parse_args() {
       --api-url)         API_URL="$2"; shift 2 ;;
       --api-token)       API_TOKEN="$2"; shift 2 ;;
       --skip-register)   SKIP_REGISTER=true; shift ;;
+      --mysql-user)      PRESET_MYSQL_USER="$2"; shift 2 ;;
+      --mysql-password)  PRESET_MYSQL_PASSWORD="$2"; shift 2 ;;
+      --db-user)         PRESET_DB_USER="$2"; shift 2 ;;
+      --db-password)     PRESET_DB_PASSWORD="$2"; shift 2 ;;
       --enable-ssl)      SSL_ENABLED=true; shift ;;
       --mtls)            SSL_ENABLED=true; MTLS_ENABLED=true; shift ;;
       --ca-cert)         CA_CERT_PATH="$2"; shift 2 ;;
@@ -245,6 +249,10 @@ print_help() {
   echo "  --api-url URL        NodePrism manager URL for auto-registration"
   echo "  --api-token TOKEN    Auth token for API"
   echo "  --skip-register      Skip API registration"
+  echo "  --mysql-user USER    MySQL monitoring user (default: exporter)"
+  echo "  --mysql-password PW  MySQL password for the monitoring user"
+  echo "  --db-user USER       Database user (postgres/mongodb exporters)"
+  echo "  --db-password PW     Database password (postgres/mongodb exporters)"
   echo "  --enable-ssl         Use HTTPS for API communication (generates certs if needed)"
   echo "  --mtls               Enable mutual TLS (implies --enable-ssl, sends client cert)"
   echo "  --ca-cert PATH       Path to CA certificate for server verification"
@@ -1855,26 +1863,31 @@ configure_mysql_exporter() {
   echo ""
   echo -e "  ${BOLD}MySQL Connection:${NC}"
 
+  # Use preset values from CLI flags if provided
+  MYSQL_USER="${PRESET_MYSQL_USER:-${PRESET_DB_USER:-}}"
+  MYSQL_PASSWORD="${PRESET_MYSQL_PASSWORD:-${PRESET_DB_PASSWORD:-}}"
+
   prompt MYSQL_HOST "MySQL host" "localhost"
   prompt MYSQL_PORT "MySQL port" "3306"
-  prompt MYSQL_USER "MySQL user" "exporter"
+  prompt MYSQL_USER "MySQL user" "${MYSQL_USER:-exporter}"
 
   if [[ "$NON_INTERACTIVE" != "true" ]]; then
-    echo -en "  MySQL password: "
-    read -rs MYSQL_PASSWORD
-    echo ""
-  else
-    MYSQL_PASSWORD="${MYSQL_PASSWORD:-}"
+    if [[ -z "$MYSQL_PASSWORD" ]]; then
+      echo -en "  MySQL password: "
+      read -rs MYSQL_PASSWORD
+      echo ""
+    fi
   fi
 
-  # Generate a random password if none provided
   if [[ -z "$MYSQL_PASSWORD" ]]; then
-    MYSQL_PASSWORD=$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
-    log_info "Generated random password for MySQL user '${MYSQL_USER}'"
+    log_warn "No MySQL password provided. The exporter will fail to start without credentials."
+    echo -e "  ${DIM}Pass --mysql-password or set credentials in /etc/mysql_exporter.env later.${NC}"
   fi
 
   # Try to auto-create the MySQL monitoring user
-  setup_mysql_user
+  if [[ -n "$MYSQL_PASSWORD" ]]; then
+    setup_mysql_user
+  fi
 
   MYSQL_INNODB_METRICS=true
   MYSQL_PROCESSLIST=true

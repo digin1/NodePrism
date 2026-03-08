@@ -105,10 +105,10 @@ Base path: `/api/containers`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/containers` | - | Agent reports container/VM data (rate-limited) |
-| GET | `/containers/server/:serverId` | - | List containers/VMs for a server |
-| GET | `/containers/server/:serverId/metrics` | - | Get live metrics for all VMs on a server (Prometheus for KVM, metadata for OpenVZ/VZ7) |
-| GET | `/containers/:id` | - | Get single container details |
+| POST | `/containers` | - | localhost:9090'; |
+| GET | `/containers/server/:serverId` | - | localhost:9090'; |
+| GET | `/containers/:id` | - | localhost:9090'; |
+| GET | `/containers/server/:serverId/metrics` | - | localhost:9090'; |
 
 ## Dashboards
 
@@ -133,6 +133,32 @@ Base path: `/api/events`
 | GET | `/events/severities` | - | GET /api/events - Get monitoring events |
 | GET | `/events/stats` | - | GET /api/events - Get monitoring events |
 | POST | `/events/cleanup` | - | GET /api/events - Get monitoring events |
+
+## Forecasting
+
+Base path: `/api/forecasting`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/forecasting/disk/:serverId` | - | localhost:9090'; |
+| GET | `/forecasting/memory/:serverId` | - | localhost:9090'; |
+| GET | `/forecasting/cpu/:serverId` | - | localhost:9090'; |
+| GET | `/forecasting/all/:serverId` | - | localhost:9090'; |
+
+## Incidents
+
+Base path: `/api/incidents`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/incidents` | - | GET /api/incidents - List incidents with optional filters |
+| GET | `/incidents/stats` | - | GET /api/incidents - List incidents with optional filters |
+| GET | `/incidents/:id` | - | GET /api/incidents - List incidents with optional filters |
+| POST | `/incidents` | - | GET /api/incidents - List incidents with optional filters |
+| PUT | `/incidents/:id` | - | GET /api/incidents - List incidents with optional filters |
+| POST | `/incidents/:id/updates` | - | GET /api/incidents - List incidents with optional filters |
+| DELETE | `/incidents/:id` | - | GET /api/incidents - List incidents with optional filters |
+| POST | `/incidents/from-alert` | - | GET /api/incidents - List incidents with optional filters |
 
 ## Logs
 
@@ -234,6 +260,21 @@ Base path: `/api/settings`
 | POST | `/settings/backup` | ✓ | Uploads directory configuration |
 | GET | `/settings/export` | ✓ | Uploads directory configuration |
 | POST | `/settings/import` | ✓ | Uploads directory configuration |
+
+## Uptime
+
+Base path: `/api/uptime`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/uptime/stats/overview` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
+| GET | `/uptime` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
+| GET | `/uptime/:id` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
+| POST | `/uptime` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
+| PUT | `/uptime/:id` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
+| DELETE | `/uptime/:id` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
+| GET | `/uptime/:id/checks` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
+| POST | `/uptime/:id/test` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
 
 ## WebSocket Events
 

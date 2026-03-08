@@ -304,6 +304,9 @@ importers:
       clsx:
         specifier: ^2.1.0
         version: 2.1.1
+      geist:
+        specifier: ^1.7.0
+        version: 1.7.0(next@14.1.0)
       mermaid:
         specifier: ^11.12.1
         version: 11.12.1
@@ -4991,6 +4994,14 @@ packages:
       string-width: 4.2.3
       strip-ansi: 6.0.1
       wide-align: 1.1.5
+    dev: false
+
+  /geist@1.7.0(next@14.1.0):
+    resolution: {integrity: sha512-ZaoiZwkSf0DwwB1ncdLKp+ggAldqxl5L1+SXaNIBGkPAqcu+xjVJLxlf3/S8vLt9UHx1xu5fz3lbzKCj5iOVdQ==}
+    peerDependencies:
+      next: '>=13.2.0'
+    dependencies:
+      next: 14.1.0(@babel/core@7.28.5)(react-dom@18.3.1)(react@18.3.1)
     dev: false
 
   /generator-function@2.0.1:

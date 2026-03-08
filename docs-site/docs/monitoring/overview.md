@@ -21,16 +21,11 @@ NodePrism uses a Prometheus-based monitoring stack:
 
 | Agent | Port | Metrics |
 |-------|------|---------|
-| `NODE_EXPORTER` | 9100 | CPU, memory, disk, network, load average |
-| `MYSQL_EXPORTER` | 9104 | MySQL/MariaDB connections, queries/sec, InnoDB stats |
-| `POSTGRES_EXPORTER` | 9187 | PostgreSQL connections, query stats, replication lag |
-| `MONGODB_EXPORTER` | 9216 | MongoDB operations, connections, replication |
-| `NGINX_EXPORTER` | 9113 | Nginx active connections, requests/sec |
-| `REDIS_EXPORTER` | 9121 | Redis memory, keys, commands/sec |
-| `LIBVIRT_EXPORTER` | 9177 | KVM/QEMU per-VM CPU, memory, disk I/O, network |
-| `LITESPEED_EXPORTER` | 9122 | LiteSpeed requests/sec, connections, bandwidth |
-| `EXIM_EXPORTER` | 9123 | Exim mail queue, deliveries, bounces |
-| `CPANEL_EXPORTER` | 9124 | cPanel accounts, domains, bandwidth, disk |
+| `NODE_EXPORTER` | 9100 | CPU, memory, disk, network |
+| `MYSQL_EXPORTER` | 9104 | MySQL server metrics |
+| `POSTGRES_EXPORTER` | 9187 | PostgreSQL metrics |
+| `MONGODB_EXPORTER` | 9216 | MongoDB metrics |
+| `NGINX_EXPORTER` | 9113 | Nginx metrics |
 | `APACHE_EXPORTER` | 9117 | Apache metrics |
 | `PROMTAIL` | 9080 | Log shipping to Loki |
 | `APP_AGENT` | 9101 | Custom application metrics |
@@ -85,13 +80,9 @@ Default alert rules in `infrastructure/docker/prometheus/alerts.yml`:
 
 ### Network Throughput
 ```promql
-sum(irate(node_network_receive_bytes_total{device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))
-sum(irate(node_network_transmit_bytes_total{device=~"eth.*|ens.*|enp.*|eno.*|venet.*|bond.*"}[5m]))
+irate(node_network_receive_bytes_total[5m])
+irate(node_network_transmit_bytes_total[5m])
 ```
-
-:::note
-The device filter includes `eno.*` (common on Supermicro/Dell), `venet.*` (OpenVZ/VZ7 host-routed), and `bond.*` (bonded interfaces) in addition to the standard `eth/ens/enp` patterns.
-:::
 
 ## Grafana Dashboards
 

@@ -7,6 +7,7 @@ import { dispatchNotifications } from '../services/notificationSender';
 import { audit } from '../services/auditLogger';
 import { syncRulesToYml, matchAlertToRule } from '../services/alertRuleSync';
 import { webhookLimiter } from '../middleware/rateLimit';
+import { getBaseMetricExpr, queryCurrentValue } from '../services/alertReconciliation';
 
 const router: ExpressRouter = Router();
 
@@ -639,6 +640,33 @@ router.post('/webhook', webhookLimiter, async (req: Request, res: Response, next
         continue;
       }
 
+      // For resolved alerts, enrich annotations with current metric value
+      let enrichedAnnotations = (upsertedAlert.annotations as Record<string, string>) || {};
+      if (status === 'RESOLVED' && ruleId) {
+        try {
+          const rule = await prisma.alertRule.findUnique({
+            where: { id: ruleId },
+            select: { query: true },
+          });
+          if (rule?.query) {
+            const baseExpr = getBaseMetricExpr(rule.query);
+            const instance = alert.labels?.instance;
+            const currentVal = await queryCurrentValue(baseExpr, instance);
+            if (currentVal !== null) {
+              const formatted = isNaN(Number(currentVal))
+                ? currentVal
+                : Number(currentVal).toFixed(2);
+              enrichedAnnotations = { ...enrichedAnnotations, current_value: formatted };
+              if (enrichedAnnotations.description) {
+                enrichedAnnotations.description += ` → Current value: ${formatted}`;
+              }
+            }
+          }
+        } catch (err: any) {
+          logger.debug('Failed to fetch current value for resolved alert', { error: err.message });
+        }
+      }
+
       // Dispatch notifications (non-blocking)
       dispatchNotifications({
         id: upsertedAlert.id,
@@ -646,7 +674,7 @@ router.post('/webhook', webhookLimiter, async (req: Request, res: Response, next
         severity: upsertedAlert.severity,
         message: upsertedAlert.message,
         labels: (upsertedAlert.labels as Record<string, string>) || {},
-        annotations: (upsertedAlert.annotations as Record<string, string>) || undefined,
+        annotations: enrichedAnnotations,
         startsAt: upsertedAlert.startsAt,
         endsAt: upsertedAlert.endsAt,
         serverId: upsertedAlert.serverId || undefined,

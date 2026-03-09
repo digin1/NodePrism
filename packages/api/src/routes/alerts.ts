@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { AlertTemplateService } from '../services/alertTemplateService';
 import { dispatchNotifications } from '../services/notificationSender';
 import { audit } from '../services/auditLogger';
+import { syncRulesToYml, matchAlertToRule } from '../services/alertRuleSync';
 
 const router: ExpressRouter = Router();
 
@@ -313,6 +314,9 @@ router.post('/rules', async (req: Request, res: Response, next: NextFunction) =>
     logger.info(`Alert rule created: ${rule.name}`);
     audit(req, { action: 'alert_rule.create', entityType: 'alert_rule', entityId: rule.id, details: { name: rule.name, severity: rule.severity } });
 
+    // Sync to Prometheus alerts.yml
+    syncRulesToYml().catch(err => logger.error('Failed to sync rules to YAML', { error: err.message }));
+
     res.status(201).json({
       success: true,
       data: rule,
@@ -343,6 +347,9 @@ router.put('/rules/:id', async (req: Request, res: Response, next: NextFunction)
     logger.info(`Alert rule updated: ${rule.name}`);
     audit(req, { action: 'alert_rule.update', entityType: 'alert_rule', entityId: req.params.id, details: { name: rule.name } });
 
+    // Sync to Prometheus alerts.yml
+    syncRulesToYml().catch(err => logger.error('Failed to sync rules to YAML', { error: err.message }));
+
     res.json({
       success: true,
       data: rule,
@@ -363,6 +370,9 @@ router.delete('/rules/:id', async (req: Request, res: Response, next: NextFuncti
 
     logger.info(`Alert rule deleted: ${id}`);
     audit(req, { action: 'alert_rule.delete', entityType: 'alert_rule', entityId: id });
+
+    // Sync to Prometheus alerts.yml
+    syncRulesToYml().catch(err => logger.error('Failed to sync rules to YAML', { error: err.message }));
 
     res.json({
       success: true,
@@ -560,6 +570,18 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
         }
       }
 
+      // Match to DB alert rule by alertname or rule_id label
+      const ruleId = await matchAlertToRule(alert.labels || {});
+
+      // Check existing alert to avoid duplicate notifications
+      const existingAlert = await prisma.alert.findUnique({ where: { fingerprint } });
+      const isNewAlert = !existingAlert;
+      const statusChanged = existingAlert && existingAlert.status !== status;
+      // Don't overwrite ACKNOWLEDGED/SILENCED with FIRING (user already handled it)
+      const effectiveStatus = (status === 'FIRING' && existingAlert &&
+        (existingAlert.status === 'ACKNOWLEDGED' || existingAlert.status === 'SILENCED'))
+        ? existingAlert.status : status;
+
       // Upsert the alert
       const upsertedAlert = await prisma.alert.upsert({
         where: { fingerprint },
@@ -574,14 +596,25 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
           startsAt: new Date(alert.startsAt),
           endsAt: alert.endsAt ? new Date(alert.endsAt) : null,
           ...(serverId && { serverId }),
+          ...(ruleId && { ruleId }),
         },
         update: {
-          status,
+          status: effectiveStatus,
           endsAt: alert.endsAt ? new Date(alert.endsAt) : null,
           ...(serverId && { serverId }),
+          ...(ruleId && { ruleId }),
         },
         include: { server: { select: { hostname: true, ipAddress: true } } },
       });
+
+      // Notification dedup: skip re-fires unless it's a critical alert repeat
+      // AlertManager already throttles critical repeats to 1h, so we let those through
+      const severity = (alert.labels?.severity || 'warning').toUpperCase();
+      const isCriticalRepeat = !isNewAlert && !statusChanged && severity === 'CRITICAL' && status === 'FIRING';
+      if (!isNewAlert && !statusChanged && !isCriticalRepeat) {
+        logger.debug(`Skipping notification for alert ${fingerprint}: status unchanged (${status})`);
+        continue;
+      }
 
       // Dispatch notifications (non-blocking)
       dispatchNotifications({
@@ -593,6 +626,9 @@ router.post('/webhook', async (req: Request, res: Response, next: NextFunction) 
         annotations: (upsertedAlert.annotations as Record<string, string>) || undefined,
         startsAt: upsertedAlert.startsAt,
         endsAt: upsertedAlert.endsAt,
+        serverId: upsertedAlert.serverId || undefined,
+        ruleId: upsertedAlert.ruleId || undefined,
+        templateId: upsertedAlert.templateId || undefined,
         serverHostname: upsertedAlert.server?.hostname,
         serverIp: upsertedAlert.server?.ipAddress,
       }).catch(err => logger.error('Notification dispatch error', { error: err.message }));

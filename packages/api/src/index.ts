@@ -21,6 +21,8 @@ import { prisma } from './lib/prisma';
 import { metricsMiddleware, metricsRegistry, setWebSocketConnections } from './services/apiMetrics';
 import { initAnomalyMetrics } from './services/anomalyMetrics';
 import { autoLabelAllServers } from './services/serverAutoLabel';
+import { importRulesFromYml } from './services/alertRuleSync';
+import { startDailyReport, stopDailyReport } from './services/dailyReport';
 
 // Load environment variables from root .env
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -274,6 +276,12 @@ server.listen(PORT, async () => {
   // Auto-label servers based on registered agents/metadata
   autoLabelAllServers();
 
+  // Import Prometheus alert rules into DB (one-time bootstrap)
+  importRulesFromYml().catch(err => logger.error('Failed to import alert rules', { error: err.message }));
+
+  // Start daily infrastructure report scheduler
+  startDailyReport();
+
   // Log system startup event
   logSystemStartup();
 });
@@ -287,6 +295,7 @@ process.on('SIGTERM', () => {
   stopBackupScheduler();
   stopAutoDiscovery();
   stopUptimeMonitoring();
+  stopDailyReport();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);

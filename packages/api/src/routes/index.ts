@@ -17,6 +17,7 @@ import { maintenanceWindowRoutes } from './maintenanceWindows';
 import { incidentRoutes } from './incidents';
 import { forecastingRoutes } from './forecasting';
 import { uptimeRoutes } from './uptime';
+import { slackInteractionRoutes } from './slackInteractions';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -32,6 +33,9 @@ router.use('/auth', authRoutes);
 // Agent routes (public - agents need to register without auth)
 router.use('/agents', agentRoutes);
 router.use('/agents/containers', containerRoutes);
+
+// Slack interactive messages (public - Slack calls this directly)
+router.use('/slack/interactions', slackInteractionRoutes);
 
 // Settings routes (partially public - for login page branding)
 router.use('/settings', settingsRoutes);

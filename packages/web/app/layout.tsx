@@ -6,6 +6,13 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'NodePrism',
   description: 'Advanced server monitoring system',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 const themeScript = `

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -170,6 +171,7 @@ function RuleForm({
 
 export default function AlertRulesPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RuleForm>(DEFAULT_FORM);
@@ -179,6 +181,30 @@ export default function AlertRulesPage() {
     queryKey: ['alertRules'],
     queryFn: () => alertApi.rules(),
   });
+
+  // Auto-open editor when ?edit=<id> query param is present (e.g., from notification)
+  useEffect(() => {
+    const editId = searchParams?.get('edit');
+    if (editId && rules && !editingId) {
+      const rule = (rules as AlertRule[]).find((r) => r.id === editId);
+      if (rule) {
+        setEditingId(rule.id);
+        setShowCreate(false);
+        setForm({
+          name: rule.name,
+          description: rule.description || '',
+          query: rule.query,
+          duration: rule.duration,
+          severity: rule.severity as Severity,
+        });
+        window.history.replaceState({}, '', '/alerts/rules');
+        // Scroll to the rule card after render
+        setTimeout(() => {
+          document.getElementById(`rule-${rule.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+  }, [searchParams, rules]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['alertRules'] });
 
@@ -341,6 +367,7 @@ export default function AlertRulesPage() {
               {filtered.map((rule) => (
                 <div
                   key={rule.id}
+                  id={`rule-${rule.id}`}
                   className={`rounded-lg border transition-colors ${
                     editingId === rule.id
                       ? 'border-primary/50 bg-primary/5'

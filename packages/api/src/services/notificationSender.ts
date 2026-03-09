@@ -180,6 +180,11 @@ async function sendEmail(config: EmailConfig, alert: AlertPayload): Promise<void
             <td style="padding: 8px 0; color: #6b7280;">Duration</td>
             <td style="padding: 8px 0; color: #111827;">${duration}</td>
           </tr>` : ''}
+          ${isResolved && alert.annotations?.current_value ? `
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280;">Current Value</td>
+            <td style="padding: 8px 0; color: #22c55e; font-weight: 500;">📊 ${alert.annotations.current_value}</td>
+          </tr>` : ''}
         </table>
         ${!isResolved ? `
         <div style="margin: 16px 0; display: flex; gap: 8px;">
@@ -219,6 +224,7 @@ async function sendSlack(config: SlackConfig, alert: AlertPayload): Promise<void
 
   const emoji = severityEmoji(alert.severity, isResolved);
   const statusText = isResolved ? 'Resolved' : alert.severity;
+  const currentValue = alert.annotations?.current_value;
 
   // Build Block Kit blocks
   const blocks: any[] = [
@@ -233,7 +239,7 @@ async function sendSlack(config: SlackConfig, alert: AlertPayload): Promise<void
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*${alert.message}*${description ? `\n${description}` : ''}`,
+        text: `*${alert.message}*${description ? `\n${description}` : ''}${isResolved && currentValue ? `\n📊 *Current value:* \`${currentValue}\`` : ''}`,
       },
     },
     {
@@ -332,6 +338,10 @@ async function sendDiscord(config: DiscordConfig, alert: AlertPayload): Promise<
   if (duration) {
     fields.push({ name: '⏱️ Duration', value: duration, inline: true });
   }
+  const discordCurrentValue = alert.annotations?.current_value;
+  if (isResolved && discordCurrentValue) {
+    fields.push({ name: '📊 Current Value', value: `\`${discordCurrentValue}\``, inline: true });
+  }
   if (!isResolved) {
     const links = [`[Create Incident](${buildIncidentUrl(alert)})`, `[Configure Alert](${buildConfigureUrl(alert)})`];
     fields.push({ name: '🔗 Actions', value: links.join('  •  '), inline: false });
@@ -394,11 +404,13 @@ async function sendTelegram(config: TelegramConfig, alert: AlertPayload): Promis
   const emoji = severityEmoji(alert.severity, isResolved);
   const statusText = isResolved ? 'RESOLVED' : alert.severity;
 
+  const telegramCurrentValue = alert.annotations?.current_value;
   const lines = [
     `${emoji} <b>${statusText}</b>${duration ? ` • resolved after ${duration}` : ''}`,
     '',
     `<b>${escapeHtml(alert.message)}</b>`,
     description ? `<i>${escapeHtml(description)}</i>` : null,
+    isResolved && telegramCurrentValue ? `📊 <b>Current value:</b> <code>${escapeHtml(telegramCurrentValue)}</code>` : null,
     '',
     `🖥️ <b>Server:</b> ${escapeHtml(server.name)}${server.detail ? ` (<code>${escapeHtml(server.detail)}</code>)` : ''}`,
     `🏷️ <b>Alert:</b> ${escapeHtml(alert.labels?.alertname || '—')}`,

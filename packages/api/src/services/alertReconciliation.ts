@@ -21,6 +21,65 @@ interface PrometheusAlert {
 }
 
 /**
+ * Strip trailing comparison operator + threshold from a PromQL expression
+ * to get just the metric expression. E.g.:
+ *   "node_load1 > 20" → "node_load1"
+ *   "(1 - (avail / total)) * 100 > 95" → "(1 - (avail / total)) * 100"
+ */
+export function getBaseMetricExpr(query: string): string {
+  return query.replace(/\s*(>=|<=|!=|>|<|==)\s*[\d.]+\s*$/, '').trim();
+}
+
+/**
+ * Query Prometheus for the current value of a metric expression,
+ * optionally filtered by instance label.
+ */
+export async function queryCurrentValue(
+  metricExpr: string,
+  instance?: string,
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    // If we have an instance, try to narrow the query
+    let query = metricExpr;
+    if (instance && !metricExpr.includes(instance)) {
+      // For simple metric names, add instance filter
+      // For complex expressions, rely on instance matching in results
+      if (/^[a-zA-Z_:][a-zA-Z0-9_:]*$/.test(metricExpr)) {
+        query = `${metricExpr}{instance="${instance}"}`;
+      }
+    }
+
+    const url = `${PROMETHEUS_URL}/api/v1/query?query=${encodeURIComponent(query)}`;
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!response.ok) return null;
+
+    const body = (await response.json()) as {
+      data?: { result?: Array<{ metric: Record<string, string>; value: [number, string] }> };
+    };
+
+    const results = body.data?.result || [];
+    if (results.length === 0) return null;
+
+    // If instance is specified, find matching result
+    if (instance) {
+      const match = results.find(r => r.metric.instance === instance);
+      if (match) return match.value[1];
+    }
+
+    // Return first result value
+    return results[0].value[1];
+  } catch {
+    clearTimeout(timeout);
+    return null;
+  }
+}
+
+/**
  * Fetch currently firing alerts from Prometheus
  */
 async function getPrometheusAlerts(): Promise<PrometheusAlert[]> {
@@ -147,6 +206,28 @@ export async function reconcileAlerts(): Promise<{
         },
       );
 
+      // Fetch current metric value from Prometheus for the resolution notification
+      const annotations = { ...((dbAlert.annotations as Record<string, string>) || {}) };
+      if (dbAlert.ruleId) {
+        const rule = await prisma.alertRule.findUnique({
+          where: { id: dbAlert.ruleId },
+          select: { query: true },
+        });
+        if (rule?.query) {
+          const baseExpr = getBaseMetricExpr(rule.query);
+          const currentVal = await queryCurrentValue(baseExpr, labels.instance);
+          if (currentVal !== null) {
+            const formatted = isNaN(Number(currentVal))
+              ? currentVal
+              : Number(currentVal).toFixed(2);
+            annotations.current_value = formatted;
+            annotations.description = annotations.description
+              ? `${annotations.description} → Current value: ${formatted}`
+              : `Current value: ${formatted}`;
+          }
+        }
+      }
+
       // Send resolution notification
       dispatchNotifications({
         id: dbAlert.id,
@@ -154,7 +235,7 @@ export async function reconcileAlerts(): Promise<{
         severity: dbAlert.severity,
         message: `[Auto-resolved] ${dbAlert.message}`,
         labels,
-        annotations: (dbAlert.annotations as Record<string, string>) || undefined,
+        annotations,
         startsAt: dbAlert.startsAt,
         endsAt: new Date(),
         serverId: dbAlert.serverId || undefined,

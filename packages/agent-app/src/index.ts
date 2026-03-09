@@ -196,7 +196,7 @@ async function main() {
   logger.info('='.repeat(50));
 
   // Start metrics server with retry (handles port still releasing from previous run)
-  const startServer = (retries = 5): Promise<ReturnType<typeof app.listen>> =>
+  const startServer = (retries = 30): Promise<ReturnType<typeof app.listen>> =>
     new Promise((resolve, reject) => {
       const server = app.listen(config.agent.port, '0.0.0.0', () => {
         logger.info(`Metrics server listening on port ${config.agent.port}`);
@@ -264,5 +264,5 @@ async function main() {
 
 main().catch((error) => {
   logger.error('Fatal error:', error);
-  process.exit(1);
+  // Don't exit — keep the metrics server running so turborepo doesn't kill all services
 });

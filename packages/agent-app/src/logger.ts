@@ -5,7 +5,10 @@ export const logger = winston.createLogger({
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.printf(({ timestamp, level, message, ...meta }) => {
-      const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+      let metaStr = '';
+      if (Object.keys(meta).length) {
+        try { metaStr = ` ${JSON.stringify(meta)}`; } catch { metaStr = ` [meta: unserializable]`; }
+      }
       return `${timestamp} [agent] ${level.toUpperCase()}: ${message}${metaStr}`;
     })
   ),

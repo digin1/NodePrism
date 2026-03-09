@@ -47,7 +47,7 @@ router.get('/stats', async (req: Request, res: Response, next: NextFunction) => 
     // Calculate average resolution time using database aggregation
     const avgResult = await prisma.$queryRaw<[{ avg_ms: number | null }]>`
       SELECT AVG(EXTRACT(EPOCH FROM ("resolved_at" - "started_at")) * 1000) as avg_ms
-      FROM "Incident"
+      FROM incidents
       WHERE status = 'RESOLVED' AND "resolved_at" IS NOT NULL
     `;
     const avgResolutionMs = avgResult[0]?.avg_ms ? Number(avgResult[0].avg_ms) : null;

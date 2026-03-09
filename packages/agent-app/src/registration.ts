@@ -28,7 +28,7 @@ export class AgentRegistration {
   private agentId: string | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private retryCount = 0;
-  private maxRetries = 5;
+  private maxRetries = Infinity;
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -97,7 +97,7 @@ export class AgentRegistration {
         this.retryCount++;
         if (this.retryCount < this.maxRetries) {
           const delay = Math.min(1000 * Math.pow(2, this.retryCount), 30000);
-          logger.info(`Retrying registration in ${delay / 1000}s (attempt ${this.retryCount}/${this.maxRetries})`);
+          logger.info(`Retrying registration in ${delay / 1000}s (attempt ${this.retryCount})`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }

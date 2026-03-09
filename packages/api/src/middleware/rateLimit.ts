@@ -163,6 +163,34 @@ export const metricsLimiter = rateLimit({
 });
 
 /**
+ * Webhook rate limiter - for AlertManager and Slack interaction endpoints
+ * 60 requests per minute per IP (allows burst for grouped alerts)
+ */
+export const webhookLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: 60,
+  message: {
+    success: false,
+    error: 'Too many webhook requests, please try again later',
+    retryAfter: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000),
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    return `webhook:${getClientIp(req)}`;
+  },
+  skip: () => !RATE_LIMIT_ENABLED,
+  validate: false,
+  handler: (req, res, next, options) => {
+    logger.warn('Webhook rate limit exceeded', {
+      ip: getClientIp(req),
+      path: req.path,
+    });
+    res.status(options.statusCode).json(options.message);
+  },
+});
+
+/**
  * Initialize rate limiting (call during startup)
  */
 export async function initRateLimiting(): Promise<void> {

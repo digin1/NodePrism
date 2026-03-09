@@ -1,6 +1,6 @@
 ---
 sidebar_position: 2
-title: Schema
+title: Database Schema
 ---
 
 # Database Schema
@@ -171,23 +171,15 @@ AlertTemplate ──── NotificationChannel
 
 | Field | Type | Required | Constraints |
 |-------|------|----------|-------------|
-| id | String | ✓ | Primary Key, Default: uuid() |
+| id | String | ✓ | Primary Key, Default: uuid( |
 | name | String | ✓ | Unique |
 | description | String | - | - |
-| matchLabels | Json | - | Label matching criteria |
-| matchHostLabels | Json | - | Host label matching criteria |
-| query | String | ✓ | PromQL query |
-| calc | String | - | Additional calculation expression |
+| matchLabels | Json | - | - |
+| matchHostLabels | Json | - | - |
+| query | String | ✓ | - |
+| calc | String | - | - |
 | units | String | - | - |
-| warnCondition | Json | - | Warning threshold with hysteresis |
-| critCondition | Json | - | Critical threshold with hysteresis |
-| every | String | ✓ | Default: "1m" (evaluation interval) |
-| for | String | ✓ | Default: "5m" (duration before firing) |
-| actions | Json | - | Alert actions |
-| enabled | Boolean | ✓ | Default: true |
-| createdAt | DateTime | ✓ | Default: now() |
-| updatedAt | DateTime | ✓ | - |
-| alerts | Alert[] | ✓ | Relation |
+| warnCondition | Json | - | - |
 
 ---
 

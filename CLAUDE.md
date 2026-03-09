@@ -18,20 +18,29 @@ THE MOST IMPORTANT RULES ARE:
 - Port 4003: Anomaly Detector
 - Port 9101: Agent App
 
-## Starting the App (Production Mode)
+## Starting the App (Production Mode with PM2)
 
-The app runs in **production mode by default**. Build first, then start:
+The app uses **PM2 for production process management**. Build first, then start:
 ```bash
-lsof -ti:3000,4000,4002,4003,9101 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run build && pnpm run start
+pnpm run build && pnpm run start:pm2
 ```
 
-For development/debugging only:
+PM2 commands:
+```bash
+pnpm run status:pm2    # Check service status
+pnpm run logs:pm2      # Tail all logs
+pnpm run stop:pm2      # Stop all services
+pnpm run restart:pm2   # Restart all services
+```
+
+For development/debugging only (uses turborepo, not PM2):
 ```bash
 lsof -ti:3000,4000,4002,4003,9101 2>/dev/null | xargs kill -9 2>/dev/null; pnpm run dev
 ```
 
-**Production mode benefits:**
-- Next.js serves pre-built pages (instant loads vs 1-2s dev compilation)
-- Backend runs compiled JS (faster startup, lower memory)
-- No file watchers consuming resources
-- React Strict Mode double-renders disabled
+**PM2 benefits over turborepo start:**
+- Each service is independently managed (one crash doesn't cascade)
+- Auto-restart on failure with memory limits
+- Persistent across server reboots (systemd integration)
+- Log files in `logs/` directory
+- Process monitoring via `pm2 monit`

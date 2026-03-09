@@ -1,3 +1,6 @@
+const path = require('path');
+const logDir = path.resolve(__dirname, 'logs');
+
 module.exports = {
   apps: [
     {
@@ -11,21 +14,36 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '500M',
+      min_uptime: '10s',
+      max_restarts: 10,
+      restart_delay: 3000,
+      out_file: path.join(logDir, 'api-out.log'),
+      error_file: path.join(logDir, 'api-error.log'),
+      merge_logs: true,
+      time: true,
     },
     {
       name: 'nodeprism-web',
       cwd: './packages/web',
-      script: 'npx',
-      args: 'next start',
+      script: 'node_modules/.bin/next',
+      args: 'start',
       interpreter: 'none',
       env: {
         NODE_ENV: 'production',
+        PORT: '3000',
       },
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
       watch: false,
       max_memory_restart: '500M',
+      min_uptime: '10s',
+      max_restarts: 10,
+      restart_delay: 3000,
+      out_file: path.join(logDir, 'web-out.log'),
+      error_file: path.join(logDir, 'web-error.log'),
+      merge_logs: true,
+      time: true,
     },
     {
       name: 'nodeprism-config-sync',
@@ -38,6 +56,13 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '300M',
+      min_uptime: '10s',
+      max_restarts: 10,
+      restart_delay: 5000,
+      out_file: path.join(logDir, 'config-sync-out.log'),
+      error_file: path.join(logDir, 'config-sync-error.log'),
+      merge_logs: true,
+      time: true,
     },
     {
       name: 'nodeprism-anomaly-detector',
@@ -50,6 +75,13 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '300M',
+      min_uptime: '10s',
+      max_restarts: 10,
+      restart_delay: 5000,
+      out_file: path.join(logDir, 'anomaly-detector-out.log'),
+      error_file: path.join(logDir, 'anomaly-detector-error.log'),
+      merge_logs: true,
+      time: true,
     },
     {
       name: 'nodeprism-agent',
@@ -63,6 +95,13 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '200M',
+      min_uptime: '10s',
+      max_restarts: 10,
+      restart_delay: 3000,
+      out_file: path.join(logDir, 'agent-out.log'),
+      error_file: path.join(logDir, 'agent-error.log'),
+      merge_logs: true,
+      time: true,
     },
   ],
 };

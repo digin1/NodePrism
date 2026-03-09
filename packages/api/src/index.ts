@@ -23,6 +23,7 @@ import { initAnomalyMetrics } from './services/anomalyMetrics';
 import { autoLabelAllServers } from './services/serverAutoLabel';
 import { importRulesFromYml } from './services/alertRuleSync';
 import { startDailyReport, stopDailyReport } from './services/dailyReport';
+import { startAlertReconciliation, stopAlertReconciliation } from './services/alertReconciliation';
 
 // Load environment variables from root .env
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -279,6 +280,9 @@ server.listen(PORT, async () => {
   // Import Prometheus alert rules into DB (one-time bootstrap)
   importRulesFromYml().catch(err => logger.error('Failed to import alert rules', { error: err.message }));
 
+  // Start alert reconciliation (auto-resolve stale alerts missed by AlertManager)
+  startAlertReconciliation(io);
+
   // Start daily infrastructure report scheduler
   startDailyReport();
 
@@ -296,6 +300,7 @@ function gracefulShutdown(signal: string) {
   stopAutoDiscovery();
   stopUptimeMonitoring();
   stopDailyReport();
+  stopAlertReconciliation();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);

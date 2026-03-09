@@ -308,6 +308,21 @@ router.post('/templates/:id/test', async (req: Request, res: Response, next: Nex
   }
 });
 
+/** Build Prometheus annotations from rule name + query */
+function buildAnnotations(name: string, query: string): Record<string, string> {
+  const thresholdMatch = query.match(/\s*(>=|<=|!=|>|<|==)\s*([\d.]+)\s*$/);
+  const threshold = thresholdMatch ? thresholdMatch[2] : '';
+  const opMap: Record<string, string> = { '>': 'above', '>=': 'at or above', '<': 'below', '<=': 'at or below', '==': 'equal to', '!=': 'not equal to' };
+  const opWord = thresholdMatch ? (opMap[thresholdMatch[1]] || thresholdMatch[1]) : 'above';
+
+  return {
+    summary: `${name} on {{ $labels.instance }}`,
+    description: threshold
+      ? `${name} is ${opWord} ${threshold} (current value: {{ $value | printf "%.1f" }})`
+      : `${name} triggered (current value: {{ $value | printf "%.1f" }})`,
+  };
+}
+
 // POST /api/alerts/rules - Create alert rule
 router.post('/rules', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -315,18 +330,7 @@ router.post('/rules', async (req: Request, res: Response, next: NextFunction) =>
 
     // Auto-generate Prometheus annotations if not provided
     if (!data.annotations || Object.keys(data.annotations).length === 0) {
-      const baseExpr = getBaseMetricExpr(data.query);
-      // Extract threshold from query (e.g., "> 95" → "95")
-      const thresholdMatch = data.query.match(/\s*(>=|<=|!=|>|<|==)\s*([\d.]+)\s*$/);
-      const threshold = thresholdMatch ? thresholdMatch[2] : '';
-      const op = thresholdMatch ? thresholdMatch[1] : '>';
-
-      data.annotations = {
-        summary: `${data.name} on {{ $labels.instance }}`,
-        description: threshold
-          ? `${data.name}: ${baseExpr} is ${op} ${threshold} (current value: {{ $value | printf "%.1f" }})`
-          : `${data.name} triggered (current value: {{ $value | printf "%.1f" }})`,
-      };
+      data.annotations = buildAnnotations(data.name, data.query);
     }
 
     const rule = await prisma.alertRule.create({
@@ -360,6 +364,14 @@ router.put('/rules/:id', async (req: Request, res: Response, next: NextFunction)
   try {
     const { id } = req.params;
     const data = createAlertRuleSchema.partial().parse(req.body);
+
+    // If query changed, regenerate annotations to keep threshold in sync
+    if (data.query) {
+      const existing = await prisma.alertRule.findUnique({ where: { id }, select: { query: true, name: true } });
+      if (existing && data.query !== existing.query) {
+        data.annotations = buildAnnotations(data.name || existing.name, data.query);
+      }
+    }
 
     const rule = await prisma.alertRule.update({
       where: { id },

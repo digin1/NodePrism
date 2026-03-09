@@ -165,7 +165,11 @@ export async function syncRulesToYml(): Promise<void> {
   });
 
   try {
-    fs.writeFileSync(ALERTS_YML_PATH, yamlContent, 'utf-8');
+    // Use open + write + truncate to preserve the file inode.
+    // fs.writeFileSync replaces the file (new inode), which breaks Docker bind mounts.
+    const fd = fs.openSync(ALERTS_YML_PATH, 'w');
+    fs.writeSync(fd, yamlContent, 0, 'utf-8');
+    fs.closeSync(fd);
     logger.info(`Wrote ${enabledRules.length} alert rules to alerts.yml (${rules.length - enabledRules.length} disabled)`);
 
     // Reload Prometheus to pick up changes

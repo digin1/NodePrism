@@ -170,9 +170,11 @@ export function Sidebar() {
               </div>
             )}
           </div>
-          <span className="text-white font-semibold text-sm truncate">
-            {systemName}
-          </span>
+          {!logoUrl && (
+            <span className="text-white font-semibold text-sm truncate">
+              {systemName}
+            </span>
+          )}
         </Link>
       </div>
 

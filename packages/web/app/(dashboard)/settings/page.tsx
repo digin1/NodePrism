@@ -108,8 +108,11 @@ export default function SettingsPage() {
 
   const handleSaveSettings = async () => {
     setSaving(true);
-    await updateSettingsMutation.mutateAsync({ systemName, primaryColor, timezone, dateFormat });
-    setSaving(false);
+    try {
+      await updateSettingsMutation.mutateAsync({ systemName, primaryColor, timezone, dateFormat });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

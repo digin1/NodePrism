@@ -164,15 +164,24 @@ async function collectData(): Promise<{ nodes: NodeSummary[]; exim: EximNodeStat
     const srvContainers = containers.filter(c => c.serverId === server.id);
     const stopped = srvContainers.filter(c => c.status === 'stopped' || c.status === 'shutoff');
 
-    // Stopped container details with disk sizes from LVM metrics
+    // Stopped container details with disk sizes from LVM metrics or container metadata
     const stoppedContainers: StoppedContainer[] = stopped.map(c => {
+      // KVM: check LVM disk metrics
       const diskMetric = lvmVmDisk.find(r =>
         r.metric.domain === c.name || r.metric.domain === c.containerId
       );
+      let diskBytes = diskMetric ? parseFloat(diskMetric.value[1]) : 0;
+
+      // OVZ/other: fall back to metadata diskUsageBytes or diskLimitBytes from agent
+      if (!diskBytes && c.metadata) {
+        const meta = c.metadata as any;
+        diskBytes = meta.diskUsageBytes || meta.diskLimitBytes || meta.diskSizeBytes || 0;
+      }
+
       return {
         containerId: c.containerId,
         name: c.name || c.hostname || c.containerId,
-        diskBytes: diskMetric ? parseFloat(diskMetric.value[1]) : 0,
+        diskBytes,
       };
     });
 

@@ -153,7 +153,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     }
 
     // Auto-label server type based on registered agents
-    autoLabelServer(server.id).catch(() => {});
+    autoLabelServer(server.id).catch(err => logger.warn('Auto-label failed', { serverId: server.id, error: err.message }));
 
     // Emit socket event
     const io = req.app.get('io');

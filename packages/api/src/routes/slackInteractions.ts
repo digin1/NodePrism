@@ -84,7 +84,7 @@ router.post('/', async (req: Request, res: Response) => {
           text: actionId === 'acknowledge_alert'
             ? `✅ This was a test notification — no alert to acknowledge.`
             : `🔇 This was a test notification — no alert to silence.`,
-        }, { timeout: 5000 }).catch(() => {});
+        }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
       }
       return;
     }
@@ -97,7 +97,7 @@ router.post('/', async (req: Request, res: Response) => {
           response_type: 'in_channel',
           replace_original: false,
           text: `⚠️ Alert not found (may have been resolved or deleted).`,
-        }, { timeout: 5000 }).catch(() => {});
+        }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
       }
       return;
     }
@@ -109,7 +109,7 @@ router.post('/', async (req: Request, res: Response) => {
             replace_original: false,
             response_type: 'in_channel',
             text: `ℹ️ Alert is already *${alert.status.toLowerCase()}* — no action taken.`,
-          }, { timeout: 5000 }).catch(() => {});
+          }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
         }
         return;
       }
@@ -134,7 +134,7 @@ router.post('/', async (req: Request, res: Response) => {
           replace_original: false,
           response_type: 'in_channel',
           text: `✅ Alert *acknowledged* by *${slackUser}*`,
-        }, { timeout: 5000 }).catch(() => {});
+        }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
       }
     } else if (actionId === 'silence_alert') {
       if (alert.status !== 'FIRING' && alert.status !== 'ACKNOWLEDGED') {
@@ -143,7 +143,7 @@ router.post('/', async (req: Request, res: Response) => {
             replace_original: false,
             response_type: 'in_channel',
             text: `ℹ️ Alert is already *${alert.status.toLowerCase()}* — no action taken.`,
-          }, { timeout: 5000 }).catch(() => {});
+          }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
         }
         return;
       }
@@ -169,7 +169,7 @@ router.post('/', async (req: Request, res: Response) => {
           replace_original: false,
           response_type: 'in_channel',
           text: `🔇 Alert *silenced* for *${duration}m* by *${slackUser}*`,
-        }, { timeout: 5000 }).catch(() => {});
+        }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
       }
     }
     // Unknown action_id — already acknowledged with 200

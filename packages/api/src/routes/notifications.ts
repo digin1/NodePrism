@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction, type Router as ExpressRouter }
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
-import { sendTestNotification } from '../services/notificationSender';
+import { sendTestNotification, invalidateChannelCache } from '../services/notificationSender';
 import { generateAndSendReport } from '../services/dailyReport';
 import { audit } from '../services/auditLogger';
 
@@ -85,6 +85,7 @@ router.post('/channels', async (req: Request, res: Response, next: NextFunction)
       },
     });
 
+    invalidateChannelCache();
     logger.info(`Notification channel created: ${channel.name} (${channel.type})`);
     audit(req, { action: 'notification_channel.create', entityType: 'notification_channel', entityId: channel.id, details: { name: channel.name, type: channel.type } });
 
@@ -120,6 +121,7 @@ router.put('/channels/:id', async (req: Request, res: Response, next: NextFuncti
       },
     });
 
+    invalidateChannelCache();
     logger.info(`Notification channel updated: ${channel.name}`);
     audit(req, { action: 'notification_channel.update', entityType: 'notification_channel', entityId: channel.id, details: { name: channel.name } });
 
@@ -147,6 +149,7 @@ router.delete('/channels/:id', async (req: Request, res: Response, next: NextFun
       where: { id: req.params.id },
     });
 
+    invalidateChannelCache();
     logger.info(`Notification channel deleted: ${existing.name}`);
     audit(req, { action: 'notification_channel.delete', entityType: 'notification_channel', entityId: req.params.id, details: { name: existing.name } });
 

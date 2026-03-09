@@ -166,6 +166,7 @@ model AlertRule {
   // Relations
   alerts Alert[]
 
+  @@index([enabled])
   @@map("alert_rules")
 }
 
@@ -193,6 +194,10 @@ model Alert {
 
   @@index([status])
   @@index([status, severity])
+  @@index([serverId])
+  @@index([serverId, status])
+  @@index([startsAt])
+  @@index([createdAt])
   @@map("alerts")
 }
 
@@ -271,6 +276,7 @@ model NotificationLog {
   channel NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@index([channelId])
+  @@index([alertId])
   @@index([createdAt])
   @@map("notification_logs")
 }

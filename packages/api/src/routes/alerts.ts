@@ -241,15 +241,16 @@ router.post('/templates/:id/test', async (req: Request, res: Response, next: Nex
       return res.status(404).json({ success: false, error: 'Template not found' });
     }
 
-    // Get all servers with node_exporter to test against
+    // Get servers to test against (capped at 100 to prevent heavy queries)
     const servers = await prisma.server.findMany({
       where: { status: { in: ['ONLINE', 'WARNING'] } },
       select: { id: true, hostname: true, ipAddress: true },
+      take: 100,
     });
 
     const PROMETHEUS_URL = process.env.PROMETHEUS_URL || 'http://localhost:9090';
     const templateService = new AlertTemplateService();
-    const results: Array<{ serverId: string; hostname: string; value: number | null; warnFiring: boolean; critFiring: boolean }> = [];
+    const results: Array<{ serverId: string; hostname: string; value: number | null; error?: string; warnFiring: boolean; critFiring: boolean }> = [];
 
     for (const server of servers) {
       // Check if template matches this server
@@ -265,6 +266,7 @@ router.post('/templates/:id/test', async (req: Request, res: Response, next: Nex
       }
 
       let value: number | null = null;
+      let queryError: string | undefined;
       try {
         const axios = require('axios');
         const resp = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
@@ -273,8 +275,9 @@ router.post('/templates/:id/test', async (req: Request, res: Response, next: Nex
         });
         const data = resp.data?.data?.result?.[0]?.value;
         value = data ? parseFloat(data[1]) : null;
-      } catch {
-        // Prometheus unreachable or query failed
+      } catch (err: any) {
+        queryError = err.message || 'Prometheus query failed';
+        logger.warn('Prometheus query failed during template test', { query, error: queryError });
       }
 
       const warnCond = template.warnCondition as any;
@@ -284,6 +287,7 @@ router.post('/templates/:id/test', async (req: Request, res: Response, next: Nex
         serverId: server.id,
         hostname: server.hostname,
         value,
+        ...(queryError && { error: queryError }),
         warnFiring: value !== null && warnCond?.condition ? templateService.evaluateCondition(warnCond.condition, value) : false,
         critFiring: value !== null && critCond?.condition ? templateService.evaluateCondition(critCond.condition, value) : false,
       });
@@ -511,62 +515,80 @@ router.post('/webhook', webhookLimiter, async (req: Request, res: Response, next
 
     logger.info('Received AlertManager webhook', { alertCount: alerts?.length });
 
+    // Cache server lookups within this webhook batch to avoid repeated DB queries
+    const serverCache = new Map<string, { id: string; hostname: string; ipAddress: string | null } | null>();
+
+    // Cache maintenance window checks per server within this batch
+    const maintenanceCache = new Map<string, boolean>();
+    const now = new Date();
+
     // Process each alert from AlertManager
     for (const alert of alerts || []) {
       const fingerprint = alert.fingerprint;
       const status = alert.status === 'firing' ? 'FIRING' : 'RESOLVED';
 
-      // Try to find the server from labels
+      // Try to find the server from labels (with per-batch caching)
       let serverId: string | null = null;
       const instance = alert.labels?.instance;
       const hostname = alert.labels?.hostname;
       const labelServerId = alert.labels?.server_id;
 
-      // First check if server_id is directly in the labels (from Prometheus relabeling)
-      if (labelServerId) {
-        const server = await prisma.server.findUnique({
-          where: { id: labelServerId },
-        });
-        if (server) {
-          serverId = server.id;
-          logger.debug(`Matched alert to server by server_id label: ${server.hostname}`);
+      // Build a cache key from the lookup parameters
+      const serverCacheKey = labelServerId || `${instance || ''}:${hostname || ''}`;
+
+      if (serverCache.has(serverCacheKey)) {
+        const cached = serverCache.get(serverCacheKey);
+        serverId = cached?.id || null;
+      } else {
+        // First check if server_id is directly in the labels (from Prometheus relabeling)
+        if (labelServerId) {
+          const server = await prisma.server.findUnique({
+            where: { id: labelServerId },
+            select: { id: true, hostname: true, ipAddress: true },
+          });
+          serverCache.set(serverCacheKey, server);
+          if (server) {
+            serverId = server.id;
+          }
+        }
+
+        // If no match by server_id, try instance/hostname
+        if (!serverId && (instance || hostname)) {
+          const ip = instance ? instance.split(':')[0] : null;
+
+          const server = await prisma.server.findFirst({
+            where: {
+              OR: [
+                ...(ip ? [{ ipAddress: ip }] : []),
+                ...(hostname ? [{ hostname: hostname }] : []),
+                ...(instance ? [{ hostname: instance.split(':')[0] }] : []),
+              ],
+            },
+            select: { id: true, hostname: true, ipAddress: true },
+          });
+          serverCache.set(serverCacheKey, server);
+          if (server) {
+            serverId = server.id;
+          }
         }
       }
 
-      // If no match by server_id, try instance/hostname
-      if (!serverId && (instance || hostname)) {
-        // Extract IP from instance (format: "ip:port" or just "ip")
-        const ip = instance ? instance.split(':')[0] : null;
-
-        // Try to find server by IP address, hostname label, or instance hostname
-        const server = await prisma.server.findFirst({
-          where: {
-            OR: [
-              ...(ip ? [{ ipAddress: ip }] : []),
-              ...(hostname ? [{ hostname: hostname }] : []),
-              ...(instance ? [{ hostname: instance.split(':')[0] }] : []),
-            ],
-          },
-        });
-
-        if (server) {
-          serverId = server.id;
-          logger.debug(`Matched alert to server: ${server.hostname} (${server.ipAddress})`);
-        }
-      }
-
-      // Check if server is in maintenance window — suppress new alerts
+      // Check if server is in maintenance window — suppress new alerts (cached per server)
       if (serverId && status === 'FIRING') {
-        const now = new Date();
-        const activeWindow = await prisma.maintenanceWindow.findFirst({
-          where: {
-            serverId,
-            startTime: { lte: now },
-            endTime: { gte: now },
-          },
-        });
-        if (activeWindow) {
-          logger.debug(`Alert suppressed for server ${serverId}: in maintenance window until ${activeWindow.endTime.toISOString()}`);
+        let inMaintenance = maintenanceCache.get(serverId);
+        if (inMaintenance === undefined) {
+          const activeWindow = await prisma.maintenanceWindow.findFirst({
+            where: {
+              serverId,
+              startTime: { lte: now },
+              endTime: { gte: now },
+            },
+          });
+          inMaintenance = !!activeWindow;
+          maintenanceCache.set(serverId, inMaintenance);
+        }
+        if (inMaintenance) {
+          logger.debug(`Alert suppressed for server ${serverId}: in maintenance window`);
           continue;
         }
       }
@@ -647,28 +669,38 @@ router.post('/webhook', webhookLimiter, async (req: Request, res: Response, next
   }
 });
 
-// GET /api/alerts/stats - Get alert statistics
+// GET /api/alerts/stats - Get alert statistics (single query instead of 6)
 router.get('/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const [firing, resolved, critical, warning, silenced, acknowledged] = await Promise.all([
-      prisma.alert.count({ where: { status: 'FIRING' } }),
-      prisma.alert.count({ where: { status: 'RESOLVED' } }),
-      prisma.alert.count({ where: { status: 'FIRING', severity: 'CRITICAL' } }),
-      prisma.alert.count({ where: { status: 'FIRING', severity: 'WARNING' } }),
-      prisma.alert.count({ where: { status: 'SILENCED' } }),
-      prisma.alert.count({ where: { status: 'ACKNOWLEDGED' } }),
-    ]);
+    const groups = await prisma.alert.groupBy({
+      by: ['status', 'severity'],
+      _count: true,
+    });
+
+    let firing = 0, resolved = 0, critical = 0, warning = 0, silenced = 0, acknowledged = 0;
+    for (const g of groups) {
+      const count = g._count;
+      switch (g.status) {
+        case 'FIRING':
+          firing += count;
+          if (g.severity === 'CRITICAL') critical += count;
+          if (g.severity === 'WARNING') warning += count;
+          break;
+        case 'RESOLVED':
+          resolved += count;
+          break;
+        case 'SILENCED':
+          silenced += count;
+          break;
+        case 'ACKNOWLEDGED':
+          acknowledged += count;
+          break;
+      }
+    }
 
     res.json({
       success: true,
-      data: {
-        firing,
-        resolved,
-        critical,
-        warning,
-        silenced,
-        acknowledged,
-      },
+      data: { firing, resolved, critical, warning, silenced, acknowledged },
     });
   } catch (error) {
     next(error);
@@ -696,8 +728,8 @@ router.get('/history', async (req: Request, res: Response, next: NextFunction) =
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: parseInt(limit as string) || 100,
-      skip: parseInt(offset as string) || 0,
+      take: Math.min(parseInt(limit as string) || 100, 500),
+      skip: Math.max(parseInt(offset as string) || 0, 0),
     });
 
     res.json({

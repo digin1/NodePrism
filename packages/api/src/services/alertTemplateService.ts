@@ -42,6 +42,16 @@ export class AlertTemplateService {
     labels: Record<string, string> = {}
   ): Promise<AlertTemplateConfig[]> {
     try {
+      // Pre-fetch server once to avoid N+1 queries (was querying per template)
+      const server = await prisma.server.findUnique({
+        where: { id: serverId },
+        select: { environment: true, region: true, tags: true },
+      });
+
+      if (!server) {
+        return [];
+      }
+
       const templates = await prisma.alertTemplate.findMany({
         where: { enabled: true },
       });
@@ -49,7 +59,7 @@ export class AlertTemplateService {
       const matchingTemplates: AlertTemplateConfig[] = [];
 
       for (const template of templates) {
-        if (await this.matchesTemplate(template, serverId, labels)) {
+        if (this.matchesTemplateSync(template, server, labels)) {
           matchingTemplates.push(this.convertToConfig(template));
         }
       }
@@ -62,24 +72,14 @@ export class AlertTemplateService {
   }
 
   /**
-   * Check if a template matches the given server and labels
+   * Check if a template matches the given server and labels (synchronous — no DB calls)
    */
-  private async matchesTemplate(
+  private matchesTemplateSync(
     template: any,
-    serverId: string,
+    server: { environment: string | null; region: string | null; tags: string[] },
     labels: Record<string, string>
-  ): Promise<boolean> {
+  ): boolean {
     try {
-      // Get server details for host label matching
-      const server = await prisma.server.findUnique({
-        where: { id: serverId },
-        select: { environment: true, region: true, tags: true },
-      });
-
-      if (!server) {
-        return false;
-      }
-
       // Check matchLabels (Prometheus labels)
       if (template.matchLabels) {
         const matchLabels = template.matchLabels as Record<string, string>;
@@ -120,7 +120,7 @@ export class AlertTemplateService {
 
       return true;
     } catch (error) {
-      logger.error('Failed to check template match', { templateId: template.id, serverId, error });
+      logger.error('Failed to check template match', { templateId: template.id, error });
       return false;
     }
   }

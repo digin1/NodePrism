@@ -221,9 +221,6 @@ export async function reconcileAlerts(): Promise<{
               ? currentVal
               : Number(currentVal).toFixed(2);
             annotations.current_value = formatted;
-            annotations.description = annotations.description
-              ? `${annotations.description} → Current value: ${formatted}`
-              : `Current value: ${formatted}`;
           }
         }
       }

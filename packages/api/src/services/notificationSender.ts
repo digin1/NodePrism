@@ -127,16 +127,29 @@ function getServerDisplay(alert: AlertPayload): { name: string; detail: string }
 
 // ─── Senders ──────────────────────────────────────────────────────────
 
+// Reuse SMTP transports per host:port:user to avoid connection churn
+const transporterCache = new Map<string, nodemailer.Transporter>();
+
+function getTransporter(config: EmailConfig): nodemailer.Transporter {
+  const key = `${config.host}:${config.port}:${config.username}`;
+  let transporter = transporterCache.get(key);
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: {
+        user: config.username,
+        pass: config.password,
+      },
+    });
+    transporterCache.set(key, transporter);
+  }
+  return transporter;
+}
+
 async function sendEmail(config: EmailConfig, alert: AlertPayload): Promise<void> {
-  const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth: {
-      user: config.username,
-      pass: config.password,
-    },
-  });
+  const transporter = getTransporter(config);
 
   const isResolved = alert.status === 'RESOLVED';
   const server = getServerDisplay(alert);
@@ -204,6 +217,7 @@ async function sendEmail(config: EmailConfig, alert: AlertPayload): Promise<void
     `Started: ${alert.startsAt.toISOString()}`,
     isResolved && alert.endsAt ? `Resolved: ${alert.endsAt.toISOString()}` : null,
     duration ? `Duration: ${duration}` : null,
+    isResolved && alert.annotations?.current_value ? `Current Value: ${alert.annotations.current_value}` : null,
   ].filter(Boolean).join('\n');
 
   await transporter.sendMail({
@@ -495,6 +509,10 @@ async function getEnabledChannels() {
   return channelCache;
 }
 
+// Track last send time per channel type to respect rate limits (e.g., Telegram 30 msg/sec)
+const lastSendByType = new Map<string, number>();
+const RATE_LIMIT_MS: Record<string, number> = { TELEGRAM: 1100 }; // Telegram: ~1 msg/sec to be safe
+
 export async function dispatchNotifications(alert: AlertPayload): Promise<void> {
   const channels = await getEnabledChannels();
 
@@ -508,8 +526,19 @@ export async function dispatchNotifications(alert: AlertPayload): Promise<void> 
         return;
       }
 
+      // Rate limit certain channel types
+      const minInterval = RATE_LIMIT_MS[channel.type];
+      if (minInterval) {
+        const lastSent = lastSendByType.get(channel.type) || 0;
+        const elapsed = Date.now() - lastSent;
+        if (elapsed < minInterval) {
+          await new Promise(resolve => setTimeout(resolve, minInterval - elapsed));
+        }
+      }
+
       try {
         await sender(channel.config as any, alert);
+        lastSendByType.set(channel.type, Date.now());
         logger.info(`Notification sent via ${channel.type} channel "${channel.name}"`);
 
         // Log success
@@ -584,6 +613,10 @@ export async function sendTestNotification(channelId: string): Promise<{ success
       ...testFiring,
       status: 'RESOLVED',
       endsAt: new Date(),
+      annotations: {
+        ...testFiring.annotations,
+        current_value: '45.2',
+      },
     };
     await sender(channel.config as any, testResolved);
 

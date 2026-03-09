@@ -252,6 +252,12 @@ export async function deepHealthCheck(): Promise<{
     include: { server: true },
   });
 
+  // Build a local status map to track changes without re-querying the database
+  const agentStatusMap = new Map<string, string>();
+  for (const agent of agents) {
+    agentStatusMap.set(agent.id, agent.status);
+  }
+
   let healthy = 0;
   let unhealthy = 0;
 
@@ -268,6 +274,7 @@ export async function deepHealthCheck(): Promise<{
           lastHealthCheck: new Date(),
         },
       });
+      agentStatusMap.set(agent.id, 'RUNNING');
       logger.info(`Agent ${agent.type} on ${agent.server.hostname} is back online`);
 
       // Log agent recovery event
@@ -280,15 +287,14 @@ export async function deepHealthCheck(): Promise<{
       );
 
       // Check if server should be marked as recovered (all agents now running)
-      const serverAgents = await prisma.agent.findMany({
-        where: { serverId: agent.serverId },
-      });
-      const allRunning = serverAgents.every(a => a.id === agent.id || a.status === 'RUNNING');
+      // Use local status map instead of re-querying the database
+      const allRunning = agents
+        .filter(a => a.serverId === agent.serverId)
+        .every(a => agentStatusMap.get(a.id) === 'RUNNING');
 
       if (allRunning) {
-        const server = await prisma.server.findUnique({ where: { id: agent.serverId } });
-        if (server && (server.status === 'OFFLINE' || server.status === 'CRITICAL' || server.status === 'WARNING')) {
-          const oldServerStatus = server.status;
+        const serverStatus = agent.server.status;
+        if (serverStatus === 'OFFLINE' || serverStatus === 'CRITICAL' || serverStatus === 'WARNING') {
           await prisma.server.update({
             where: { id: agent.serverId },
             data: { status: 'ONLINE', lastSeen: new Date() },
@@ -298,7 +304,7 @@ export async function deepHealthCheck(): Promise<{
           // Log server recovery event
           await logServerStatusChange(
             agent.serverId,
-            oldServerStatus,
+            serverStatus,
             'ONLINE',
             agent.server.hostname,
             'deep-health-check'
@@ -313,6 +319,7 @@ export async function deepHealthCheck(): Promise<{
         where: { id: agent.id },
         data: { status: 'STOPPED' },
       });
+      agentStatusMap.set(agent.id, 'STOPPED');
       logger.info(`Agent ${agent.type} on ${agent.server.hostname} is unresponsive`);
       unhealthy++;
     } else if (isHealthy) {

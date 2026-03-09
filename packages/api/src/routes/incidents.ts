@@ -44,25 +44,13 @@ router.get('/stats', async (req: Request, res: Response, next: NextFunction) => 
       prisma.incident.count(),
     ]);
 
-    // Calculate average resolution time from incidents that have been resolved
-    const resolvedIncidents = await prisma.incident.findMany({
-      where: {
-        status: 'RESOLVED',
-        resolvedAt: { not: null },
-      },
-      select: {
-        startedAt: true,
-        resolvedAt: true,
-      },
-    });
-
-    let avgResolutionMs: number | null = null;
-    if (resolvedIncidents.length > 0) {
-      const totalMs = resolvedIncidents.reduce((sum, inc) => {
-        return sum + (inc.resolvedAt!.getTime() - inc.startedAt.getTime());
-      }, 0);
-      avgResolutionMs = totalMs / resolvedIncidents.length;
-    }
+    // Calculate average resolution time using database aggregation
+    const avgResult = await prisma.$queryRaw<[{ avg_ms: number | null }]>`
+      SELECT AVG(EXTRACT(EPOCH FROM ("resolved_at" - "started_at")) * 1000) as avg_ms
+      FROM "Incident"
+      WHERE status = 'RESOLVED' AND "resolved_at" IS NOT NULL
+    `;
+    const avgResolutionMs = avgResult[0]?.avg_ms ? Number(avgResult[0].avg_ms) : null;
 
     res.json({
       success: true,

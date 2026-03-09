@@ -1,5 +1,5 @@
 import express from 'express';
-import { createServer as createHttpServer } from 'http';
+import { createServer as createHttpServer, Server as HttpServer } from 'http';
 import { createServer as createHttpsServer, ServerOptions } from 'https';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
@@ -35,7 +35,7 @@ const SSL_KEY_PATH = process.env.SSL_KEY_PATH || '/app/certs/server.key';
 const SSL_CERT_PATH = process.env.SSL_CERT_PATH || '/app/certs/server.crt';
 const SSL_CA_PATH = process.env.SSL_CA_PATH;
 
-let server;
+let server: HttpServer;
 
 if (SSL_ENABLED) {
   try {
@@ -287,8 +287,8 @@ server.listen(PORT, async () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
+function gracefulShutdown(signal: string) {
+  logger.info(`${signal} received, shutting down gracefully`);
   stopHeartbeatCleanup();
   stopMetricCollector();
   stopHousekeeping();
@@ -300,6 +300,9 @@ process.on('SIGTERM', () => {
     logger.info('Server closed');
     process.exit(0);
   });
-});
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 export { io };

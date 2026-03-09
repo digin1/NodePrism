@@ -84,6 +84,7 @@ export default function RegisterPage() {
                   src={logoUrl}
                   alt={systemName}
                   style={{ height: '40px', width: 'auto', maxWidth: '160px' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                 />
               ) : (
                 <span className="font-bold text-2xl" style={{ color: primaryColor }}>

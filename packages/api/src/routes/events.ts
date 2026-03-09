@@ -19,7 +19,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     } = req.query;
 
     const options = {
-      limit: Math.min(parseInt(limit as string, 10) || 100, 500),
+      limit: Math.min(Math.max(1, parseInt(limit as string, 10) || 100), 500),
       offset: parseInt(offset as string, 10) || 0,
       serverId: serverId as string | undefined,
       type: type as EventType | undefined,

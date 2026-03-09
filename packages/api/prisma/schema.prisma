@@ -191,6 +191,8 @@ model Alert {
   template AlertTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   server   Server?        @relation(fields: [serverId], references: [id], onDelete: SetNull)
 
+  @@index([status])
+  @@index([status, severity])
   @@map("alerts")
 }
 
@@ -392,6 +394,7 @@ model MetricHistory {
   server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
 
   @@index([serverId, metricName, timestamp])
+  @@index([serverId, timestamp])
   @@index([timestamp])
   @@map("metric_history")
 }

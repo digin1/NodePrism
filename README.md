@@ -1,128 +1,177 @@
-# NodePrism
+<p align="center">
+  <img src="packages/web/public/favicon.svg" alt="NodePrism" width="80" height="80">
+</p>
 
-Advanced server monitoring system with automated deployment and comprehensive metrics.
+<h1 align="center">NodePrism</h1>
+
+<p align="center">
+  <strong>Open-source infrastructure monitoring platform for servers, containers, and services</strong>
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#screenshots">Screenshots</a> •
+  <a href="#documentation">Docs</a> •
+  <a href="#contributing">Contributing</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
+  <img src="https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg" alt="Node.js">
+  <img src="https://img.shields.io/badge/pnpm-%3E%3D8.0.0-orange.svg" alt="pnpm">
+  <img src="https://img.shields.io/badge/typescript-5.x-blue.svg" alt="TypeScript">
+  <img src="https://img.shields.io/badge/tests-725%20passing-brightgreen.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/docker-20%20containers-blue.svg" alt="Docker">
+</p>
+
+---
 
 ## Features
 
-- **Comprehensive Monitoring**: System metrics, application metrics, logs, and database monitoring
-- **Automated Deployment**: One-click SSH-based agent deployment to remote servers
-- **Real-time Dashboards**: Beautiful Next.js UI with live metrics and alerts
-- **Advanced Alerting**: Multi-channel notifications (Email, Slack, PagerDuty, Webhooks)
-- **Log Aggregation**: Centralized log storage and querying with Loki
-- **100% Open Source**: All components use permissive open source licenses
-
-## Architecture
-
-### Manager Node (Docker-based)
-- Prometheus, Grafana, Loki, AlertManager
-- PostgreSQL, Redis, RabbitMQ, OpenBao
-- API Gateway (Express + Socket.IO)
-- Next.js Management UI
-
-### Monitored Nodes (Lightweight agents)
-- Node Exporter (system metrics)
-- Custom application agent
-- Database exporters (MySQL, PostgreSQL, MongoDB)
-- Web server exporters (Nginx, Apache)
-- Promtail (log shipping)
+- **Real-time Monitoring** — System metrics, container stats, disk/LVM usage, and network bandwidth with live WebSocket updates
+- **Multi-platform Containers** — OpenVZ, KVM/libvirt, Virtuozzo, Docker, and LXC container management and monitoring
+- **Intelligent Alerting** — Multi-channel notifications (Slack, Telegram, Email, Webhooks) with acknowledge/silence actions directly from Slack
+- **Anomaly Detection** — ML-based anomaly scoring with configurable sensitivity per server
+- **Daily Infrastructure Reports** — Automated reports to Slack/Telegram with VM counts, stopped containers, disk usage, and exim stats
+- **Log Aggregation** — Centralized log storage and querying via Loki + Promtail
+- **Custom Dashboards** — Build and share dashboards with PromQL-powered panels
+- **Uptime Monitoring** — HTTP/HTTPS/TCP/ICMP checks with response time tracking
+- **Incident Management** — Create, track, and resolve incidents with timeline updates
+- **Forecasting** — Disk and resource usage trend prediction
+- **100% Open Source** — All components use permissive open-source licenses
 
 ## Quick Start
 
 ### Prerequisites
-- Docker Desktop or Docker Engine + Docker Compose
-- Node.js 20+ and PNPM 8+
-- 16GB RAM minimum for local development
+
+- Docker Engine + Docker Compose
+- Node.js 20+ and pnpm 8+
+- PostgreSQL 15+ (runs in Docker)
 
 ### Installation
 
-1. **Clone the repository**
 ```bash
+# Clone the repository
 git clone https://github.com/digin1/NodePrism.git
 cd NodePrism
-```
 
-2. **Install dependencies**
-```bash
+# Install dependencies
 pnpm install
-```
 
-3. **Start Docker services**
-```bash
+# Start infrastructure services (PostgreSQL, Redis, Prometheus, etc.)
 pnpm docker:up
+
+# Build and start the application
+pnpm run build && pnpm run start
 ```
 
-4. **Start development servers**
-```bash
-pnpm dev
-```
+### Access
 
-5. **Access the applications**
-- Next.js UI: http://localhost:3000
-- API Gateway: http://localhost:4000
-- Grafana: http://localhost:3030 (admin/admin)
-- Prometheus: http://localhost:9090
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Web UI | http://localhost:3000 | Register on first visit |
+| API | http://localhost:4000 | — |
+| Grafana | http://localhost:3030 | admin / admin |
+| Prometheus | http://localhost:9090 | — |
+| Documentation | http://localhost:3080 | — |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Manager Node                            │
+│                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌─────────────┐  ┌─────────┐ │
+│  │ Next.js  │  │ Express  │  │  Config     │  │Anomaly  │ │
+│  │ Web UI   │  │ API +    │  │  Sync       │  │Detector │ │
+│  │ :3000    │  │ Socket.IO│  │  :4002      │  │ :4003   │ │
+│  │          │  │ :4000    │  │             │  │         │ │
+│  └──────────┘  └────┬─────┘  └─────────────┘  └─────────┘ │
+│                     │                                       │
+│  ┌──────────────────┼──────────────────────────────────┐   │
+│  │           Docker Infrastructure                      │   │
+│  │  Prometheus · Grafana · Loki · AlertManager          │   │
+│  │  PostgreSQL · Redis · Pushgateway                    │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                          │
+              ┌───────────┼───────────┐
+              ▼           ▼           ▼
+        ┌──────────┐ ┌──────────┐ ┌──────────┐
+        │ Server 1 │ │ Server 2 │ │ Server N │
+        │          │ │          │ │          │
+        │ Agent    │ │ Agent    │ │ Agent    │
+        │ :9101    │ │ :9101    │ │ :9101    │
+        │          │ │          │ │          │
+        │ Node     │ │ Node     │ │ Node     │
+        │ Exporter │ │ Exporter │ │ Exporter │
+        │ :9100    │ │ :9100    │ │ :9100    │
+        └──────────┘ └──────────┘ └──────────┘
+```
 
 ## Project Structure
 
 ```
 NodePrism/
 ├── packages/
-│   ├── web/                    # Next.js Management UI
-│   ├── api/                    # API Gateway (Express)
-│   ├── deployment-worker/      # Agent deployment service
-│   ├── config-sync/            # Configuration sync worker
-│   ├── agent-app/              # Custom application agent
-│   └── shared/                 # Shared TypeScript types
+│   ├── web/                  # Next.js 14 Management UI
+│   ├── api/                  # Express API + Socket.IO Gateway
+│   ├── config-sync/          # Prometheus target sync worker
+│   ├── anomaly-detector/     # ML anomaly detection service
+│   ├── agent-app/            # Remote server agent
+│   └── shared/               # Shared TypeScript types
 │
 ├── infrastructure/
-│   └── docker/                 # Docker Compose configs
-│       ├── prometheus/
-│       ├── grafana/
-│       ├── loki/
-│       └── alertmanager/
+│   └── docker/               # Docker Compose + configs
+│       ├── prometheus/       # Prometheus rules, targets, config
+│       ├── grafana/          # Dashboards & datasources
+│       ├── alertmanager/     # Alert routing config
+│       └── loki/             # Log aggregation config
 │
-├── agents/                     # Pre-built agent binaries
-├── scripts/                    # Utility scripts
-└── config/                     # Configuration templates
+├── docs-site/                # Docusaurus documentation site
+├── docs/                     # Doc generation scripts
+└── scripts/                  # Utility & testing scripts
 ```
 
-## Technology Stack
+## Tech Stack
 
-All tools are 100% free and open source:
-
-- **Monitoring**: Prometheus, Grafana, Loki, AlertManager
-- **Storage**: PostgreSQL, Redis
-- **Infrastructure**: RabbitMQ, OpenBao
-- **Backend**: Node.js, Express, Socket.IO
-- **Frontend**: Next.js 14, shadcn/ui, Tailwind CSS
-- **Development**: Turborepo, PNPM, TypeScript
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | Next.js 14, React 18, TanStack Query, Tailwind CSS, Recharts |
+| **Backend** | Node.js, Express, Socket.IO, Prisma ORM |
+| **Database** | PostgreSQL, Redis |
+| **Monitoring** | Prometheus, Grafana, Loki, AlertManager |
+| **Infrastructure** | Docker Compose, Turborepo, pnpm workspaces |
+| **Language** | TypeScript (strict mode) |
 
 ## Development
 
 ```bash
-# Install dependencies
-pnpm install
+# Development mode (hot reload)
+pnpm run dev
 
-# Start all dev servers
-pnpm dev
-
-# Build all packages
-pnpm build
-
-# Run linting
-pnpm lint
-
-# Run tests
+# Run tests (725 tests across 36 suites)
 pnpm test
+
+# Run tests with coverage
+pnpm test:coverage
+
+# Lint all packages
+pnpm lint
 
 # Format code
 pnpm format
+
+# Generate documentation
+pnpm docs:generate
 ```
 
-## Docker Commands
+### Docker Commands
 
 ```bash
-# Start all services
+# Start all infrastructure services
 pnpm docker:up
 
 # Stop all services
@@ -131,18 +180,31 @@ pnpm docker:down
 # View logs
 pnpm docker:logs
 
-# Restart specific service
-docker-compose -f infrastructure/docker/docker-compose.yml restart prometheus
+# Restart a specific service
+docker compose -f infrastructure/docker/docker-compose.yml restart prometheus
 ```
 
-## License
+## Documentation
 
-MIT License - See LICENSE file for details
+Full documentation is available at `http://localhost:3080` when running the docs container, covering:
+
+- Architecture overview
+- API reference & endpoints
+- Database schema
+- Deployment guide
+- Monitoring & alerting setup
+- Agent configuration
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+Contributions are welcome! Please:
 
-## Support
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Commit your changes (`git commit -m 'Add my feature'`)
+4. Push to the branch (`git push origin feature/my-feature`)
+5. Open a Pull Request
 
-For issues and questions, please use the GitHub issue tracker.
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

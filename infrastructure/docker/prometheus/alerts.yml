@@ -48,23 +48,23 @@ groups:
           summary: High anomaly rate on server {{ $labels.server_id }}
           description: Node Anomaly Rate is {{ $value | printf "%.1f" }}% — more than 30% of monitored metrics are anomalous
       - alert: HighCPUUsage
-        expr: 100 - (avg by(instance, server_id) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        expr: 100 - (avg by(instance, server_id) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
         for: 10m
         labels:
           severity: warning
           rule_id: 3f8ecab4-8f9d-4512-b831-7cd192a85fce
         annotations:
           summary: High CPU usage on {{ $labels.instance }}
-          description: "CPU usage is above 80% (current value: {{ $value }}%)"
+          description: "CPU usage is above 95% (current value: {{ $value | printf \"%.1f\" }}%)"
       - alert: HighLoadAverage
-        expr: node_load1 > 10
+        expr: node_load1 > 20
         for: 5m
         labels:
           severity: warning
           rule_id: f51e4b86-ac5b-4630-b8d4-499f1072bdaf
         annotations:
           summary: High load average on {{ $labels.instance }}
-          description: "1-minute load average is above 10 (current value: {{ $value }})"
+          description: "1-minute load average is above 20 (current value: {{ $value | printf \"%.1f\" }})"
       - alert: HighMemoryUsage
         expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
         for: 2m
@@ -84,7 +84,7 @@ groups:
           summary: Instance {{ $labels.instance }} down
           description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
       - alert: LVMVolumeGroupCriticalSpace
-        expr: (1 - (nodeprism_lvm_vg_free_bytes / nodeprism_lvm_vg_size_bytes)) * 100 > 95
+        expr: (1 - (nodeprism_lvm_vg_free_bytes / nodeprism_lvm_vg_size_bytes)) * 100 > 99
         for: 2m
         labels:
           severity: critical
@@ -93,7 +93,7 @@ groups:
           summary: LVM VG {{ $labels.vg }} critically full on {{ $labels.instance }}
           description: Volume group {{ $labels.vg }} is {{ $value | printf "%.1f" }}% full — VM provisioning may fail
       - alert: LVMVolumeGroupLowSpace
-        expr: (1 - (nodeprism_lvm_vg_free_bytes / nodeprism_lvm_vg_size_bytes)) * 100 > 80
+        expr: (1 - (nodeprism_lvm_vg_free_bytes / nodeprism_lvm_vg_size_bytes)) * 100 > 95
         for: 5m
         labels:
           severity: warning
@@ -102,14 +102,14 @@ groups:
           summary: LVM VG {{ $labels.vg }} low on space on {{ $labels.instance }}
           description: Volume group {{ $labels.vg }} is {{ $value | printf "%.1f" }}% full
       - alert: LowDiskSpace
-        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"})) * 100 > 80
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"})) * 100 > 90
         for: 2m
         labels:
           severity: warning
           rule_id: 29f86d1c-6d74-417f-9411-4932483b2c7d
         annotations:
           summary: Low disk space on {{ $labels.instance }}
-          description: "Disk {{ $labels.mountpoint }} usage is above 80% (current value: {{ $value }}%)"
+          description: "Disk {{ $labels.mountpoint }} usage is above 90% (current value: {{ $value | printf \"%.1f\" }}%)"
       - alert: PrometheusTargetMissing
         expr: up{job!~"prometheus|pushgateway"} == 0
         for: 5m

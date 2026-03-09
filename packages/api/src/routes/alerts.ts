@@ -313,6 +313,22 @@ router.post('/rules', async (req: Request, res: Response, next: NextFunction) =>
   try {
     const data = createAlertRuleSchema.parse(req.body);
 
+    // Auto-generate Prometheus annotations if not provided
+    if (!data.annotations || Object.keys(data.annotations).length === 0) {
+      const baseExpr = getBaseMetricExpr(data.query);
+      // Extract threshold from query (e.g., "> 95" → "95")
+      const thresholdMatch = data.query.match(/\s*(>=|<=|!=|>|<|==)\s*([\d.]+)\s*$/);
+      const threshold = thresholdMatch ? thresholdMatch[2] : '';
+      const op = thresholdMatch ? thresholdMatch[1] : '>';
+
+      data.annotations = {
+        summary: `${data.name} on {{ $labels.instance }}`,
+        description: threshold
+          ? `${data.name}: ${baseExpr} is ${op} ${threshold} (current value: {{ $value | printf "%.1f" }})`
+          : `${data.name} triggered (current value: {{ $value | printf "%.1f" }})`,
+      };
+    }
+
     const rule = await prisma.alertRule.create({
       data,
     });
@@ -657,9 +673,6 @@ router.post('/webhook', webhookLimiter, async (req: Request, res: Response, next
                 ? currentVal
                 : Number(currentVal).toFixed(2);
               enrichedAnnotations = { ...enrichedAnnotations, current_value: formatted };
-              if (enrichedAnnotations.description) {
-                enrichedAnnotations.description += ` → Current value: ${formatted}`;
-              }
             }
           }
         } catch (err: any) {

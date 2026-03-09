@@ -1,6 +1,6 @@
 ---
 sidebar_position: 2
-title: API Endpoints
+title: Endpoints
 ---
 
 # API Endpoints
@@ -28,11 +28,11 @@ Base path: `/api/agents`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/agents/register` | - | Apply lenient rate limiting for agent heartbeats/registrations |
-| POST | `/agents/heartbeat` | - | Apply lenient rate limiting for agent heartbeats/registrations |
-| POST | `/agents/unregister` | - | Apply lenient rate limiting for agent heartbeats/registrations |
-| GET | `/agents` | - | Apply lenient rate limiting for agent heartbeats/registrations |
-| GET | `/agents/latest-version/:type` | - | Apply lenient rate limiting for agent heartbeats/registrations |
+| POST | `/agents/register` | - | Register a new agent |
+| POST | `/agents/heartbeat` | - | Send agent heartbeat |
+| POST | `/agents/unregister` | - | Unregister an agent |
+| GET | `/agents` | - | List all agents |
+| GET | `/agents/latest-version/:type` | - | Get latest agent version by type |
 
 ## Alerts
 
@@ -40,24 +40,24 @@ Base path: `/api/alerts`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/alerts` | - | Validation schemas |
-| GET | `/alerts/rules` | - | Validation schemas |
-| GET | `/alerts/templates` | - | Validation schemas |
-| POST | `/alerts/templates` | - | Validation schemas |
-| GET | `/alerts/templates/:id` | - | Validation schemas |
-| PUT | `/alerts/templates/:id` | - | Validation schemas |
-| DELETE | `/alerts/templates/:id` | - | Validation schemas |
-| POST | `/alerts/templates/:id/test` | - | Validation schemas |
-| POST | `/alerts/rules` | - | Validation schemas |
-| PUT | `/alerts/rules/:id` | - | Validation schemas |
-| DELETE | `/alerts/rules/:id` | - | Validation schemas |
-| POST | `/alerts/bulk/acknowledge` | - | Validation schemas |
-| POST | `/alerts/bulk/silence` | - | Validation schemas |
-| POST | `/alerts/:id/acknowledge` | - | Validation schemas |
-| POST | `/alerts/:id/silence` | - | Validation schemas |
-| POST | `/alerts/webhook` | - | Validation schemas |
-| GET | `/alerts/stats` | - | Validation schemas |
-| GET | `/alerts/history` | - | Validation schemas |
+| GET | `/alerts` | - | List all alerts |
+| GET | `/alerts/rules` | - | List alert rules from Prometheus |
+| GET | `/alerts/templates` | - | List alert templates |
+| POST | `/alerts/templates` | - | Create alert template |
+| GET | `/alerts/templates/:id` | - | Get alert template by ID |
+| PUT | `/alerts/templates/:id` | - | Update alert template |
+| DELETE | `/alerts/templates/:id` | - | Delete alert template |
+| POST | `/alerts/templates/:id/test` | - | Test alert template |
+| POST | `/alerts/rules` | - | Create alert rule |
+| PUT | `/alerts/rules/:id` | - | Update alert rule |
+| DELETE | `/alerts/rules/:id` | - | Delete alert rule |
+| POST | `/alerts/bulk/acknowledge` | - | Bulk acknowledge alerts |
+| POST | `/alerts/bulk/silence` | - | Bulk silence alerts |
+| POST | `/alerts/:id/acknowledge` | - | Acknowledge single alert |
+| POST | `/alerts/:id/silence` | - | Silence single alert |
+| POST | `/alerts/webhook` | - | AlertManager webhook receiver |
+| GET | `/alerts/stats` | - | Get alert statistics |
+| GET | `/alerts/history` | - | Get alert history |
 
 ## Anomalies
 
@@ -65,15 +65,15 @@ Base path: `/api/anomalies`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/anomalies` | - | Redis connection for anomaly scores |
-| GET | `/anomalies/server/:serverId` | - | Redis connection for anomaly scores |
-| GET | `/anomalies/rates` | - | Redis connection for anomaly scores |
-| GET | `/anomalies/rate/:serverId` | - | Redis connection for anomaly scores |
-| GET | `/anomalies/events` | - | Redis connection for anomaly scores |
-| GET | `/anomalies/models` | - | Redis connection for anomaly scores |
-| GET | `/anomalies/stats` | - | Redis connection for anomaly scores |
-| POST | `/anomalies/events` | - | Redis connection for anomaly scores |
-| PUT | `/anomalies/events/:id/resolve` | - | Redis connection for anomaly scores |
+| GET | `/anomalies` | - | List all anomaly scores |
+| GET | `/anomalies/server/:serverId` | - | Get anomaly scores for a server |
+| GET | `/anomalies/rates` | - | Get anomaly rates for all servers |
+| GET | `/anomalies/rate/:serverId` | - | Get anomaly rate for a server |
+| GET | `/anomalies/events` | - | List anomaly events |
+| GET | `/anomalies/models` | - | List anomaly detection models |
+| GET | `/anomalies/stats` | - | Get anomaly statistics |
+| POST | `/anomalies/events` | - | Create anomaly event |
+| PUT | `/anomalies/events/:id/resolve` | - | Resolve anomaly event |
 
 ## Audit
 
@@ -81,9 +81,9 @@ Base path: `/api/audit`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/audit` | ✓ | All audit routes require ADMIN role |
-| GET | `/audit/entity/:type/:id` | ✓ | All audit routes require ADMIN role |
-| GET | `/audit/stats` | ✓ | All audit routes require ADMIN role |
+| GET | `/audit` | ✓ | List audit log entries (Admin only) |
+| GET | `/audit/entity/:type/:id` | ✓ | Get audit logs for a specific entity (Admin only) |
+| GET | `/audit/stats` | ✓ | Get audit log statistics (Admin only) |
 
 ## Auth
 
@@ -91,13 +91,13 @@ Base path: `/api/auth`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/auth/register` | - | Apply strict rate limiting to auth routes |
-| POST | `/auth/login` | - | Apply strict rate limiting to auth routes |
-| GET | `/auth/me` | - | Apply strict rate limiting to auth routes |
-| POST | `/auth/logout` | - | Apply strict rate limiting to auth routes |
-| GET | `/auth/users` | - | Apply strict rate limiting to auth routes |
-| PUT | `/auth/users/:id` | - | Apply strict rate limiting to auth routes |
-| DELETE | `/auth/users/:id` | - | Apply strict rate limiting to auth routes |
+| POST | `/auth/register` | - | Register new user |
+| POST | `/auth/login` | - | Login and receive JWT token |
+| GET | `/auth/me` | ✓ | Get current user profile |
+| POST | `/auth/logout` | ✓ | Logout and invalidate token |
+| GET | `/auth/users` | ✓ | List all users |
+| PUT | `/auth/users/:id` | ✓ | Update user |
+| DELETE | `/auth/users/:id` | ✓ | Delete user |
 
 ## Containers
 
@@ -105,10 +105,10 @@ Base path: `/api/containers`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/containers` | - | localhost:9090'; |
-| GET | `/containers/server/:serverId` | - | localhost:9090'; |
-| GET | `/containers/:id` | - | localhost:9090'; |
-| GET | `/containers/server/:serverId/metrics` | - | localhost:9090'; |
+| POST | `/containers` | - | Sync containers for a server |
+| GET | `/containers/server/:serverId` | - | List containers for a server |
+| GET | `/containers/:id` | - | Get container by ID |
+| GET | `/containers/server/:serverId/metrics` | - | Get container metrics for a server |
 
 ## Dashboards
 
@@ -116,11 +116,11 @@ Base path: `/api/dashboards`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/dashboards` | - | Validation schemas |
-| GET | `/dashboards/:id` | - | Validation schemas |
-| POST | `/dashboards` | - | Validation schemas |
-| PUT | `/dashboards/:id` | - | Validation schemas |
-| DELETE | `/dashboards/:id` | - | Validation schemas |
+| GET | `/dashboards` | - | List all dashboards |
+| GET | `/dashboards/:id` | - | Get dashboard by ID |
+| POST | `/dashboards` | - | Create dashboard |
+| PUT | `/dashboards/:id` | - | Update dashboard |
+| DELETE | `/dashboards/:id` | - | Delete dashboard |
 
 ## Events
 
@@ -128,11 +128,11 @@ Base path: `/api/events`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/events` | - | GET /api/events - Get monitoring events |
-| GET | `/events/types` | - | GET /api/events - Get monitoring events |
-| GET | `/events/severities` | - | GET /api/events - Get monitoring events |
-| GET | `/events/stats` | - | GET /api/events - Get monitoring events |
-| POST | `/events/cleanup` | - | GET /api/events - Get monitoring events |
+| GET | `/events` | - | List monitoring events |
+| GET | `/events/types` | - | Get available event types |
+| GET | `/events/severities` | - | Get available event severities |
+| GET | `/events/stats` | - | Get event statistics |
+| POST | `/events/cleanup` | - | Clean up old events |
 
 ## Forecasting
 
@@ -140,10 +140,10 @@ Base path: `/api/forecasting`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/forecasting/disk/:serverId` | - | localhost:9090'; |
-| GET | `/forecasting/memory/:serverId` | - | localhost:9090'; |
-| GET | `/forecasting/cpu/:serverId` | - | localhost:9090'; |
-| GET | `/forecasting/all/:serverId` | - | localhost:9090'; |
+| GET | `/forecasting/disk/:serverId` | - | Forecast disk usage for a server |
+| GET | `/forecasting/memory/:serverId` | - | Forecast memory usage for a server |
+| GET | `/forecasting/cpu/:serverId` | - | Forecast CPU usage for a server |
+| GET | `/forecasting/all/:serverId` | - | Forecast all metrics for a server |
 
 ## Incidents
 
@@ -151,14 +151,14 @@ Base path: `/api/incidents`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/incidents` | - | GET /api/incidents - List incidents with optional filters |
-| GET | `/incidents/stats` | - | GET /api/incidents - List incidents with optional filters |
-| GET | `/incidents/:id` | - | GET /api/incidents - List incidents with optional filters |
-| POST | `/incidents` | - | GET /api/incidents - List incidents with optional filters |
-| PUT | `/incidents/:id` | - | GET /api/incidents - List incidents with optional filters |
-| POST | `/incidents/:id/updates` | - | GET /api/incidents - List incidents with optional filters |
-| DELETE | `/incidents/:id` | - | GET /api/incidents - List incidents with optional filters |
-| POST | `/incidents/from-alert` | - | GET /api/incidents - List incidents with optional filters |
+| GET | `/incidents` | - | List incidents with optional filters |
+| GET | `/incidents/stats` | - | Get incident statistics |
+| GET | `/incidents/:id` | - | Get incident by ID |
+| POST | `/incidents` | - | Create incident |
+| PUT | `/incidents/:id` | - | Update incident |
+| POST | `/incidents/:id/updates` | - | Add incident update |
+| DELETE | `/incidents/:id` | - | Delete incident |
+| POST | `/incidents/from-alert` | - | Create incident from alert |
 
 ## Logs
 
@@ -166,10 +166,10 @@ Base path: `/api/logs`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/logs` | - | Loki response types |
-| GET | `/logs/labels` | - | Loki response types |
-| GET | `/logs/labels/:name/values` | - | Loki response types |
-| GET | `/logs/tail` | - | Loki response types |
+| GET | `/logs` | - | Query logs from Loki |
+| GET | `/logs/labels` | - | Get available log labels |
+| GET | `/logs/labels/:name/values` | - | Get values for a log label |
+| GET | `/logs/tail` | - | Tail logs in real-time |
 
 ## MaintenanceWindows
 
@@ -177,12 +177,12 @@ Base path: `/api/maintenanceWindows`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/maintenanceWindows` | ✓ | - |
-| GET | `/maintenanceWindows/:id` | ✓ | - |
-| POST | `/maintenanceWindows` | ✓ | - |
-| PUT | `/maintenanceWindows/:id` | ✓ | Verify server exists |
-| DELETE | `/maintenanceWindows/:id` | ✓ | Verify server exists |
-| GET | `/maintenanceWindows/server/:serverId/active` | ✓ | Verify server exists |
+| GET | `/maintenanceWindows` | ✓ | List maintenance windows |
+| GET | `/maintenanceWindows/:id` | ✓ | Get maintenance window by ID |
+| POST | `/maintenanceWindows` | ✓ | Create maintenance window |
+| PUT | `/maintenanceWindows/:id` | ✓ | Update maintenance window |
+| DELETE | `/maintenanceWindows/:id` | ✓ | Delete maintenance window |
+| GET | `/maintenanceWindows/server/:serverId/active` | ✓ | Get active maintenance windows for a server |
 
 ## Metrics
 
@@ -190,20 +190,20 @@ Base path: `/api/metrics`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/metrics/query` | - | localhost:9090'; |
-| GET | `/metrics/query_range` | - | localhost:9090'; |
-| GET | `/metrics/server/:serverId` | - | localhost:9090'; |
-| GET | `/metrics/targets` | - | localhost:9090'; |
-| GET | `/metrics/rules` | - | localhost:9090'; |
-| GET | `/metrics/server/:serverId/history` | - | localhost:9090'; |
-| GET | `/metrics/server/:serverId/bandwidth` | - | localhost:9090'; |
-| GET | `/metrics/server/:serverId/bandwidth/all` | - | localhost:9090'; |
-| GET | `/metrics/server/:serverId/aggregate` | - | localhost:9090'; |
-| GET | `/metrics/server/:serverId/chart-data` | - | localhost:9090'; |
-| GET | `/metrics/server/:serverId/cpanel-accounts` | - | localhost:9090'; |
-| GET | `/metrics/server/:serverId/exim-domains` | - | localhost:9090'; |
-| GET | `/metrics/bandwidth/top` | - | localhost:9090'; |
-| GET | `/metrics/server/:serverId/disk-usage` | - | localhost:9090'; |
+| GET | `/metrics/query` | - | Execute instant Prometheus query |
+| GET | `/metrics/query_range` | - | Execute range Prometheus query |
+| GET | `/metrics/server/:serverId` | - | Get current metrics for a server |
+| GET | `/metrics/targets` | - | List Prometheus scrape targets |
+| GET | `/metrics/rules` | - | List Prometheus alert rules |
+| GET | `/metrics/server/:serverId/history` | - | Get metric history for a server |
+| GET | `/metrics/server/:serverId/bandwidth` | - | Get bandwidth metrics for a server |
+| GET | `/metrics/server/:serverId/bandwidth/all` | - | Get all interface bandwidth for a server |
+| GET | `/metrics/server/:serverId/aggregate` | - | Get aggregated metrics for a server |
+| GET | `/metrics/server/:serverId/chart-data` | - | Get chart-ready metric data for a server |
+| GET | `/metrics/server/:serverId/cpanel-accounts` | - | Get cPanel account metrics for a server |
+| GET | `/metrics/server/:serverId/exim-domains` | - | Get Exim domain metrics for a server |
+| GET | `/metrics/bandwidth/top` | - | Get top bandwidth consumers |
+| GET | `/metrics/server/:serverId/disk-usage` | - | Get disk usage for a server |
 
 ## Notifications
 
@@ -211,13 +211,14 @@ Base path: `/api/notifications`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/notifications/channels` | - | Validation schemas |
-| GET | `/notifications/channels/:id` | - | Validation schemas |
-| POST | `/notifications/channels` | - | Validation schemas |
-| PUT | `/notifications/channels/:id` | - | Validation schemas |
-| DELETE | `/notifications/channels/:id` | - | Validation schemas |
-| POST | `/notifications/channels/:id/test` | - | Validation schemas |
-| GET | `/notifications/logs` | - | Validation schemas |
+| GET | `/notifications/channels` | - | List notification channels |
+| GET | `/notifications/channels/:id` | - | Get notification channel by ID |
+| POST | `/notifications/channels` | - | Create notification channel |
+| PUT | `/notifications/channels/:id` | - | Update notification channel |
+| DELETE | `/notifications/channels/:id` | - | Delete notification channel |
+| POST | `/notifications/channels/:id/test` | - | Send test notification |
+| GET | `/notifications/logs` | - | Get notification logs |
+| POST | `/notifications/daily-report` | - | Trigger daily infrastructure report |
 
 ## ServerGroups
 
@@ -225,12 +226,12 @@ Base path: `/api/serverGroups`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/serverGroups` | - | Helper: build nested tree from flat list |
-| GET | `/serverGroups/:id` | - | Helper: build nested tree from flat list |
-| POST | `/serverGroups` | - | Helper: build nested tree from flat list |
-| PUT | `/serverGroups/:id` | - | Helper: build nested tree from flat list |
-| DELETE | `/serverGroups/:id` | - | Helper: build nested tree from flat list |
-| POST | `/serverGroups/move-servers` | - | Helper: build nested tree from flat list |
+| GET | `/serverGroups` | - | List server groups (nested tree) |
+| GET | `/serverGroups/:id` | - | Get server group by ID |
+| POST | `/serverGroups` | - | Create server group |
+| PUT | `/serverGroups/:id` | - | Update server group |
+| DELETE | `/serverGroups/:id` | - | Delete server group |
+| POST | `/serverGroups/move-servers` | - | Move servers between groups |
 
 ## Servers
 
@@ -238,15 +239,15 @@ Base path: `/api/servers`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/servers/tags` | - | Validation schemas |
-| PUT | `/servers/tags/bulk` | - | Validation schemas |
-| DELETE | `/servers/bulk` | - | Validation schemas |
-| GET | `/servers` | - | Validation schemas |
-| GET | `/servers/:id` | - | Validation schemas |
-| POST | `/servers` | - | Validation schemas |
-| PUT | `/servers/:id` | - | Validation schemas |
-| DELETE | `/servers/:id` | - | Validation schemas |
-| GET | `/servers/stats/overview` | - | Validation schemas |
+| GET | `/servers/tags` | - | List all unique server tags |
+| PUT | `/servers/tags/bulk` | - | Bulk update server tags |
+| DELETE | `/servers/bulk` | - | Bulk delete servers |
+| GET | `/servers` | - | List all servers |
+| GET | `/servers/:id` | - | Get server by ID |
+| POST | `/servers` | - | Create server |
+| PUT | `/servers/:id` | - | Update server |
+| DELETE | `/servers/:id` | - | Delete server |
+| GET | `/servers/stats/overview` | - | Get server statistics overview |
 
 ## Settings
 
@@ -254,15 +255,23 @@ Base path: `/api/settings`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/settings` | ✓ | Uploads directory configuration |
-| GET | `/settings/all` | ✓ | Uploads directory configuration |
-| PUT | `/settings` | ✓ | Uploads directory configuration |
-| POST | `/settings/logo` | ✓ | Uploads directory configuration |
-| DELETE | `/settings/logo` | ✓ | Uploads directory configuration |
-| GET | `/settings/system-info` | ✓ | Uploads directory configuration |
-| POST | `/settings/backup` | ✓ | Uploads directory configuration |
-| GET | `/settings/export` | ✓ | Uploads directory configuration |
-| POST | `/settings/import` | ✓ | Uploads directory configuration |
+| GET | `/settings` | ✓ | Get system settings |
+| GET | `/settings/all` | ✓ | Get all settings including internal |
+| PUT | `/settings` | ✓ | Update system settings |
+| POST | `/settings/logo` | ✓ | Upload system logo |
+| DELETE | `/settings/logo` | ✓ | Delete system logo |
+| GET | `/settings/system-info` | ✓ | Get system information |
+| POST | `/settings/backup` | ✓ | Create database backup |
+| GET | `/settings/export` | ✓ | Export configuration |
+| POST | `/settings/import` | ✓ | Import configuration |
+
+## SlackInteractions
+
+Base path: `/api/slackInteractions`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/slackInteractions` | - | Handle Slack interactive actions (button clicks, etc.) |
 
 ## Uptime
 
@@ -270,14 +279,14 @@ Base path: `/api/uptime`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/uptime/stats/overview` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
-| GET | `/uptime` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
-| GET | `/uptime/:id` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
-| POST | `/uptime` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
-| PUT | `/uptime/:id` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
-| DELETE | `/uptime/:id` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
-| GET | `/uptime/:id/checks` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
-| POST | `/uptime/:id/test` | - | GET /api/uptime/stats/overview - Return aggregate stats across all monitors |
+| GET | `/uptime/stats/overview` | - | Get aggregate uptime statistics |
+| GET | `/uptime` | - | List uptime monitors |
+| GET | `/uptime/:id` | - | Get uptime monitor by ID |
+| POST | `/uptime` | - | Create uptime monitor |
+| PUT | `/uptime/:id` | - | Update uptime monitor |
+| DELETE | `/uptime/:id` | - | Delete uptime monitor |
+| GET | `/uptime/:id/checks` | - | Get check history for a monitor |
+| POST | `/uptime/:id/test` | - | Run a test check |
 
 ## WebSocket Events
 

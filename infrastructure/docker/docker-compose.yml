@@ -176,7 +176,7 @@ services:
     networks:
       - nodeprism-network
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:80']
+      test: ['CMD-SHELL', 'wget -q --spider http://localhost:80 || exit 1']
       interval: 10s
       timeout: 5s
       retries: 5

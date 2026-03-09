@@ -22,7 +22,7 @@ groups:
           description: "Disk {{ $labels.mountpoint }} usage is above 95% (current value: {{ $value }}%)"
       - alert: CriticalLoadAverage
         expr: node_load1 > 50
-        for: 1m
+        for: 5m
         labels:
           severity: critical
           rule_id: 4778244f-2ccb-414d-9e48-09750f529e12
@@ -58,7 +58,7 @@ groups:
           description: "CPU usage is above 80% (current value: {{ $value }}%)"
       - alert: HighLoadAverage
         expr: node_load1 > 10
-        for: 2m
+        for: 5m
         labels:
           severity: warning
           rule_id: f51e4b86-ac5b-4630-b8d4-499f1072bdaf

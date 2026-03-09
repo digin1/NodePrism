@@ -1,6 +1,6 @@
 ---
 sidebar_position: 2
-title: Database Schema
+title: Schema
 ---
 
 # Database Schema
@@ -161,21 +161,33 @@ AlertTemplate ──── NotificationChannel
 | template | AlertTemplate | - | Relation |
 | server | Server | - | Relation |
 
+**Indexes:**
+- `@@index([status])`
+- `@@index([status, severity])`
+
 ---
 
 ### AlertTemplate
 
 | Field | Type | Required | Constraints |
 |-------|------|----------|-------------|
-| id | String | ✓ | Primary Key, Default: uuid( |
+| id | String | ✓ | Primary Key, Default: uuid() |
 | name | String | ✓ | Unique |
 | description | String | - | - |
-| matchLabels | Json | - | - |
-| matchHostLabels | Json | - | - |
-| query | String | ✓ | - |
-| calc | String | - | - |
+| matchLabels | Json | - | Label matching criteria |
+| matchHostLabels | Json | - | Host label matching criteria |
+| query | String | ✓ | PromQL query |
+| calc | String | - | Additional calculation expression |
 | units | String | - | - |
-| warnCondition | Json | - | - |
+| warnCondition | Json | - | Warning threshold with hysteresis |
+| critCondition | Json | - | Critical threshold with hysteresis |
+| every | String | ✓ | Default: "1m" (evaluation interval) |
+| for | String | ✓ | Default: "5m" (duration before firing) |
+| actions | Json | - | Alert actions |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now() |
+| updatedAt | DateTime | ✓ | - |
+| alerts | Alert[] | ✓ | Relation |
 
 ---
 
@@ -314,6 +326,7 @@ AlertTemplate ──── NotificationChannel
 
 **Indexes:**
 - `@@index([serverId, metricName, timestamp])`
+- `@@index([serverId, timestamp])`
 - `@@index([timestamp])`
 
 ---

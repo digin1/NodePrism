@@ -10,7 +10,9 @@ const OFFLINE_THRESHOLD_MINUTES = parseInt(process.env.OFFLINE_THRESHOLD_MINUTES
 
 let cleanupInterval: NodeJS.Timeout | null = null;
 let deepHealthInterval: NodeJS.Timeout | null = null;
+let alertCleanupInterval: NodeJS.Timeout | null = null;
 const DEEP_HEALTH_CHECK_INTERVAL_MINUTES = parseInt(process.env.DEEP_HEALTH_CHECK_INTERVAL_MINUTES || '5', 10);
+const RESOLVED_ALERT_RETENTION_DAYS = parseInt(process.env.RESOLVED_ALERT_RETENTION_DAYS || '30', 10);
 
 /**
  * Mark stale agents as offline/stopped
@@ -194,8 +196,23 @@ export function startHeartbeatCleanup(): void {
     });
   }, deepHealthIntervalMs);
 
+  // Schedule resolved alert cleanup (every 6 hours)
+  alertCleanupInterval = setInterval(() => {
+    cleanupResolvedAlerts().catch(err => {
+      logger.error('Resolved alert cleanup failed', { error: err });
+    });
+  }, 6 * 60 * 60 * 1000);
+
+  // Run initial alert cleanup after 60s to not slow down startup
+  setTimeout(() => {
+    cleanupResolvedAlerts().catch(err => {
+      logger.error('Initial alert cleanup failed', { error: err });
+    });
+  }, 60000);
+
   logger.info(`Heartbeat cleanup started (interval: ${CLEANUP_INTERVAL_MINUTES} minutes)`);
   logger.info(`Deep health check started (interval: ${DEEP_HEALTH_CHECK_INTERVAL_MINUTES} minutes)`);
+  logger.info(`Resolved alert cleanup: retaining ${RESOLVED_ALERT_RETENTION_DAYS} days`);
 }
 
 /**
@@ -211,6 +228,11 @@ export function stopHeartbeatCleanup(): void {
     clearInterval(deepHealthInterval);
     deepHealthInterval = null;
     logger.info('Deep health check stopped');
+  }
+  if (alertCleanupInterval) {
+    clearInterval(alertCleanupInterval);
+    alertCleanupInterval = null;
+    logger.info('Alert cleanup stopped');
   }
 }
 
@@ -351,4 +373,50 @@ export async function deepHealthCheck(): Promise<{
     healthy,
     unhealthy,
   };
+}
+
+/**
+ * Clean up old resolved alerts and their notification logs to prevent DB bloat
+ */
+export async function cleanupResolvedAlerts(): Promise<{ deleted: number; logsDeleted: number }> {
+  const cutoff = new Date(Date.now() - RESOLVED_ALERT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+
+  try {
+    // Delete notification logs for old resolved alerts first (FK constraint)
+    const oldAlertIds = await prisma.alert.findMany({
+      where: {
+        status: 'RESOLVED',
+        createdAt: { lt: cutoff },
+      },
+      select: { id: true },
+    });
+
+    let logsDeleted = 0;
+    if (oldAlertIds.length > 0) {
+      const ids = oldAlertIds.map(a => a.id);
+      const logResult = await prisma.notificationLog.deleteMany({
+        where: { alertId: { in: ids } },
+      });
+      logsDeleted = logResult.count;
+    }
+
+    // Delete old resolved alerts
+    const result = await prisma.alert.deleteMany({
+      where: {
+        status: 'RESOLVED',
+        createdAt: { lt: cutoff },
+      },
+    });
+
+    if (result.count > 0) {
+      logger.info(`Cleaned up ${result.count} resolved alerts older than ${RESOLVED_ALERT_RETENTION_DAYS} days`, {
+        logsDeleted,
+      });
+    }
+
+    return { deleted: result.count, logsDeleted };
+  } catch (error) {
+    logger.error('Error cleaning up resolved alerts', { error });
+    return { deleted: 0, logsDeleted: 0 };
+  }
 }

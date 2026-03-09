@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useWebSocket } from '@/components/providers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,21 +61,31 @@ interface AlertStats {
 
 export default function AlertsPage() {
   const queryClient = useQueryClient();
+  const { subscribe } = useWebSocket();
   const [statusFilter, setStatusFilter] = useState('FIRING');
   const [severityFilter, setSeverityFilter] = useState('');
   const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
   const [silenceDuration, setSilenceDuration] = useState(60);
 
+  // Listen for real-time alert updates via Socket.io (replaces aggressive polling)
+  useEffect(() => {
+    const unsub = subscribe('alerts:updated', () => {
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['alertStats'] });
+    });
+    return unsub;
+  }, [subscribe, queryClient]);
+
   const { data: alerts, isLoading } = useQuery({
     queryKey: ['alerts', { status: statusFilter, severity: severityFilter }],
     queryFn: () => alertApi.list({ status: statusFilter || undefined, severity: severityFilter || undefined }),
-    refetchInterval: 15000,
+    refetchInterval: 60000, // Fallback polling at 60s (Socket.io handles real-time)
   });
 
   const { data: stats } = useQuery({
     queryKey: ['alertStats'],
     queryFn: () => alertApi.stats(),
-    refetchInterval: 15000,
+    refetchInterval: 60000, // Fallback polling at 60s
   });
 
   const invalidateAlerts = () => {

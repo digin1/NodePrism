@@ -462,10 +462,29 @@ const SENDER_MAP: Record<string, (config: any, alert: AlertPayload) => Promise<v
   PAGERDUTY: sendPagerDuty,
 };
 
+// Cache enabled channels to avoid repeated DB queries (5 min TTL)
+let channelCache: any[] | null = null;
+let channelCacheAt = 0;
+const CHANNEL_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/** Clear channel cache (call when channels are created/updated/deleted) */
+export function invalidateChannelCache(): void {
+  channelCache = null;
+  channelCacheAt = 0;
+}
+
+async function getEnabledChannels() {
+  const now = Date.now();
+  if (channelCache && now - channelCacheAt < CHANNEL_CACHE_TTL) {
+    return channelCache;
+  }
+  channelCache = await prisma.notificationChannel.findMany({ where: { enabled: true } });
+  channelCacheAt = now;
+  return channelCache;
+}
+
 export async function dispatchNotifications(alert: AlertPayload): Promise<void> {
-  const channels = await prisma.notificationChannel.findMany({
-    where: { enabled: true },
-  });
+  const channels = await getEnabledChannels();
 
   if (channels.length === 0) return;
 

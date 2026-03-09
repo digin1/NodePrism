@@ -48,8 +48,8 @@ groups:
           summary: High anomaly rate on server {{ $labels.server_id }}
           description: Node Anomaly Rate is {{ $value | printf "%.1f" }}% — more than 30% of monitored metrics are anomalous
       - alert: HighCPUUsage
-        expr: 100 - (avg by(instance, server_id) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
-        for: 2m
+        expr: 100 - (avg by(instance, server_id) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 10m
         labels:
           severity: warning
           rule_id: 3f8ecab4-8f9d-4512-b831-7cd192a85fce

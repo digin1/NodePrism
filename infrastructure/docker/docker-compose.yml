@@ -371,6 +371,30 @@ services:
     depends_on:
       - apache
 
+  # Reverse Proxy - Production nginx proxy for Web UI and API
+  reverse-proxy:
+    image: nginx:alpine
+    container_name: nodeprism-reverse-proxy
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - '${PROXY_PORT:-8443}:80'
+      # - '443:443'  # Uncomment when SSL certs are available
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # - ./certs:/etc/nginx/certs:ro  # Uncomment for SSL
+      # - ./certbot:/var/www/certbot:ro  # Uncomment for Let's Encrypt
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - nodeprism-network
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:80/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Docusaurus - Documentation Site
   docs:
     build:

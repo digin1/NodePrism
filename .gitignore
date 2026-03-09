@@ -68,3 +68,4 @@ packages/api/backups/
 
 # Claude Code
 .claude/projects/
+logs/

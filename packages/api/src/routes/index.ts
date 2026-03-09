@@ -19,6 +19,7 @@ import { forecastingRoutes } from './forecasting';
 import { uptimeRoutes } from './uptime';
 import { slackInteractionRoutes } from './slackInteractions';
 import { requireAuth, optionalAuth } from '../middleware/auth';
+import { webhookLimiter } from '../middleware/rateLimit';
 
 const router: ExpressRouter = Router();
 
@@ -35,7 +36,7 @@ router.use('/agents', agentRoutes);
 router.use('/agents/containers', containerRoutes);
 
 // Slack interactive messages (public - Slack calls this directly)
-router.use('/slack/interactions', slackInteractionRoutes);
+router.use('/slack/interactions', webhookLimiter, slackInteractionRoutes);
 
 // Settings routes (partially public - for login page branding)
 router.use('/settings', settingsRoutes);

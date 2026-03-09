@@ -54,20 +54,12 @@ Default alert rules in `infrastructure/docker/prometheus/alerts.yml`:
 | Alert | Condition | Severity |
 |-------|-----------|----------|
 | `InstanceDown` | `up == 0` for 5m | Critical |
-| `PrometheusTargetMissing` | `up == 0` (non-system jobs) for 5m | Critical |
 | `HighCPUUsage` | CPU > 80% for 2m | Warning |
-| `HighLoadAverage` | load1 > 10 for 5m | Warning |
-| `CriticalLoadAverage` | load1 > 50 for 5m | Critical |
+| `HighLoadAverage` | load1 > 10 for 2m | Warning |
+| `CriticalLoadAverage` | load1 > 50 for 1m | Critical |
 | `HighMemoryUsage` | Memory > 80% for 2m | Warning |
 | `LowDiskSpace` | Disk > 80% for 2m | Warning |
 | `CriticalDiskSpace` | Disk > 95% for 2m | Critical |
-| `EximQueueHigh` | exim_queue_size > 1000 for 5m | Warning |
-| `LVMVolumeGroupLowSpace` | LVM VG > 80% for 5m | Warning |
-| `LVMVolumeGroupCriticalSpace` | LVM VG > 95% for 2m | Critical |
-| `HighAnomalyRate` | anomaly_rate > 30% for 2m | Warning |
-| `CriticalAnomalyRate` | anomaly_rate > 60% for 1m | Critical |
-| `SustainedAnomaly` | anomaly detected for 5m | Warning |
-| `TooManyScrapeErrors` | scrape errors > 10/min for 5m | Warning |
 
 ## Prometheus Queries
 

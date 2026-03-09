@@ -6,6 +6,7 @@ import { AlertTemplateService } from '../services/alertTemplateService';
 import { dispatchNotifications } from '../services/notificationSender';
 import { audit } from '../services/auditLogger';
 import { syncRulesToYml, matchAlertToRule } from '../services/alertRuleSync';
+import { webhookLimiter } from '../middleware/rateLimit';
 
 const router: ExpressRouter = Router();
 
@@ -504,7 +505,7 @@ router.post('/:id/silence', async (req: Request, res: Response, next: NextFuncti
 });
 
 // POST /api/alerts/webhook - Receive alerts from AlertManager
-router.post('/webhook', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/webhook', webhookLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { alerts } = req.body;
 

@@ -1,0 +1,24 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="top" x1="8" y1="6" x2="24" y2="16">
+    <stop offset="0%" stop-color="#4ade80"/>
+    <stop offset="100%" stop-color="#22c55e"/>
+  </linearGradient>
+  <linearGradient id="left" x1="4" y1="12" x2="16" y2="28">
+    <stop offset="0%" stop-color="#22c55e"/>
+    <stop offset="100%" stop-color="#15803d"/>
+  </linearGradient>
+  <linearGradient id="right" x1="28" y1="12" x2="16" y2="28">
+    <stop offset="0%" stop-color="#16a34a"/>
+    <stop offset="100%" stop-color="#0f5132"/>
+  </linearGradient>
+</defs>
+<!-- 3D Prism shape -->
+<polygon points="16,2 28,10 16,15 4,10" fill="url(#top)"/>
+<polygon points="4,10 16,15 16,30 4,22" fill="url(#left)"/>
+<polygon points="28,10 16,15 16,30 28,22" fill="url(#right)"/>
+<!-- Light refraction rays from right face -->
+<line x1="24" y1="14" x2="30" y2="11" stroke="#a7f3d0" stroke-width="0.8" stroke-linecap="round" opacity="0.7"/>
+<line x1="24" y1="17" x2="31" y2="16" stroke="#86efac" stroke-width="0.8" stroke-linecap="round" opacity="0.6"/>
+<line x1="24" y1="20" x2="30" y2="21" stroke="#6ee7b7" stroke-width="0.8" stroke-linecap="round" opacity="0.5"/>
+</svg>

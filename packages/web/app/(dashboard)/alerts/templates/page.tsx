@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -230,6 +231,7 @@ function TemplateFormComponent({
 
 export default function AlertTemplatesPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
@@ -241,6 +243,32 @@ export default function AlertTemplatesPage() {
     queryKey: ['alertTemplates'],
     queryFn: () => alertApi.templates(),
   });
+
+  // Auto-open editor when ?edit=<id> query param is present (e.g., from notification)
+  useEffect(() => {
+    const editId = searchParams?.get('edit');
+    if (editId && templates && !editingId) {
+      const template = (templates as AlertTemplate[]).find((t) => t.id === editId);
+      if (template) {
+        setEditingId(template.id);
+        setShowCreate(false);
+        setForm({
+          name: template.name,
+          description: template.description || '',
+          query: template.query,
+          units: template.units || '',
+          warnCondition: template.warnCondition?.condition || '$value > 80',
+          critCondition: template.critCondition?.condition || '$value > 95',
+          every: template.every,
+          for: template.for,
+        });
+        window.history.replaceState({}, '', '/alerts/templates');
+        setTimeout(() => {
+          document.getElementById(`template-${template.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+  }, [searchParams, templates]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['alertTemplates'] });
 
@@ -445,6 +473,7 @@ export default function AlertTemplatesPage() {
               {filtered.map((template) => (
                 <div
                   key={template.id}
+                  id={`template-${template.id}`}
                   className={`rounded-lg border transition-colors ${
                     editingId === template.id
                       ? 'border-primary/50 bg-primary/5'

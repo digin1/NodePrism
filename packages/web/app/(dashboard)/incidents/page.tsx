@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,6 +79,7 @@ function formatDuration(ms: number): string {
 
 export default function IncidentsPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -86,9 +88,28 @@ export default function IncidentsPage() {
     description: '',
     severity: 'WARNING',
     assignee: '',
+    alertId: '',
+    serverId: '',
   });
   const [updateMessage, setUpdateMessage] = useState('');
   const [updateStatus, setUpdateStatus] = useState('');
+
+  // Pre-fill form from query params (e.g., from Slack "Create Incident" button)
+  useEffect(() => {
+    if (!searchParams) return;
+    const title = searchParams.get('title');
+    if (title) {
+      setCreateForm({
+        title: title,
+        description: searchParams.get('description') || '',
+        severity: searchParams.get('severity') || 'WARNING',
+        assignee: '',
+        alertId: searchParams.get('alertId') || '',
+        serverId: searchParams.get('serverId') || '',
+      });
+      setShowCreateModal(true);
+    }
+  }, [searchParams]);
 
   const { data: incidents, isLoading } = useQuery({
     queryKey: ['incidents', statusFilter],
@@ -107,12 +128,23 @@ export default function IncidentsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: typeof createForm) => incidentApi.create(data),
+    mutationFn: (data: typeof createForm) => {
+      const { alertId, serverId, ...rest } = data;
+      return incidentApi.create({
+        ...rest,
+        ...(alertId && { alertId }),
+        ...(serverId && { serverId }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['incidentStats'] });
       setShowCreateModal(false);
-      setCreateForm({ title: '', description: '', severity: 'WARNING', assignee: '' });
+      setCreateForm({ title: '', description: '', severity: 'WARNING', assignee: '', alertId: '', serverId: '' });
+      // Clear URL params after creation
+      if (searchParams?.get('title')) {
+        window.history.replaceState({}, '', '/incidents');
+      }
     },
   });
 

@@ -208,6 +208,9 @@ export class MultiStageAlertProcessor {
         annotations: (alert.annotations as Record<string, string>) || undefined,
         startsAt: alert.startsAt,
         endsAt: alert.endsAt,
+        serverId: alert.serverId || undefined,
+        templateId: alert.templateId || undefined,
+        ruleId: alert.ruleId || undefined,
         serverHostname: alert.server?.hostname,
         serverIp: alert.server?.ipAddress,
       }).catch(err => {

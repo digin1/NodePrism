@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { sendTestNotification } from '../services/notificationSender';
+import { generateAndSendReport } from '../services/dailyReport';
 import { audit } from '../services/auditLogger';
 
 const router: ExpressRouter = Router();
@@ -207,5 +208,19 @@ function maskSensitiveFields(config: Record<string, unknown>): Record<string, un
   }
   return masked;
 }
+
+// POST /api/notifications/daily-report - Trigger daily report manually
+router.post('/daily-report', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Run async, respond immediately
+    generateAndSendReport().catch(err =>
+      logger.error('Manual daily report failed', { error: err.message })
+    );
+
+    res.json({ success: true, message: 'Daily report generation started' });
+  } catch (error) {
+    next(error);
+  }
+});
 
 export { router as notificationRoutes };

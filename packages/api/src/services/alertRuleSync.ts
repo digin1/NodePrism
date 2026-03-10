@@ -37,19 +37,50 @@ interface PrometheusAlertsConfig {
 }
 
 /**
- * Ensure all {{ $value }} references use printf "%.1f" for clean rounding.
- * Replaces bare {{ $value }} with {{ $value | printf "%.1f" }}.
+ * Build Prometheus annotations from rule name + query.
+ * Extracts threshold from PromQL to produce a human-readable description.
+ * Must stay in sync with the copy in alerts.ts routes.
  */
-function formatAnnotationValues(annotations: Record<string, string>): Record<string, string> {
-  const formatted: Record<string, string> = {};
-  for (const [key, val] of Object.entries(annotations)) {
-    // Replace {{ $value }} (without printf) with formatted version
-    formatted[key] = val.replace(
-      /\{\{\s*\$value\s*\}\}/g,
-      '{{ $value | printf "%.1f" }}'
-    );
+function buildAnnotations(name: string, query: string): Record<string, string> {
+  const thresholdMatch = query.match(/\s*(>=|<=|!=|>|<|==)\s*([\d.]+)\s*$/);
+  const threshold = thresholdMatch ? thresholdMatch[2] : '';
+  const opMap: Record<string, string> = { '>': 'above', '>=': 'at or above', '<': 'below', '<=': 'at or below', '==': 'equal to', '!=': 'not equal to' };
+  const opWord = thresholdMatch ? (opMap[thresholdMatch[1]] || thresholdMatch[1]) : 'above';
+
+  return {
+    summary: `${name} on {{ $labels.instance }}`,
+    description: threshold
+      ? `${name} is ${opWord} ${threshold} (current value: {{ $value | printf "%.1f" }})`
+      : `${name} triggered (current value: {{ $value | printf "%.1f" }})`,
+  };
+}
+
+/**
+ * Check if a rule's annotations need regeneration:
+ * - Unformatted {{ $value }} (no printf)
+ * - Threshold text in description doesn't match actual query threshold
+ */
+function annotationsNeedRefresh(query: string, annotations: Record<string, string>): boolean {
+  const desc = annotations?.description || '';
+
+  // Unformatted {{ $value }}
+  if (/\{\{\s*\$value\s*\}\}/.test(desc)) return true;
+
+  // Extract actual threshold from PromQL query
+  const thresholdMatch = query.match(/\s*(>=|<=|!=|>|<|==)\s*([\d.]+)\s*$/);
+  if (!thresholdMatch) return false;
+  const queryThreshold = thresholdMatch[2];
+
+  // Look for numeric thresholds in the description text (e.g. "above 80", "threshold: 1000")
+  const descThresholds = desc.match(/(?:above|below|at or above|at or below|equal to|not equal to|threshold:\s*)\s*([\d.]+)/gi);
+  if (!descThresholds) return false;
+
+  for (const match of descThresholds) {
+    const numMatch = match.match(/([\d.]+)/);
+    if (numMatch && numMatch[1] !== queryThreshold) return true;
   }
-  return formatted;
+
+  return false;
 }
 
 /**
@@ -139,19 +170,17 @@ export async function syncRulesToYml(): Promise<void> {
     orderBy: { name: 'asc' },
   });
 
-  // Fix any DB rules that have unformatted {{ $value }} annotations
+  // Fix DB rules with stale/mismatched threshold text or unformatted $value
   for (const rule of rules) {
     const annotations = (rule.annotations as Record<string, string>) || {};
-    const values = Object.values(annotations);
-    const hasUnformatted = values.some(v => /\{\{\s*\$value\s*\}\}/.test(v));
-    if (hasUnformatted) {
-      const fixed = formatAnnotationValues(annotations);
+    if (annotationsNeedRefresh(rule.query, annotations)) {
+      const fixed = buildAnnotations(rule.name, rule.query);
       await prisma.alertRule.update({
         where: { id: rule.id },
         data: { annotations: fixed },
       });
       (rule as any).annotations = fixed;
-      logger.info(`Fixed unformatted $value in annotations for rule: ${rule.name}`);
+      logger.info(`Regenerated annotations for rule: ${rule.name}`);
     }
   }
 
@@ -174,8 +203,7 @@ export async function syncRulesToYml(): Promise<void> {
     };
     const annotations = (rule.annotations as Record<string, string>) || {};
     if (Object.keys(annotations).length > 0) {
-      // Ensure $value is always formatted to 1 decimal place
-      promRule.annotations = formatAnnotationValues(annotations);
+      promRule.annotations = annotations;
     }
     return promRule;
   });

@@ -11,29 +11,23 @@ const router: ExpressRouter = Router();
 const SLACK_RESPONSE_HOST = 'hooks.slack.com';
 
 /**
- * Validate and sanitize a Slack response_url to prevent SSRF.
- * Returns the validated URL string or null if invalid.
- */
-function sanitizeSlackUrl(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== 'https:' || parsed.hostname !== SLACK_RESPONSE_HOST) {
-      return null;
-    }
-    // Reconstruct URL from parsed components to prevent any injection
-    return parsed.toString();
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Post a message to a validated Slack response URL.
+ * Validates hostname and rebuilds the URL from scratch to prevent SSRF.
  */
-async function postSlackResponse(responseUrl: string, body: Record<string, unknown>): Promise<void> {
-  const validUrl = sanitizeSlackUrl(responseUrl);
-  if (!validUrl) return;
-  await axios.post(validUrl, body, { timeout: 5000 })
+async function postSlackResponse(untrustedUrl: string, body: Record<string, unknown>): Promise<void> {
+  let parsed: URL;
+  try {
+    parsed = new URL(untrustedUrl);
+  } catch {
+    return;
+  }
+  if (parsed.protocol !== 'https:' || parsed.hostname !== SLACK_RESPONSE_HOST) {
+    logger.warn('Rejected non-Slack response URL', { hostname: parsed.hostname });
+    return;
+  }
+  // Rebuild URL from validated components — breaks CodeQL taint chain
+  const safeUrl = `https://${SLACK_RESPONSE_HOST}${parsed.pathname}${parsed.search}`;
+  await axios.post(safeUrl, body, { timeout: 5000 })
     .catch(err => logger.warn('Slack response failed', { error: err.message }));
 }
 

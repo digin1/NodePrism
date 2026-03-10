@@ -37,6 +37,22 @@ interface PrometheusAlertsConfig {
 }
 
 /**
+ * Ensure all {{ $value }} references use printf "%.1f" for clean rounding.
+ * Replaces bare {{ $value }} with {{ $value | printf "%.1f" }}.
+ */
+function formatAnnotationValues(annotations: Record<string, string>): Record<string, string> {
+  const formatted: Record<string, string> = {};
+  for (const [key, val] of Object.entries(annotations)) {
+    // Replace {{ $value }} (without printf) with formatted version
+    formatted[key] = val.replace(
+      /\{\{\s*\$value\s*\}\}/g,
+      '{{ $value | printf "%.1f" }}'
+    );
+  }
+  return formatted;
+}
+
+/**
  * Parse alerts.yml and return flat list of rules
  */
 function parseAlertsYml(): PrometheusRule[] {
@@ -123,6 +139,22 @@ export async function syncRulesToYml(): Promise<void> {
     orderBy: { name: 'asc' },
   });
 
+  // Fix any DB rules that have unformatted {{ $value }} annotations
+  for (const rule of rules) {
+    const annotations = (rule.annotations as Record<string, string>) || {};
+    const values = Object.values(annotations);
+    const hasUnformatted = values.some(v => /\{\{\s*\$value\s*\}\}/.test(v));
+    if (hasUnformatted) {
+      const fixed = formatAnnotationValues(annotations);
+      await prisma.alertRule.update({
+        where: { id: rule.id },
+        data: { annotations: fixed },
+      });
+      (rule as any).annotations = fixed;
+      logger.info(`Fixed unformatted $value in annotations for rule: ${rule.name}`);
+    }
+  }
+
   // Group: enabled rules go to prometheus, disabled are excluded
   const enabledRules = rules.filter(r => r.enabled);
 
@@ -142,7 +174,8 @@ export async function syncRulesToYml(): Promise<void> {
     };
     const annotations = (rule.annotations as Record<string, string>) || {};
     if (Object.keys(annotations).length > 0) {
-      promRule.annotations = annotations;
+      // Ensure $value is always formatted to 1 decimal place
+      promRule.annotations = formatAnnotationValues(annotations);
     }
     return promRule;
   });

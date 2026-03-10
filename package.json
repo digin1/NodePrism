@@ -62,7 +62,9 @@
       "basic-ftp": ">=5.2.0",
       "jws": ">=3.2.3",
       "serialize-javascript": ">=7.0.3",
-      "diff": ">=7.0.0"
+      "diff": ">=7.0.0",
+      "dompurify": ">=3.3.2",
+      "systeminformation": ">=5.31.0"
     }
   }
 }

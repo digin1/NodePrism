@@ -49,5 +49,20 @@
   },
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "pnpm": {
+    "overrides": {
+      "lodash": ">=4.17.23",
+      "lodash-es": ">=4.17.23",
+      "semver@<7.0.0": ">=7.7.2",
+      "minimatch@<3.1.4": ">=3.1.4",
+      "tar": ">=7.5.10",
+      "qs": ">=6.14.2",
+      "glob@<10.5.0": ">=10.5.0",
+      "basic-ftp": ">=5.2.0",
+      "jws": ">=3.2.3",
+      "serialize-javascript": ">=7.0.3",
+      "diff": ">=7.0.0"
+    }
+  }
 }

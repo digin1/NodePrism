@@ -7,10 +7,6 @@ const nextConfig = {
   transpilePackages: ['@nodeprism/shared', 'react-markdown', 'remark-gfm', 'mermaid'],
   // Dynamic server rendering - all pages are server-rendered on demand
   // This fixes issues with client components that can't be statically generated
-  // Use App Router exclusively (no Pages Router fallback error pages)
-  experimental: {
-    missingSuspenseWithCSRBailout: false,
-  },
   env: {
     API_URL: process.env.API_URL || 'http://localhost:4000',
     NEXT_PUBLIC_GRAFANA_URL: process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030',

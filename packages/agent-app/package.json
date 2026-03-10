@@ -8,7 +8,7 @@
     "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "pkg": "pkg dist/index.js -t node20-linux-x64 -o ../../agents/app-agent/nodeprism-agent",
+    "pkg": "pnpm dlx pkg@5.8.1 dist/index.js -t node20-linux-x64 -o ../../agents/app-agent/nodeprism-agent",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -25,7 +25,6 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.5",
     "nodemon": "^3.0.3",
-    "pkg": "^5.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.3.3"
   }

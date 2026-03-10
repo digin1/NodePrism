@@ -78,6 +78,7 @@ infrastructure/docker/prometheus/alerts.yml
 
 # Screenshots
 *.png
+!docs/images/*.png
 
 # Claude Code
 .claude/projects/

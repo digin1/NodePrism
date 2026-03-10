@@ -19,3 +19,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+DISCLAIMER: This software is provided for use at your own risk. The authors
+and contributors are not responsible for any data loss, system downtime,
+security breaches, or any other damages resulting from the use of this
+software. You are solely responsible for evaluating the suitability of this
+software for your environment, maintaining backups of your data, and ensuring
+proper security configurations. Use in production environments is at your
+own discretion and risk.

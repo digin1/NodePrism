@@ -295,6 +295,10 @@ Contributions are welcome! Please:
 4. Push to the branch (`git push origin feature/my-feature`)
 5. Open a Pull Request
 
+## Disclaimer
+
+This software is provided **"as is"** and **at your own risk**. The authors and contributors are not responsible for any data loss, system downtime, security breaches, or any other damages resulting from the use of this software. You are solely responsible for maintaining backups, evaluating suitability for your environment, and ensuring proper security configurations. Use in production is at your own discretion and risk.
+
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

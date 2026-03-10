@@ -15,10 +15,12 @@ export function DashboardLayoutClient({ children }: { children: React.ReactNode 
   // Don't render anything on the server - wait for client mount
   if (!mounted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-400">Loading...</p>
+      <div className="dashboard-grid flex min-h-screen items-center justify-center bg-background px-6">
+        <div className="monitor-panel rounded-[1.5rem] px-10 py-12 text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+          <p className="mt-4 text-sm uppercase tracking-[0.3em] text-muted-foreground">
+            Loading telemetry workspace
+          </p>
         </div>
       </div>
     );

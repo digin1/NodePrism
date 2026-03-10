@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 import { dashboardApi, metricsApi, Dashboard, DashboardPanel, DashboardConfig } from '@/lib/api';
 
 function generateId(): string {
@@ -15,12 +17,48 @@ function generateId(): string {
 }
 
 const PRESET_PANELS: DashboardPanel[] = [
-  { id: '', title: 'CPU Usage', type: 'line', query: '100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)', span: 6, height: 300 },
-  { id: '', title: 'Memory Usage', type: 'line', query: '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100', span: 6, height: 300 },
-  { id: '', title: 'Disk Usage', type: 'gauge', query: '(1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100', span: 4, height: 250 },
+  {
+    id: '',
+    title: 'CPU Usage',
+    type: 'line',
+    query: '100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
+    span: 6,
+    height: 300,
+  },
+  {
+    id: '',
+    title: 'Memory Usage',
+    type: 'line',
+    query: '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100',
+    span: 6,
+    height: 300,
+  },
+  {
+    id: '',
+    title: 'Disk Usage',
+    type: 'gauge',
+    query:
+      '(1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100',
+    span: 4,
+    height: 250,
+  },
   { id: '', title: 'Load Average', type: 'stat', query: 'node_load1', span: 4, height: 250 },
-  { id: '', title: 'Network In', type: 'area', query: 'sum(irate(node_network_receive_bytes_total{device=~"eth.*|ens.*"}[5m]))', span: 6, height: 300 },
-  { id: '', title: 'Network Out', type: 'area', query: 'sum(irate(node_network_transmit_bytes_total{device=~"eth.*|ens.*"}[5m]))', span: 6, height: 300 },
+  {
+    id: '',
+    title: 'Network In',
+    type: 'area',
+    query: 'sum(irate(node_network_receive_bytes_total{device=~"eth.*|ens.*"}[5m]))',
+    span: 6,
+    height: 300,
+  },
+  {
+    id: '',
+    title: 'Network Out',
+    type: 'area',
+    query: 'sum(irate(node_network_transmit_bytes_total{device=~"eth.*|ens.*"}[5m]))',
+    span: 6,
+    height: 300,
+  },
 ];
 
 const EMPTY_PANEL: DashboardPanel = {
@@ -106,24 +144,44 @@ export default function DashboardsPage() {
         const result = await metricsApi.query(panel.query);
         const data = (result as any)?.data?.result?.[0]?.value;
         const value = data ? parseFloat(data[1]) : null;
-        setPanelValues(prev => ({ ...prev, [panel.id]: value }));
+        setPanelValues((prev) => ({ ...prev, [panel.id]: value }));
       } catch {
-        setPanelValues(prev => ({ ...prev, [panel.id]: null }));
+        setPanelValues((prev) => ({ ...prev, [panel.id]: null }));
       }
     }
   };
 
   const dashboardList = dashboards as Dashboard[] | undefined;
-  const viewingDashboard = dashboardList?.find(d => d.id === viewingId);
+  const viewingDashboard = dashboardList?.find((d) => d.id === viewingId);
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        eyebrow="Custom Views"
+        title="Dashboards"
+        description="Create focused Prometheus-backed views for services, teams, and operational workflows."
+      >
+        <Button onClick={() => setShowCreate(!showCreate)}>
+          {showCreate ? 'Cancel' : 'Create Dashboard'}
+        </Button>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SummaryStat label="Dashboards" value={dashboardList?.length || 0} tone="primary" />
+        <SummaryStat label="Selected" value={viewingDashboard?.name || 'None'} />
+        <SummaryStat label="Draft Panels" value={panels.length} />
+      </div>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Dashboards</h2>
           <p className="text-muted-foreground">Custom metric dashboards with configurable panels</p>
         </div>
-        <Button onClick={() => { setShowCreate(!showCreate); setViewingId(null); }}>
+        <Button
+          onClick={() => {
+            setShowCreate(!showCreate);
+            setViewingId(null);
+          }}
+        >
           {showCreate ? 'Cancel' : 'New Dashboard'}
         </Button>
       </div>
@@ -133,17 +191,27 @@ export default function DashboardsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Create Dashboard</CardTitle>
-            <CardDescription>Add panels with PromQL queries to build a custom dashboard</CardDescription>
+            <CardDescription>
+              Add panels with PromQL queries to build a custom dashboard
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Dashboard Name *</label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="My Dashboard" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="My Dashboard"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Description</label>
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Overview metrics" />
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Overview metrics"
+                />
               </div>
             </div>
 
@@ -156,7 +224,10 @@ export default function DashboardsPage() {
               {panels.length > 0 && (
                 <div className="space-y-2 mb-4">
                   {panels.map((panel, idx) => (
-                    <div key={panel.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div
+                      key={panel.id}
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                    >
                       <div className="flex-1">
                         <span className="font-medium">{panel.title}</span>
                         <span className="text-xs text-muted-foreground ml-2">
@@ -177,7 +248,12 @@ export default function DashboardsPage() {
                         >
                           Edit
                         </Button>
-                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => removePanel(idx)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-600"
+                          onClick={() => removePanel(idx)}
+                        >
                           Remove
                         </Button>
                       </div>
@@ -198,7 +274,12 @@ export default function DashboardsPage() {
                     />
                     <Select
                       value={panelForm.type}
-                      onChange={(e) => setPanelForm({ ...panelForm, type: e.target.value as DashboardPanel['type'] })}
+                      onChange={(e) =>
+                        setPanelForm({
+                          ...panelForm,
+                          type: e.target.value as DashboardPanel['type'],
+                        })
+                      }
                     >
                       <option value="line">Line Chart</option>
                       <option value="area">Area Chart</option>
@@ -209,7 +290,9 @@ export default function DashboardsPage() {
                     </Select>
                     <Select
                       value={String(panelForm.span)}
-                      onChange={(e) => setPanelForm({ ...panelForm, span: parseInt(e.target.value) })}
+                      onChange={(e) =>
+                        setPanelForm({ ...panelForm, span: parseInt(e.target.value) })
+                      }
                     >
                       <option value="3">3 cols (1/4)</option>
                       <option value="4">4 cols (1/3)</option>
@@ -225,15 +308,21 @@ export default function DashboardsPage() {
                     className="font-mono text-sm"
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={saveEditingPanel}>Save Panel</Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingPanelIdx(null)}>Cancel</Button>
+                    <Button size="sm" onClick={saveEditingPanel}>
+                      Save Panel
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditingPanelIdx(null)}>
+                      Cancel
+                    </Button>
                   </div>
                 </div>
               ) : null}
 
               {/* Preset Panels */}
               <div className="mt-4">
-                <label className="text-xs font-medium text-muted-foreground block mb-2">Quick Add Preset Panels</label>
+                <label className="text-xs font-medium text-muted-foreground block mb-2">
+                  Quick Add Preset Panels
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {PRESET_PANELS.map((preset) => (
                     <Button
@@ -296,9 +385,7 @@ export default function DashboardsPage() {
                       <span className="text-muted-foreground text-sm">No data</span>
                     ) : (
                       <div className="text-center">
-                        <p className="text-4xl font-bold">
-                          {panelValues[panel.id]!.toFixed(2)}
-                        </p>
+                        <p className="text-4xl font-bold">{panelValues[panel.id]!.toFixed(2)}</p>
                         <p className="text-xs text-muted-foreground mt-1 font-mono truncate max-w-xs">
                           {panel.query.substring(0, 60)}...
                         </p>
@@ -321,17 +408,22 @@ export default function DashboardsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
-            </div>
+            <LoadingState rows={2} rowClassName="h-20" />
           ) : !dashboardList?.length ? (
-            <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-foreground">No dashboards yet</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Create a dashboard with custom metric panels.</p>
-            </div>
+            <EmptyState
+              title="No dashboards yet"
+              description="Create a dashboard with custom metric panels, status widgets, and focused operational layouts."
+              icon={
+                <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
+                  />
+                </svg>
+              }
+            />
           ) : (
             <div className="space-y-3">
               {dashboardList.map((dashboard) => (

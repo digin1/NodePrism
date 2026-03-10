@@ -19,12 +19,16 @@ import {
 } from 'recharts';
 import { io, Socket } from 'socket.io-client';
 import { useFormatDate } from '@/hooks/useFormatDate';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 
 // Use relative URLs for API calls (goes through Next.js proxy)
 // Socket.IO needs the full URL for direct connection
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ||
-  (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:4000` : 'http://localhost:4000');
+const SOCKET_URL =
+  process.env.NEXT_PUBLIC_SOCKET_URL ||
+  (typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:4000`
+    : 'http://localhost:4000');
 
 interface ChartDataPoint {
   timestamp: number;
@@ -72,7 +76,16 @@ const TIME_PERIODS = [
   { label: '24h', value: '24h' },
 ] as const;
 
-type TimePeriod = typeof TIME_PERIODS[number]['value'];
+type TimePeriod = (typeof TIME_PERIODS)[number]['value'];
+
+const GRID_STROKE = 'rgba(113, 128, 150, 0.18)';
+const AXIS_STROKE = 'rgba(148, 163, 184, 0.78)';
+const TOOLTIP_STYLE = {
+  backgroundColor: 'rgba(10, 15, 22, 0.96)',
+  border: '1px solid rgba(100, 116, 139, 0.35)',
+  borderRadius: '16px',
+  color: '#e5eef8',
+};
 
 // Custom tooltip formatter
 function formatValue(value: number, metricType: string): string {
@@ -89,7 +102,12 @@ function formatValue(value: number, metricType: string): string {
   return `${value.toFixed(1)}%`;
 }
 
-export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeedExporter = false, hasEximExporter = false }: MetricsChartsProps) {
+export function MetricsCharts({
+  serverId,
+  hasMySQLExporter = false,
+  hasLiteSpeedExporter = false,
+  hasEximExporter = false,
+}: MetricsChartsProps) {
   const { formatDateTime, formatTimeOnly } = useFormatDate();
   const [period, setPeriod] = useState<TimePeriod>('1h');
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
@@ -99,7 +117,9 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['chartData', serverId, period],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE}/api/metrics/server/${serverId}/chart-data?period=${period}`);
+      const response = await fetch(
+        `${API_BASE}/api/metrics/server/${serverId}/chart-data?period=${period}`
+      );
       const json = await response.json();
       return json.data as ChartDataPoint[];
     },
@@ -123,32 +143,35 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
       newSocket.emit('subscribe:server', serverId);
     });
 
-    newSocket.on('metrics:update', (update: { serverId: string; metrics: Record<string, number | null>; timestamp: string }) => {
-      if (update.serverId === serverId) {
-        const newPoint: ChartDataPoint = {
-          timestamp: new Date(update.timestamp).getTime(),
-          ...Object.fromEntries(
-            Object.entries(update.metrics)
-              .filter(([_, v]) => v !== null)
-              .map(([k, v]) => [k, v as number])
-          ),
-        };
-
-        setChartData(prev => {
-          // Keep data within the selected time period
-          const periodMs: Record<string, number> = {
-            '15m': 15 * 60 * 1000,
-            '30m': 30 * 60 * 1000,
-            '1h': 60 * 60 * 1000,
-            '6h': 6 * 60 * 60 * 1000,
-            '24h': 24 * 60 * 60 * 1000,
+    newSocket.on(
+      'metrics:update',
+      (update: { serverId: string; metrics: Record<string, number | null>; timestamp: string }) => {
+        if (update.serverId === serverId) {
+          const newPoint: ChartDataPoint = {
+            timestamp: new Date(update.timestamp).getTime(),
+            ...Object.fromEntries(
+              Object.entries(update.metrics)
+                .filter(([_, v]) => v !== null)
+                .map(([k, v]) => [k, v as number])
+            ),
           };
-          const cutoff = Date.now() - (periodMs[period] || periodMs['1h']);
-          const filtered = prev.filter(p => p.timestamp > cutoff);
-          return [...filtered, newPoint];
-        });
+
+          setChartData((prev) => {
+            // Keep data within the selected time period
+            const periodMs: Record<string, number> = {
+              '15m': 15 * 60 * 1000,
+              '30m': 30 * 60 * 1000,
+              '1h': 60 * 60 * 1000,
+              '6h': 6 * 60 * 60 * 1000,
+              '24h': 24 * 60 * 60 * 1000,
+            };
+            const cutoff = Date.now() - (periodMs[period] || periodMs['1h']);
+            const filtered = prev.filter((p) => p.timestamp > cutoff);
+            return [...filtered, newPoint];
+          });
+        }
       }
-    });
+    );
 
     newSocket.on('disconnect', () => {
       // disconnected
@@ -168,19 +191,16 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
   }, []);
 
   if (isLoading && chartData.length === 0) {
+    return <LoadingState rows={4} rowClassName="h-[240px]" />;
+  }
+
+  if (!isLoading && chartData.length === 0) {
     return (
-      <div className="grid gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i}>
-            <CardHeader>
-              <CardTitle className="text-lg">Loading...</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[200px] bg-gray-100 animate-pulse rounded" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <EmptyState
+        className="min-h-[280px]"
+        title="No chart data available"
+        description="This server has not reported enough telemetry for the selected window yet."
+      />
     );
   }
 
@@ -188,13 +208,17 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
     <div className="space-y-4">
       {/* Time period selector */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Real-time Metrics</h2>
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Charts</p>
+          <h2 className="text-xl font-semibold">Real-time Metrics</h2>
+        </div>
         <div className="flex gap-1">
           {TIME_PERIODS.map((p) => (
             <Button
               key={p.value}
               variant={period === p.value ? 'default' : 'outline'}
               size="sm"
+              className="h-8"
               onClick={() => handlePeriodChange(p.value)}
             >
               {p.label}
@@ -204,11 +228,11 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
       </div>
 
       {/* CPU & Memory Chart */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center justify-between">
             CPU & Memory Usage
-            <Badge variant="outline" className="font-normal">
+            <Badge variant="outline" className="font-normal uppercase tracking-[0.16em]">
               {chartData.length} data points
             </Badge>
           </CardTitle>
@@ -218,32 +242,39 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
             <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorMemory" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
               <XAxis
                 dataKey="timestamp"
                 tickFormatter={(ts) => formatTimeOnly(ts)}
-                stroke="#9ca3af"
-                fontSize={12}
+                stroke={AXIS_STROKE}
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
               />
               <YAxis
                 domain={[0, 100]}
                 tickFormatter={(v) => `${v}%`}
-                stroke="#9ca3af"
-                fontSize={12}
+                stroke={AXIS_STROKE}
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
               />
               <Tooltip
                 labelFormatter={(label) => formatDateTime(label)}
                 formatter={(value: number, name: string) => [formatValue(value, name), name]}
+                contentStyle={TOOLTIP_STYLE}
+                itemStyle={{ color: '#e5eef8' }}
+                labelStyle={{ color: '#94a3b8' }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
               <Area
                 type="monotone"
                 dataKey="cpu"
@@ -266,30 +297,37 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
       </Card>
 
       {/* Load Average Chart */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">Load Average</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
               <XAxis
                 dataKey="timestamp"
                 tickFormatter={(ts) => formatTimeOnly(ts)}
-                stroke="#9ca3af"
-                fontSize={12}
+                stroke={AXIS_STROKE}
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
               />
               <YAxis
-                stroke="#9ca3af"
-                fontSize={12}
+                stroke={AXIS_STROKE}
+                fontSize={11}
                 tickFormatter={(v) => v.toFixed(1)}
+                tickLine={false}
+                axisLine={false}
               />
               <Tooltip
                 labelFormatter={(label) => formatDateTime(label)}
                 formatter={(value: number, name: string) => [value.toFixed(2), name]}
+                contentStyle={TOOLTIP_STYLE}
+                itemStyle={{ color: '#e5eef8' }}
+                labelStyle={{ color: '#94a3b8' }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
               <Line
                 type="monotone"
                 dataKey="load1"
@@ -320,7 +358,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
       </Card>
 
       {/* Network Traffic Chart */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">Network Traffic</CardTitle>
         </CardHeader>
@@ -329,35 +367,42 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
             <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorNetIn" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorNetOut" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
               <XAxis
                 dataKey="timestamp"
                 tickFormatter={(ts) => formatTimeOnly(ts)}
-                stroke="#9ca3af"
-                fontSize={12}
+                stroke={AXIS_STROKE}
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
               />
               <YAxis
-                stroke="#9ca3af"
-                fontSize={12}
+                stroke={AXIS_STROKE}
+                fontSize={11}
                 tickFormatter={(v) => {
                   if (v < 1024) return `${v.toFixed(0)} B`;
                   if (v < 1024 * 1024) return `${(v / 1024).toFixed(0)} KB`;
                   return `${(v / 1024 / 1024).toFixed(1)} MB`;
                 }}
+                tickLine={false}
+                axisLine={false}
               />
               <Tooltip
                 labelFormatter={(label) => formatDateTime(label)}
                 formatter={(value: number, name: string) => [formatValue(value, 'network'), name]}
+                contentStyle={TOOLTIP_STYLE}
+                itemStyle={{ color: '#e5eef8' }}
+                labelStyle={{ color: '#94a3b8' }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
               <Area
                 type="monotone"
                 dataKey="networkIn"
@@ -380,7 +425,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
       </Card>
 
       {/* Disk Usage Chart */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">Disk Usage</CardTitle>
         </CardHeader>
@@ -389,26 +434,33 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
             <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorDisk" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
               <XAxis
                 dataKey="timestamp"
                 tickFormatter={(ts) => formatTimeOnly(ts)}
-                stroke="#9ca3af"
-                fontSize={12}
+                stroke={AXIS_STROKE}
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
               />
               <YAxis
                 domain={[0, 100]}
                 tickFormatter={(v) => `${v}%`}
-                stroke="#9ca3af"
-                fontSize={12}
+                stroke={AXIS_STROKE}
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
               />
               <Tooltip
                 labelFormatter={(label) => formatDateTime(label)}
                 formatter={(value: number) => [`${value.toFixed(1)}%`, 'Disk']}
+                contentStyle={TOOLTIP_STYLE}
+                itemStyle={{ color: '#e5eef8' }}
+                labelStyle={{ color: '#94a3b8' }}
               />
               <Area
                 type="monotone"
@@ -424,85 +476,301 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
       </Card>
 
       {/* MySQL Metrics Charts - Only shown when MySQL exporter is available */}
-      {hasMySQLExporter && chartData.some(d => d.mysqlConnections !== undefined || d.mysqlQueriesPerSec !== undefined) && (
-        <>
-          {/* MySQL Connections & Queries Chart */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                </svg>
-                MySQL Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickFormatter={(ts) => formatTimeOnly(ts)}
-                    stroke="#9ca3af"
-                    fontSize={12}
-                  />
-                  <YAxis
-                    yAxisId="connections"
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    tickFormatter={(v) => v.toString()}
-                  />
-                  <YAxis
-                    yAxisId="qps"
-                    orientation="right"
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    tickFormatter={(v) => `${v}/s`}
-                  />
-                  <Tooltip
-                    labelFormatter={(label) => formatDateTime(label)}
-                    formatter={(value: number, name: string) => {
-                      if (name === 'Queries/sec') return [`${value.toFixed(1)}/s`, name];
-                      return [value.toFixed(0), name];
-                    }}
-                  />
-                  <Legend />
-                  <Line
-                    yAxisId="connections"
-                    type="monotone"
-                    dataKey="mysqlConnections"
-                    name="Connections"
-                    stroke="#ea580c"
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                  <Line
-                    yAxisId="qps"
-                    type="monotone"
-                    dataKey="mysqlQueriesPerSec"
-                    name="Queries/sec"
-                    stroke="#c2410c"
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </>
-      )}
+      {hasMySQLExporter &&
+        chartData.some(
+          (d) => d.mysqlConnections !== undefined || d.mysqlQueriesPerSec !== undefined
+        ) && (
+          <>
+            {/* MySQL Connections & Queries Chart */}
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                  </svg>
+                  MySQL Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={(ts) => formatTimeOnly(ts)}
+                      stroke={AXIS_STROKE}
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      yAxisId="connections"
+                      stroke={AXIS_STROKE}
+                      fontSize={11}
+                      tickFormatter={(v) => v.toString()}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      yAxisId="qps"
+                      orientation="right"
+                      stroke={AXIS_STROKE}
+                      fontSize={11}
+                      tickFormatter={(v) => `${v}/s`}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      labelFormatter={(label) => formatDateTime(label)}
+                      formatter={(value: number, name: string) => {
+                        if (name === 'Queries/sec') return [`${value.toFixed(1)}/s`, name];
+                        return [value.toFixed(0), name];
+                      }}
+                      contentStyle={TOOLTIP_STYLE}
+                      itemStyle={{ color: '#e5eef8' }}
+                      labelStyle={{ color: '#94a3b8' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
+                    <Line
+                      yAxisId="connections"
+                      type="monotone"
+                      dataKey="mysqlConnections"
+                      name="Connections"
+                      stroke="#ea580c"
+                      dot={false}
+                      strokeWidth={2}
+                    />
+                    <Line
+                      yAxisId="qps"
+                      type="monotone"
+                      dataKey="mysqlQueriesPerSec"
+                      name="Queries/sec"
+                      stroke="#c2410c"
+                      dot={false}
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </>
+        )}
 
       {/* LiteSpeed Metrics Charts - Only shown when LiteSpeed exporter is available */}
-      {hasLiteSpeedExporter && chartData.some(d => d.lsReqPerSec !== undefined || d.lsConnections !== undefined) && (
-        <>
-          {/* LiteSpeed Connections & Requests Chart */}
+      {hasLiteSpeedExporter &&
+        chartData.some((d) => d.lsReqPerSec !== undefined || d.lsConnections !== undefined) && (
+          <>
+            {/* LiteSpeed Connections & Requests Chart */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <svg
+                    className="w-5 h-5 text-green-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                  </svg>
+                  LiteSpeed Requests &amp; Connections
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={(ts) => formatTimeOnly(ts)}
+                      stroke="#9ca3af"
+                      fontSize={12}
+                    />
+                    <YAxis
+                      yAxisId="rps"
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickFormatter={(v) => `${v}/s`}
+                    />
+                    <YAxis
+                      yAxisId="conn"
+                      orientation="right"
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickFormatter={(v) => v.toString()}
+                    />
+                    <Tooltip
+                      labelFormatter={(label) => formatDateTime(label)}
+                      formatter={(value: number, name: string) => {
+                        if (name === 'Req/sec') return [`${value.toFixed(1)}/s`, name];
+                        return [value.toFixed(0), name];
+                      }}
+                    />
+                    <Legend />
+                    <Line
+                      yAxisId="rps"
+                      type="monotone"
+                      dataKey="lsReqPerSec"
+                      name="Req/sec"
+                      stroke="#16a34a"
+                      dot={false}
+                      strokeWidth={2}
+                    />
+                    <Line
+                      yAxisId="conn"
+                      type="monotone"
+                      dataKey="lsConnections"
+                      name="Connections"
+                      stroke="#15803d"
+                      dot={false}
+                      strokeWidth={2}
+                    />
+                    <Line
+                      yAxisId="conn"
+                      type="monotone"
+                      dataKey="lsReqProcessing"
+                      name="Processing"
+                      stroke="#4ade80"
+                      dot={false}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 2"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* LiteSpeed Bandwidth & Cache Chart */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <svg
+                    className="w-5 h-5 text-green-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                  </svg>
+                  LiteSpeed Bandwidth &amp; Cache
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorLsBpsOut" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorLsBpsIn" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4ade80" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={(ts) => formatTimeOnly(ts)}
+                      stroke="#9ca3af"
+                      fontSize={12}
+                    />
+                    <YAxis
+                      yAxisId="bw"
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickFormatter={(v) => {
+                        if (v < 1024) return `${v}B/s`;
+                        if (v < 1024 * 1024) return `${(v / 1024).toFixed(0)}K/s`;
+                        return `${(v / 1024 / 1024).toFixed(1)}M/s`;
+                      }}
+                    />
+                    <YAxis
+                      yAxisId="cache"
+                      orientation="right"
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickFormatter={(v) => `${v}/s`}
+                    />
+                    <Tooltip
+                      labelFormatter={(label) => formatDateTime(label)}
+                      formatter={(value: number, name: string) => {
+                        if (name.includes('Bandwidth')) {
+                          if (value < 1024) return [`${value.toFixed(0)} B/s`, name];
+                          if (value < 1024 * 1024)
+                            return [`${(value / 1024).toFixed(1)} KB/s`, name];
+                          return [`${(value / 1024 / 1024).toFixed(2)} MB/s`, name];
+                        }
+                        return [`${value.toFixed(1)}/s`, name];
+                      }}
+                    />
+                    <Legend />
+                    <Area
+                      yAxisId="bw"
+                      type="monotone"
+                      dataKey="lsBpsOut"
+                      name="Bandwidth Out"
+                      stroke="#16a34a"
+                      fillOpacity={1}
+                      fill="url(#colorLsBpsOut)"
+                      strokeWidth={2}
+                    />
+                    <Area
+                      yAxisId="bw"
+                      type="monotone"
+                      dataKey="lsBpsIn"
+                      name="Bandwidth In"
+                      stroke="#4ade80"
+                      fillOpacity={1}
+                      fill="url(#colorLsBpsIn)"
+                      strokeWidth={1.5}
+                    />
+                    <Line
+                      yAxisId="cache"
+                      type="monotone"
+                      dataKey="lsCacheHitsPerSec"
+                      name="Cache Hits/s"
+                      stroke="#eab308"
+                      dot={false}
+                      strokeWidth={2}
+                    />
+                    <Line
+                      yAxisId="cache"
+                      type="monotone"
+                      dataKey="lsStaticHitsPerSec"
+                      name="Static Hits/s"
+                      stroke="#f59e0b"
+                      dot={false}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 2"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+      {/* Exim Mail Charts - Only shown when Exim exporter is available */}
+      {hasEximExporter &&
+        chartData.some(
+          (d) => d.eximDeliveriesToday !== undefined || d.eximQueueSize !== undefined
+        ) && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <svg className="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                <svg
+                  className="w-5 h-5 text-purple-500"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
                 </svg>
-                LiteSpeed Requests &amp; Connections
+                Exim Mail Activity
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -516,261 +784,75 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                     fontSize={12}
                   />
                   <YAxis
-                    yAxisId="rps"
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    tickFormatter={(v) => `${v}/s`}
-                  />
-                  <YAxis
-                    yAxisId="conn"
-                    orientation="right"
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    tickFormatter={(v) => v.toString()}
-                  />
-                  <Tooltip
-                    labelFormatter={(label) => formatDateTime(label)}
-                    formatter={(value: number, name: string) => {
-                      if (name === 'Req/sec') return [`${value.toFixed(1)}/s`, name];
-                      return [value.toFixed(0), name];
-                    }}
-                  />
-                  <Legend />
-                  <Line
-                    yAxisId="rps"
-                    type="monotone"
-                    dataKey="lsReqPerSec"
-                    name="Req/sec"
-                    stroke="#16a34a"
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                  <Line
-                    yAxisId="conn"
-                    type="monotone"
-                    dataKey="lsConnections"
-                    name="Connections"
-                    stroke="#15803d"
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                  <Line
-                    yAxisId="conn"
-                    type="monotone"
-                    dataKey="lsReqProcessing"
-                    name="Processing"
-                    stroke="#4ade80"
-                    dot={false}
-                    strokeWidth={1.5}
-                    strokeDasharray="4 2"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* LiteSpeed Bandwidth & Cache Chart */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <svg className="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                </svg>
-                LiteSpeed Bandwidth &amp; Cache
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorLsBpsOut" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorLsBpsIn" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4ade80" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickFormatter={(ts) => formatTimeOnly(ts)}
-                    stroke="#9ca3af"
-                    fontSize={12}
-                  />
-                  <YAxis
-                    yAxisId="bw"
+                    yAxisId="mail"
                     stroke="#9ca3af"
                     fontSize={12}
                     tickFormatter={(v) => {
-                      if (v < 1024) return `${v}B/s`;
-                      if (v < 1024 * 1024) return `${(v / 1024).toFixed(0)}K/s`;
-                      return `${(v / 1024 / 1024).toFixed(1)}M/s`;
+                      if (v >= 1000) return `${(v / 1000).toFixed(1)}K`;
+                      return v.toString();
                     }}
                   />
-                  <YAxis
-                    yAxisId="cache"
-                    orientation="right"
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    tickFormatter={(v) => `${v}/s`}
-                  />
+                  <YAxis yAxisId="queue" orientation="right" stroke="#9ca3af" fontSize={12} />
                   <Tooltip
                     labelFormatter={(label) => formatDateTime(label)}
                     formatter={(value: number, name: string) => {
-                      if (name.includes('Bandwidth')) {
-                        if (value < 1024) return [`${value.toFixed(0)} B/s`, name];
-                        if (value < 1024 * 1024) return [`${(value / 1024).toFixed(1)} KB/s`, name];
-                        return [`${(value / 1024 / 1024).toFixed(2)} MB/s`, name];
-                      }
-                      return [`${value.toFixed(1)}/s`, name];
+                      if (value >= 1000) return [`${(value / 1000).toFixed(1)}K`, name];
+                      return [value.toFixed(0), name];
                     }}
                   />
                   <Legend />
-                  <Area
-                    yAxisId="bw"
-                    type="monotone"
-                    dataKey="lsBpsOut"
-                    name="Bandwidth Out"
-                    stroke="#16a34a"
-                    fillOpacity={1}
-                    fill="url(#colorLsBpsOut)"
-                    strokeWidth={2}
-                  />
-                  <Area
-                    yAxisId="bw"
-                    type="monotone"
-                    dataKey="lsBpsIn"
-                    name="Bandwidth In"
-                    stroke="#4ade80"
-                    fillOpacity={1}
-                    fill="url(#colorLsBpsIn)"
-                    strokeWidth={1.5}
-                  />
                   <Line
-                    yAxisId="cache"
+                    yAxisId="mail"
                     type="monotone"
-                    dataKey="lsCacheHitsPerSec"
-                    name="Cache Hits/s"
-                    stroke="#eab308"
+                    dataKey="eximDeliveriesToday"
+                    name="Delivered"
+                    stroke="#9333ea"
                     dot={false}
                     strokeWidth={2}
                   />
                   <Line
-                    yAxisId="cache"
+                    yAxisId="mail"
                     type="monotone"
-                    dataKey="lsStaticHitsPerSec"
-                    name="Static Hits/s"
+                    dataKey="eximReceivedToday"
+                    name="Received"
+                    stroke="#a855f7"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    yAxisId="mail"
+                    type="monotone"
+                    dataKey="eximBouncesToday"
+                    name="Bounces"
+                    stroke="#ef4444"
+                    dot={false}
+                    strokeWidth={1.5}
+                  />
+                  <Line
+                    yAxisId="queue"
+                    type="monotone"
+                    dataKey="eximQueueSize"
+                    name="Queue"
                     stroke="#f59e0b"
+                    dot={false}
+                    strokeWidth={2}
+                    strokeDasharray="4 2"
+                  />
+                  <Line
+                    yAxisId="mail"
+                    type="monotone"
+                    dataKey="eximDeferredToday"
+                    name="Deferred"
+                    stroke="#f97316"
                     dot={false}
                     strokeWidth={1.5}
                     strokeDasharray="4 2"
                   />
-                </AreaChart>
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        </>
-      )}
-
-      {/* Exim Mail Charts - Only shown when Exim exporter is available */}
-      {hasEximExporter && chartData.some(d => d.eximDeliveriesToday !== undefined || d.eximQueueSize !== undefined) && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <svg className="w-5 h-5 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-              Exim Mail Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="timestamp"
-                  tickFormatter={(ts) => formatTimeOnly(ts)}
-                  stroke="#9ca3af"
-                  fontSize={12}
-                />
-                <YAxis
-                  yAxisId="mail"
-                  stroke="#9ca3af"
-                  fontSize={12}
-                  tickFormatter={(v) => {
-                    if (v >= 1000) return `${(v / 1000).toFixed(1)}K`;
-                    return v.toString();
-                  }}
-                />
-                <YAxis
-                  yAxisId="queue"
-                  orientation="right"
-                  stroke="#9ca3af"
-                  fontSize={12}
-                />
-                <Tooltip
-                  labelFormatter={(label) => formatDateTime(label)}
-                  formatter={(value: number, name: string) => {
-                    if (value >= 1000) return [`${(value / 1000).toFixed(1)}K`, name];
-                    return [value.toFixed(0), name];
-                  }}
-                />
-                <Legend />
-                <Line
-                  yAxisId="mail"
-                  type="monotone"
-                  dataKey="eximDeliveriesToday"
-                  name="Delivered"
-                  stroke="#9333ea"
-                  dot={false}
-                  strokeWidth={2}
-                />
-                <Line
-                  yAxisId="mail"
-                  type="monotone"
-                  dataKey="eximReceivedToday"
-                  name="Received"
-                  stroke="#a855f7"
-                  dot={false}
-                  strokeWidth={2}
-                />
-                <Line
-                  yAxisId="mail"
-                  type="monotone"
-                  dataKey="eximBouncesToday"
-                  name="Bounces"
-                  stroke="#ef4444"
-                  dot={false}
-                  strokeWidth={1.5}
-                />
-                <Line
-                  yAxisId="queue"
-                  type="monotone"
-                  dataKey="eximQueueSize"
-                  name="Queue"
-                  stroke="#f59e0b"
-                  dot={false}
-                  strokeWidth={2}
-                  strokeDasharray="4 2"
-                />
-                <Line
-                  yAxisId="mail"
-                  type="monotone"
-                  dataKey="eximDeferredToday"
-                  name="Deferred"
-                  stroke="#f97316"
-                  dot={false}
-                  strokeWidth={1.5}
-                  strokeDasharray="4 2"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+        )}
     </div>
   );
 }

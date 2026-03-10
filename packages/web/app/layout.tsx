@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
+import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -15,6 +14,17 @@ export const metadata: Metadata = {
   },
 };
 
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  variable: '--font-ibm-plex-mono',
+  weight: ['400', '500', '600'],
+});
+
 const themeScript = `
 (function() {
   try {
@@ -26,24 +36,22 @@ const themeScript = `
       };
     }
     var theme = localStorage.getItem('nodeprism_theme');
-    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    if (theme === 'dark' || !theme) {
       document.documentElement.classList.add('dark');
     }
   } catch(e) {}
 })();
 `;
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={`${GeistSans.className} ${GeistMono.variable}`}>{children}</body>
+      <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} font-sans`}>
+        {children}
+      </body>
     </html>
   );
 }

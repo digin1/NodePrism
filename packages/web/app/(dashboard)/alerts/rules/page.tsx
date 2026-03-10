@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { alertApi } from '@/lib/api';
 
 interface AlertRule {
@@ -245,10 +246,14 @@ function CreateRuleForm({
         {/* Preview */}
         {(hasWarn || hasCrit) && (
           <div className="space-y-2 pt-2 border-t border-border/50">
-            <p className="text-xs font-medium text-muted-foreground">Preview — will create {ruleCount} rule{ruleCount > 1 ? 's' : ''}:</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              Preview — will create {ruleCount} rule{ruleCount > 1 ? 's' : ''}:
+            </p>
             {hasWarn && (
               <div className="flex items-center gap-2">
-                <Badge variant="warning" className="text-[10px]">WARNING</Badge>
+                <Badge variant="warning" className="text-[10px]">
+                  WARNING
+                </Badge>
                 <code className="text-xs text-muted-foreground">
                   {form.metric ? `${form.metric} ${form.operator} ${form.warnThreshold}` : '...'}
                 </code>
@@ -256,7 +261,9 @@ function CreateRuleForm({
             )}
             {hasCrit && (
               <div className="flex items-center gap-2">
-                <Badge variant="danger" className="text-[10px]">CRITICAL</Badge>
+                <Badge variant="danger" className="text-[10px]">
+                  CRITICAL
+                </Badge>
                 <code className="text-xs text-muted-foreground">
                   {form.metric ? `${form.metric} ${form.operator} ${form.critThreshold}` : '...'}
                 </code>
@@ -411,7 +418,9 @@ export default function AlertRulesPage() {
         });
         window.history.replaceState({}, '', '/alerts/rules');
         setTimeout(() => {
-          document.getElementById(`rule-${rule.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          document
+            .getElementById(`rule-${rule.id}`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
       }
     }
@@ -422,7 +431,8 @@ export default function AlertRulesPage() {
   // Create mutation — supports creating 1 or 2 rules from the dual-threshold form
   const [isCreating, setIsCreating] = useState(false);
   const handleCreate = async () => {
-    const { name, description, metric, operator, warnThreshold, critThreshold, duration } = createForm;
+    const { name, description, metric, operator, warnThreshold, critThreshold, duration } =
+      createForm;
     if (!metric.trim()) return;
 
     const hasWarn = warnThreshold.trim() !== '';
@@ -533,7 +543,7 @@ export default function AlertRulesPage() {
   ruleGroups.forEach((g) => {
     if (g.rules.length > 1) {
       // Use the shortest name as the group label
-      g.label = g.rules.reduce((a, b) => a.name.length <= b.name.length ? a : b).name;
+      g.label = g.rules.reduce((a, b) => (a.name.length <= b.name.length ? a : b)).name;
       // Sort within group: WARNING before CRITICAL
       const severityOrder: Record<string, number> = { WARNING: 0, INFO: 1, CRITICAL: 2, DEBUG: 3 };
       g.rules.sort((a, b) => (severityOrder[a.severity] ?? 9) - (severityOrder[b.severity] ?? 9));
@@ -542,42 +552,37 @@ export default function AlertRulesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/alerts">
-            <Button variant="ghost" size="icon">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Button>
-          </Link>
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Alert Rules</h2>
-            <p className="text-muted-foreground">
-              Prometheus alerting rules with PromQL expressions
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/alerts/templates">
-            <Button variant="outline">Templates</Button>
-          </Link>
-          <Button
-            onClick={() => {
-              if (showCreate) {
-                setShowCreate(false);
-              } else {
-                setShowCreate(true);
-                setEditingId(null);
-                setCreateForm(DEFAULT_CREATE);
-                setCreateError('');
-              }
-            }}
-          >
-            {showCreate ? 'Cancel' : 'Create Rule'}
-          </Button>
-        </div>
+      <PageHeader
+        eyebrow="Alert Logic"
+        title="Alert rules"
+        description="Manage Prometheus rule definitions and threshold logic that power alert generation."
+      >
+        <Link href="/alerts">
+          <Button variant="outline">Back to Alerts</Button>
+        </Link>
+        <Link href="/alerts/templates">
+          <Button variant="outline">Templates</Button>
+        </Link>
+        <Button
+          onClick={() => {
+            if (showCreate) {
+              setShowCreate(false);
+            } else {
+              setShowCreate(true);
+              setEditingId(null);
+              setCreateForm(DEFAULT_CREATE);
+              setCreateError('');
+            }
+          }}
+        >
+          {showCreate ? 'Cancel' : 'Create Rule'}
+        </Button>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SummaryStat label="Rules" value={filtered?.length || 0} tone="primary" />
+        <SummaryStat label="Create Mode" value={showCreate ? 'Open' : 'Closed'} />
+        <SummaryStat label="Search" value={search || 'All'} />
       </div>
 
       {/* Create Form */}
@@ -586,7 +591,8 @@ export default function AlertRulesPage() {
           <CardHeader>
             <CardTitle>Create Alert Rule</CardTitle>
             <CardDescription>
-              Define a metric and set warning &amp; critical thresholds. Both levels are created as separate Prometheus rules.
+              Define a metric and set warning &amp; critical thresholds. Both levels are created as
+              separate Prometheus rules.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -636,14 +642,26 @@ export default function AlertRulesPage() {
             </div>
           ) : !filtered?.length ? (
             <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <svg
+                className="mx-auto h-12 w-12 text-muted-foreground"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
               </svg>
               <h3 className="mt-2 text-sm font-medium text-foreground">
                 {search ? 'No matching rules' : 'No alert rules'}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {search ? 'Try a different search term.' : 'Create your first alert rule to get started.'}
+                {search
+                  ? 'Try a different search term.'
+                  : 'Create your first alert rule to get started.'}
               </p>
             </div>
           ) : (
@@ -665,7 +683,13 @@ export default function AlertRulesPage() {
                       {group.rules.map((r) => (
                         <Badge
                           key={r.id}
-                          variant={r.severity === 'CRITICAL' ? 'danger' : r.severity === 'WARNING' ? 'warning' : 'secondary'}
+                          variant={
+                            r.severity === 'CRITICAL'
+                              ? 'danger'
+                              : r.severity === 'WARNING'
+                                ? 'warning'
+                                : 'secondary'
+                          }
                           className="text-[10px]"
                         >
                           {r.severity}
@@ -677,16 +701,24 @@ export default function AlertRulesPage() {
                     <div
                       key={rule.id}
                       id={`rule-${rule.id}`}
-                      className={`transition-colors ${
-                        editingId === rule.id ? 'bg-primary/5' : ''
-                      }`}
+                      className={`transition-colors ${editingId === rule.id ? 'bg-primary/5' : ''}`}
                     >
                       {editingId === rule.id ? (
                         /* ── Inline Edit Mode ── */
                         <div className="p-4">
                           <div className="flex items-center gap-2 mb-4">
-                            <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            <svg
+                              className="w-4 h-4 text-primary"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
                             </svg>
                             <span className="text-sm font-medium text-primary">Editing Rule</span>
                           </div>
@@ -715,21 +747,25 @@ export default function AlertRulesPage() {
                                   rule.severity === 'CRITICAL'
                                     ? 'danger'
                                     : rule.severity === 'WARNING'
-                                    ? 'warning'
-                                    : 'secondary'
+                                      ? 'warning'
+                                      : 'secondary'
                                 }
                               >
                                 {rule.severity}
                               </Badge>
                               {!rule.enabled && (
-                                <Badge variant="outline" className="opacity-60">Disabled</Badge>
+                                <Badge variant="outline" className="opacity-60">
+                                  Disabled
+                                </Badge>
                               )}
                               {rule._count?.alerts && rule._count.alerts > 0 ? (
                                 <Badge variant="danger">{rule._count.alerts} firing</Badge>
                               ) : null}
                             </div>
                             {rule.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{rule.description}</p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {rule.description}
+                              </p>
                             )}
                             <p className="text-xs font-mono text-muted-foreground mt-2 bg-muted p-2 rounded break-all">
                               {rule.query}
@@ -745,7 +781,9 @@ export default function AlertRulesPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
+                              onClick={() =>
+                                toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })
+                              }
                               disabled={toggleMutation.isPending}
                             >
                               {rule.enabled ? 'Disable' : 'Enable'}
@@ -755,7 +793,11 @@ export default function AlertRulesPage() {
                               variant="ghost"
                               className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
                               onClick={() => {
-                                if (confirm('Delete this rule? Active alerts using this rule will be orphaned.')) {
+                                if (
+                                  confirm(
+                                    'Delete this rule? Active alerts using this rule will be orphaned.'
+                                  )
+                                ) {
                                   deleteMutation.mutate(rule.id);
                                 }
                               }}
@@ -778,7 +820,9 @@ export default function AlertRulesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Quick-Start Presets</CardTitle>
-          <CardDescription>Click to pre-fill the create form with common alerting rules</CardDescription>
+          <CardDescription>
+            Click to pre-fill the create form with common alerting rules
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2">
@@ -816,7 +860,9 @@ export default function AlertRulesPage() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{preset.description}</p>
-                <p className="text-xs font-mono text-muted-foreground mt-2 truncate">{preset.metric}</p>
+                <p className="text-xs font-mono text-muted-foreground mt-2 truncate">
+                  {preset.metric}
+                </p>
               </button>
             ))}
           </div>

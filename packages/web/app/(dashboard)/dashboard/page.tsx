@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 import { serverApi, alertApi, metricsApi, uptimeApi, incidentApi } from '@/lib/api';
 import { Sparkline } from '@/components/dashboard/Sparkline';
 
@@ -58,39 +60,33 @@ function HeroStat({
   pulse?: boolean;
 }) {
   const inner = (
-    <div className="flex flex-col items-center gap-0.5 py-2 px-3 min-w-0">
-      <div className="flex items-center gap-1.5">
-        {pulse && (
-          <span
-            className="h-2 w-2 rounded-full animate-pulse"
-            style={{ backgroundColor: color }}
-          />
-        )}
-        <span className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color }}>
+    <div className="monitor-panel flex min-w-0 flex-col rounded-[1.2rem] px-4 py-4 text-left transition-all hover:border-cyan-400/25 hover:bg-accent/10">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          {label}
+        </span>
+        <span
+          className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+          style={{ backgroundColor: color, boxShadow: pulse ? `0 0 18px ${color}` : undefined }}
+        />
+      </div>
+      <div className="mt-4 flex items-end gap-2">
+        <span className="text-3xl font-semibold tracking-[-0.05em] md:text-4xl" style={{ color }}>
           {value}
         </span>
       </div>
-      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
-      {sub && (
-        <span className="text-[10px] text-muted-foreground">{sub}</span>
-      )}
+      {sub ? <span className="mt-2 text-xs text-muted-foreground">{sub}</span> : <span className="mt-2 text-xs text-transparent">.</span>}
     </div>
   );
 
   if (href) {
     return (
-      <a href={href} className="hover:bg-muted/50 rounded-lg transition-colors">
+      <a href={href} className="block rounded-[1.2rem] transition-transform hover:-translate-y-0.5">
         {inner}
       </a>
     );
   }
   return inner;
-}
-
-function VerticalDivider() {
-  return <div className="w-px bg-border self-stretch my-2" />;
 }
 
 function ServerFleetCard({ server }: { server: any }) {
@@ -102,13 +98,13 @@ function ServerFleetCard({ server }: { server: any }) {
     server.status === 'ONLINE'
       ? 'bg-green-500'
       : server.status === 'WARNING'
-      ? 'bg-yellow-500'
-      : 'bg-red-500';
+        ? 'bg-yellow-500'
+        : 'bg-red-500';
 
   return (
     <a
       href={`/servers/${server.id}`}
-      className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted/70 border border-transparent hover:border-border transition-all group"
+      className="group flex items-center gap-3 rounded-[1rem] border border-border/60 bg-surface/70 p-3 transition-all hover:border-cyan-400/30 hover:bg-accent/20"
     >
       <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${statusColor}`} />
       <div className="flex-1 min-w-0">
@@ -120,13 +116,25 @@ function ServerFleetCard({ server }: { server: any }) {
       {(cpu != null || mem != null || disk != null) && (
         <div className="flex gap-1.5 flex-shrink-0">
           {cpu != null && (
-            <MiniBar value={cpu} label="C" color={cpu > 90 ? '#ef4444' : cpu > 70 ? '#f59e0b' : '#10b981'} />
+            <MiniBar
+              value={cpu}
+              label="C"
+              color={cpu > 90 ? '#ef4444' : cpu > 70 ? '#f59e0b' : '#10b981'}
+            />
           )}
           {mem != null && (
-            <MiniBar value={mem} label="M" color={mem > 90 ? '#ef4444' : mem > 70 ? '#f59e0b' : '#3b82f6'} />
+            <MiniBar
+              value={mem}
+              label="M"
+              color={mem > 90 ? '#ef4444' : mem > 70 ? '#f59e0b' : '#3b82f6'}
+            />
           )}
           {disk != null && (
-            <MiniBar value={disk} label="D" color={disk > 85 ? '#ef4444' : disk > 70 ? '#f59e0b' : '#8b5cf6'} />
+            <MiniBar
+              value={disk}
+              label="D"
+              color={disk > 85 ? '#ef4444' : disk > 70 ? '#f59e0b' : '#8b5cf6'}
+            />
           )}
         </div>
       )}
@@ -160,7 +168,9 @@ function AlertRow({ alert, onAck }: { alert: any; onAck: (id: string) => void })
       <div className="flex-1 min-w-0">
         <p className="text-sm leading-tight truncate">{alert.message}</p>
         {alert.annotations?.description && (
-          <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">{alert.annotations.description}</p>
+          <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">
+            {alert.annotations.description}
+          </p>
         )}
         <div className="flex items-center gap-2 mt-1">
           {alert.server && (
@@ -245,8 +255,18 @@ function IncidentRow({ incident }: { incident: any }) {
       className="flex items-start gap-3 p-2.5 rounded-md hover:bg-muted/50 transition-colors"
     >
       <div className="mt-0.5 flex-shrink-0">
-        <svg className={`w-4 h-4 ${statusColors[incident.status] || 'text-muted-foreground'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        <svg
+          className={`w-4 h-4 ${statusColors[incident.status] || 'text-muted-foreground'}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+          />
         </svg>
       </div>
       <div className="flex-1 min-w-0">
@@ -259,7 +279,13 @@ function IncidentRow({ incident }: { incident: any }) {
         </div>
       </div>
       <Badge
-        variant={incident.severity === 'CRITICAL' ? 'danger' : incident.severity === 'WARNING' ? 'warning' : 'secondary'}
+        variant={
+          incident.severity === 'CRITICAL'
+            ? 'danger'
+            : incident.severity === 'WARNING'
+              ? 'warning'
+              : 'secondary'
+        }
         className="text-[10px] flex-shrink-0"
       >
         {incident.severity}
@@ -346,7 +372,9 @@ export default function DashboardPage() {
     queryFn: () =>
       metricsApi.queryRange(
         '100 - avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100',
-        start, end, '300'
+        start,
+        end,
+        '300'
       ),
     refetchInterval: 60000,
     staleTime: 30000,
@@ -357,7 +385,9 @@ export default function DashboardPage() {
     queryFn: () =>
       metricsApi.queryRange(
         'avg((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)',
-        start, end, '300'
+        start,
+        end,
+        '300'
       ),
     refetchInterval: 60000,
     staleTime: 30000,
@@ -366,10 +396,7 @@ export default function DashboardPage() {
   const { data: netSparkline } = useQuery({
     queryKey: ['sparkline-net'],
     queryFn: () =>
-      metricsApi.queryRange(
-        'sum(irate(node_network_receive_bytes_total[5m]))',
-        start, end, '300'
-      ),
+      metricsApi.queryRange('sum(irate(node_network_receive_bytes_total[5m]))', start, end, '300'),
     refetchInterval: 60000,
     staleTime: 30000,
   });
@@ -379,9 +406,15 @@ export default function DashboardPage() {
     queryKey: ['per-server-metrics'],
     queryFn: async () => {
       const [cpuRes, memRes, diskRes] = await Promise.all([
-        metricsApi.query('100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)'),
-        metricsApi.query('(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100'),
-        metricsApi.query('max by(instance) ((1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100)'),
+        metricsApi.query(
+          '100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)'
+        ),
+        metricsApi.query(
+          '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100'
+        ),
+        metricsApi.query(
+          'max by(instance) ((1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100)'
+        ),
       ]);
       return { cpu: cpuRes, mem: memRes, disk: diskRes };
     },
@@ -450,62 +483,94 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        eyebrow="Command Center"
+        title="Live infrastructure posture"
+        description="Current fleet state, alert pressure, uptime, and incident activity across the monitored estate."
+      >
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <a href="/alerts">Review Alerts</a>
+          </Button>
+          <Button asChild>
+            <a href="/servers">Inspect Fleet</a>
+          </Button>
+        </div>
+      </PageHeader>
+
       {/* ────────────────────── Hero Status Bar ────────────────────── */}
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          <div className="flex items-center justify-center divide-x divide-border flex-wrap">
+      <Card className="monitor-panel overflow-hidden border-border/70">
+        <CardHeader className="border-b border-border/50 pb-4">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300">
+                Live Status Board
+              </p>
+              <CardTitle className="mt-2 text-xl">Operational Overview</CardTitle>
+            </div>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Refreshed every 15s
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
             <HeroStat
               label="Servers"
-              value={stats?.total || 0}
-              sub={`${stats?.online || 0} online`}
+              value={stats?.online || 0}
+              sub={`${stats?.total || 0} total nodes online`}
               color="#10b981"
               href="/servers"
             />
-            <VerticalDivider />
             <HeroStat
               label="Alerts Firing"
               value={aStats?.firing || 0}
-              sub={aStats?.critical ? `${aStats.critical} critical` : undefined}
+              sub={aStats?.critical ? `${aStats.critical} critical alerts active` : 'No critical alerts active'}
               color={aStats?.firing > 0 ? '#ef4444' : '#10b981'}
               href="/alerts"
               pulse={aStats?.firing > 0}
             />
-            <VerticalDivider />
             <HeroStat
               label="Uptime"
               value={uStats?.totalMonitors ? `${uStats.upCount}/${uStats.totalMonitors}` : '—'}
-              sub={uStats?.averageResponseTime ? `${uStats.averageResponseTime}ms avg` : undefined}
+              sub={uStats?.averageResponseTime ? `${uStats.averageResponseTime}ms average response` : 'No monitor telemetry yet'}
               color={uStats?.downCount > 0 ? '#ef4444' : '#10b981'}
               href="/uptime"
               pulse={uStats?.downCount > 0}
             />
-            <VerticalDivider />
             <HeroStat
               label="Incidents"
               value={iStats?.open || 0}
-              sub="open"
+              sub={(iStats?.open || 0) > 0 ? 'Open incident records require review' : 'No incidents currently open'}
               color={iStats?.open > 0 ? '#f59e0b' : '#10b981'}
               href="/incidents"
             />
-            <VerticalDivider />
             <HeroStat
               label="Targets"
               value={`${tData?.summary?.up || 0}/${tData?.summary?.total || 0}`}
-              sub={tData?.summary?.down > 0 ? `${tData.summary.down} down` : 'all healthy'}
+              sub={tData?.summary?.down > 0 ? `${tData.summary.down} targets currently down` : 'All scrape targets healthy'}
               color={tData?.summary?.down > 0 ? '#f59e0b' : '#3b82f6'}
             />
-            <VerticalDivider />
             <HeroStat
               label="Fleet Health"
               value={healthPct != null ? `${healthPct}%` : '—'}
+              sub={
+                healthPct == null
+                  ? 'Waiting for fleet telemetry'
+                  : healthPct >= 90
+                    ? 'Healthy operating envelope'
+                    : healthPct >= 70
+                      ? 'Watchlist threshold reached'
+                      : 'Degraded infrastructure state'
+              }
               color={
                 healthPct == null
                   ? '#6b7280'
                   : healthPct >= 90
-                  ? '#10b981'
-                  : healthPct >= 70
-                  ? '#f59e0b'
-                  : '#ef4444'
+                    ? '#10b981'
+                    : healthPct >= 70
+                      ? '#f59e0b'
+                      : '#ef4444'
               }
             />
           </div>
@@ -518,7 +583,9 @@ export default function DashboardPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Avg CPU</p>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Avg CPU
+                </p>
                 <p className="text-xl font-bold mt-0.5">
                   {cpuData.length > 0 ? `${cpuData[cpuData.length - 1].toFixed(1)}%` : '—'}
                 </p>
@@ -531,7 +598,9 @@ export default function DashboardPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Avg Memory</p>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Avg Memory
+                </p>
                 <p className="text-xl font-bold mt-0.5">
                   {memData.length > 0 ? `${memData[memData.length - 1].toFixed(1)}%` : '—'}
                 </p>
@@ -544,7 +613,9 @@ export default function DashboardPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Network In</p>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Network In
+                </p>
                 <p className="text-xl font-bold mt-0.5">
                   {netData.length > 0 ? formatRate(netData[netData.length - 1]) : '—'}
                 </p>
@@ -560,14 +631,18 @@ export default function DashboardPage() {
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">Server Fleet</CardTitle>
-            <a href="/servers" className="text-xs text-primary hover:underline">View all</a>
+            <a href="/servers" className="text-xs text-primary hover:underline">
+              View all
+            </a>
           </div>
         </CardHeader>
         <CardContent>
           {statsLoading ? (
-            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
-            </div>
+            <LoadingState
+              rows={6}
+              className="grid gap-2 md:grid-cols-2 lg:grid-cols-3"
+              rowClassName="h-16"
+            />
           ) : enrichedServers.length > 0 ? (
             <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
               {enrichedServers.map((server: any) => (
@@ -575,12 +650,18 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">No servers registered</p>
-              <a href="/servers/new">
-                <Button size="sm" variant="outline" className="mt-2">Add Server</Button>
-              </a>
-            </div>
+            <EmptyState
+              className="min-h-[220px]"
+              title="No servers registered"
+              description="Add a server to start collecting telemetry, alerts, uptime, and service inventory from the fleet."
+              action={
+                <a href="/servers/new">
+                  <Button size="sm" variant="outline">
+                    Add Server
+                  </Button>
+                </a>
+              }
+            />
           )}
         </CardContent>
       </Card>
@@ -594,10 +675,14 @@ export default function DashboardPage() {
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 Active Alerts
                 {aStats?.firing > 0 && (
-                  <Badge variant="danger" className="text-[10px]">{aStats.firing}</Badge>
+                  <Badge variant="danger" className="text-[10px]">
+                    {aStats.firing}
+                  </Badge>
                 )}
               </CardTitle>
-              <a href="/alerts" className="text-xs text-primary hover:underline">View all</a>
+              <a href="/alerts" className="text-xs text-primary hover:underline">
+                View all
+              </a>
             </div>
           </CardHeader>
           <CardContent>
@@ -607,18 +692,20 @@ export default function DashboardPage() {
                   <AlertRow key={alert.id} alert={alert} onAck={(id) => ackMutation.mutate(id)} />
                 ))}
                 {alertList.length > 10 && (
-                  <a href="/alerts" className="block text-center text-xs text-primary hover:underline py-2">
+                  <a
+                    href="/alerts"
+                    className="block text-center text-xs text-primary hover:underline py-2"
+                  >
                     +{alertList.length - 10} more
                   </a>
                 )}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <svg className="mx-auto h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="mt-2 text-sm text-muted-foreground">No active alerts</p>
-              </div>
+              <EmptyState
+                className="min-h-[220px]"
+                title="No active alerts"
+                description="No firing alert conditions are currently active across monitored services."
+              />
             )}
           </CardContent>
         </Card>
@@ -630,10 +717,14 @@ export default function DashboardPage() {
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 Open Incidents
                 {iStats?.open > 0 && (
-                  <Badge variant="warning" className="text-[10px]">{iStats.open}</Badge>
+                  <Badge variant="warning" className="text-[10px]">
+                    {iStats.open}
+                  </Badge>
                 )}
               </CardTitle>
-              <a href="/incidents" className="text-xs text-primary hover:underline">View all</a>
+              <a href="/incidents" className="text-xs text-primary hover:underline">
+                View all
+              </a>
             </div>
           </CardHeader>
           <CardContent>
@@ -644,12 +735,11 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <svg className="mx-auto h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <p className="mt-2 text-sm text-muted-foreground">No open incidents</p>
-              </div>
+              <EmptyState
+                className="min-h-[220px]"
+                title="No open incidents"
+                description="No unresolved incidents are currently in progress."
+              />
             )}
           </CardContent>
         </Card>
@@ -661,10 +751,14 @@ export default function DashboardPage() {
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 Uptime Monitors
                 {uStats?.downCount > 0 && (
-                  <Badge variant="danger" className="text-[10px]">{uStats.downCount} down</Badge>
+                  <Badge variant="danger" className="text-[10px]">
+                    {uStats.downCount} down
+                  </Badge>
                 )}
               </CardTitle>
-              <a href="/uptime" className="text-xs text-primary hover:underline">View all</a>
+              <a href="/uptime" className="text-xs text-primary hover:underline">
+                View all
+              </a>
             </div>
           </CardHeader>
           <CardContent>
@@ -675,15 +769,18 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <svg className="mx-auto h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <p className="mt-2 text-sm text-muted-foreground">No monitors configured</p>
-                <a href="/uptime">
-                  <Button size="sm" variant="outline" className="mt-2">Add Monitor</Button>
-                </a>
-              </div>
+              <EmptyState
+                className="min-h-[220px]"
+                title="No monitors configured"
+                description="Create uptime checks to track reachability and response performance from the dashboard."
+                action={
+                  <a href="/uptime">
+                    <Button size="sm" variant="outline">
+                      Add Monitor
+                    </Button>
+                  </a>
+                }
+              />
             )}
           </CardContent>
         </Card>
@@ -716,7 +813,9 @@ export default function DashboardPage() {
           <CardContent>
             {bwLoading ? (
               <div className="space-y-2">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-11 w-full" />)}
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-11 w-full" />
+                ))}
               </div>
             ) : (topBandwidth as any[])?.length > 0 ? (
               <div className="space-y-1">
@@ -758,7 +857,11 @@ export default function DashboardPage() {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">No bandwidth data yet</p>
+              <EmptyState
+                className="min-h-[260px]"
+                title="No bandwidth data yet"
+                description="Traffic metrics have not been received for the selected time window."
+              />
             )}
           </CardContent>
         </Card>
@@ -804,7 +907,11 @@ export default function DashboardPage() {
                 </div>
               ))}
               {(!tData?.targets || tData.targets.length === 0) && (
-                <p className="text-sm text-muted-foreground text-center py-6">No targets configured</p>
+                <EmptyState
+                  className="min-h-[220px]"
+                  title="No targets configured"
+                  description="Prometheus scrape targets have not been registered yet."
+                />
               )}
             </div>
           </CardContent>
@@ -819,11 +926,18 @@ export default function DashboardPage() {
         >
           <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 flex-shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
             </svg>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium group-hover:text-primary transition-colors">Add Server</p>
+            <p className="text-sm font-medium group-hover:text-primary transition-colors">
+              Add Server
+            </p>
             <p className="text-[11px] text-muted-foreground">Register new server</p>
           </div>
         </a>
@@ -837,7 +951,9 @@ export default function DashboardPage() {
             <span className="font-bold text-sm">G</span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium group-hover:text-primary transition-colors">Grafana</p>
+            <p className="text-sm font-medium group-hover:text-primary transition-colors">
+              Grafana
+            </p>
             <p className="text-[11px] text-muted-foreground">Advanced dashboards</p>
           </div>
         </a>
@@ -847,7 +963,12 @@ export default function DashboardPage() {
         >
           <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500 flex-shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+              />
             </svg>
           </div>
           <div className="min-w-0">
@@ -861,7 +982,12 @@ export default function DashboardPage() {
         >
           <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500 flex-shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
             </svg>
           </div>
           <div className="min-w-0">

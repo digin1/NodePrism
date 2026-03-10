@@ -273,7 +273,7 @@ Base path: `/api/slackInteractions`
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/slackInteractions` | - | Skip verification if not configured |
+| POST | `/slackInteractions` | - | Rebuild URL from validated components — breaks CodeQL taint chain |
 
 ## Uptime
 

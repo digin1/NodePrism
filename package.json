@@ -19,6 +19,7 @@
     "start:pm2": "pm2 start ecosystem.config.js",
     "stop:pm2": "pm2 stop ecosystem.config.js",
     "restart:pm2": "pm2 restart ecosystem.config.js",
+    "deploy:web:safe": "./scripts/deploy-web-safe.sh",
     "logs:pm2": "pm2 logs",
     "status:pm2": "pm2 status",
     "lint": "turbo run lint",

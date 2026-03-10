@@ -9,8 +9,27 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { serverApi, metricsApi, agentApi, containerApi, maintenanceApi, VirtualContainer, ContainerMetrics, ContainerMetricsResponse, forecastApi, DiskMount } from '@/lib/api';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
+import {
+  serverApi,
+  metricsApi,
+  agentApi,
+  containerApi,
+  maintenanceApi,
+  VirtualContainer,
+  ContainerMetrics,
+  ContainerMetricsResponse,
+  forecastApi,
+  DiskMount,
+} from '@/lib/api';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
 import { ServerForecasting } from './forecasting';
 import { ServerTypeBadge, isServerTypeTag } from '@/components/icons/ServerTypeIcons';
@@ -161,21 +180,27 @@ function formatTraffic(bytesStr: string): string {
 function formatBytesRate(bytesPerSec: number | null): string {
   if (bytesPerSec === null || bytesPerSec === 0) return '0 B/s';
   const units = ['B/s', 'KB/s', 'MB/s', 'GB/s', 'TB/s'];
-  const i = Math.max(0, Math.min(units.length - 1, Math.floor(Math.log(bytesPerSec) / Math.log(1024))));
+  const i = Math.max(
+    0,
+    Math.min(units.length - 1, Math.floor(Math.log(bytesPerSec) / Math.log(1024)))
+  );
   return `${(bytesPerSec / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 }
 
-function ContainerRow({ container: c, metrics }: { container: VirtualContainer; metrics?: ContainerMetrics }) {
+function ContainerRow({
+  container: c,
+  metrics,
+}: {
+  container: VirtualContainer;
+  metrics?: ContainerMetrics;
+}) {
   const [expanded, setExpanded] = useState(false);
   const { formatDateTime } = useFormatDate();
   const meta = c.metadata as Record<string, unknown> | null;
 
   return (
     <>
-      <TableRow
-        className="cursor-pointer hover:bg-muted/50"
-        onClick={() => setExpanded(!expanded)}
-      >
+      <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => setExpanded(!expanded)}>
         <TableCell className="w-8 text-center">
           <span className="text-muted-foreground text-xs">{expanded ? '▼' : '▶'}</span>
         </TableCell>
@@ -184,7 +209,11 @@ function ContainerRow({ container: c, metrics }: { container: VirtualContainer; 
           <Badge variant="outline">{c.type.toUpperCase()}</Badge>
         </TableCell>
         <TableCell>
-          <Badge variant={c.status === 'running' ? 'success' : c.status === 'paused' ? 'warning' : 'secondary'}>
+          <Badge
+            variant={
+              c.status === 'running' ? 'success' : c.status === 'paused' ? 'warning' : 'secondary'
+            }
+          >
             {c.status}
           </Badge>
         </TableCell>
@@ -201,14 +230,20 @@ function ContainerRow({ container: c, metrics }: { container: VirtualContainer; 
           {meta?.diskUsageBytes != null && Number(meta.diskUsageBytes) > 0 && meta?.diskLimitBytes
             ? `${formatBytes(Number(meta.diskUsageBytes))} / ${formatBytes(Number(meta.diskLimitBytes))}`
             : meta?.diskLimitBytes && Number(meta.diskLimitBytes) > 0
-            ? formatBytes(Number(meta.diskLimitBytes))
-            : meta?.diskSizeBytes ? formatBytes(Number(meta.diskSizeBytes)) : '—'}
+              ? formatBytes(Number(meta.diskLimitBytes))
+              : meta?.diskSizeBytes
+                ? formatBytes(Number(meta.diskSizeBytes))
+                : '—'}
         </TableCell>
         <TableCell className="text-right text-green-600">
-          {metrics?.netRxBytesPerSec != null ? formatBytesRate(metrics.netRxBytesPerSec) : formatTraffic(c.networkRxBytes)}
+          {metrics?.netRxBytesPerSec != null
+            ? formatBytesRate(metrics.netRxBytesPerSec)
+            : formatTraffic(c.networkRxBytes)}
         </TableCell>
         <TableCell className="text-right text-blue-600">
-          {metrics?.netTxBytesPerSec != null ? formatBytesRate(metrics.netTxBytesPerSec) : formatTraffic(c.networkTxBytes)}
+          {metrics?.netTxBytesPerSec != null
+            ? formatBytesRate(metrics.netTxBytesPerSec)
+            : formatTraffic(c.networkTxBytes)}
         </TableCell>
       </TableRow>
       {expanded && (
@@ -296,7 +331,7 @@ function MetricCard({
   value,
   unit,
   subtext,
-  decimals = 1
+  decimals = 1,
 }: {
   label: string;
   value: number | null;
@@ -439,7 +474,10 @@ export default function ServerDetailPage() {
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   // Container sort & filter state
-  const [containerSort, setContainerSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' });
+  const [containerSort, setContainerSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({
+    key: 'name',
+    dir: 'asc',
+  });
   const [containerSearch, setContainerSearch] = useState('');
 
   const { data: server, isLoading } = useQuery({
@@ -512,7 +550,7 @@ export default function ServerDetailPage() {
 
   const removeTag = (tag: string) => {
     const current = (server as Server | undefined)?.tags || [];
-    updateTagsMutation.mutate(current.filter(t => t !== tag));
+    updateTagsMutation.mutate(current.filter((t) => t !== tag));
   };
 
   const handleTagInputChange = (value: string) => {
@@ -520,7 +558,9 @@ export default function ServerDetailPage() {
     const q = value.trim().toLowerCase();
     const currentTags = (server as Server | undefined)?.tags || [];
     if (q && allTags) {
-      setTagSuggestions(allTags.filter(t => t.toLowerCase().includes(q) && !currentTags.includes(t)));
+      setTagSuggestions(
+        allTags.filter((t) => t.toLowerCase().includes(q) && !currentTags.includes(t))
+      );
     } else {
       setTagSuggestions([]);
     }
@@ -619,66 +659,84 @@ export default function ServerDetailPage() {
   const tabs: { key: TabKey; label: string; count?: number }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'metrics', label: 'Metrics' },
-    { key: 'containers', label: 'Containers', count: containerCount > 0 ? containerCount : undefined },
+    {
+      key: 'containers',
+      label: 'Containers',
+      count: containerCount > 0 ? containerCount : undefined,
+    },
     { key: 'agents', label: 'Agents', count: agentCount > 0 ? agentCount : undefined },
     { key: 'alerts', label: 'Alerts', count: alertCount > 0 ? alertCount : undefined },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/servers">
-            <Button variant="ghost" size="icon">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold text-foreground">{serverData.hostname}</h2>
-              {serverData.tags?.filter(isServerTypeTag).map(tag => (
-                <ServerTypeBadge key={tag} type={tag} />
-              ))}
-            </div>
-            <p className="text-muted-foreground font-mono">{serverData.ipAddress}</p>
-          </div>
-          <Badge variant={statusColors[serverData.status]}>{serverData.status}</Badge>
-          {(maintenanceStatus as any)?.inMaintenance && (
-            <Badge variant="warning">In Maintenance</Badge>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="destructive"
-            onClick={() => {
-              if (confirm('Are you sure you want to delete this server?')) {
-                deleteMutation.mutate();
-              }
-            }}
-          >
-            Delete
-          </Button>
-        </div>
+      <PageHeader
+        eyebrow="Server Detail"
+        title={serverData.hostname}
+        description={serverData.ipAddress}
+      >
+        <Link href="/servers">
+          <Button variant="outline">Back to Servers</Button>
+        </Link>
+        <Badge variant={statusColors[serverData.status]}>{serverData.status}</Badge>
+        {(maintenanceStatus as any)?.inMaintenance && (
+          <Badge variant="warning">In Maintenance</Badge>
+        )}
+        <Button
+          variant="destructive"
+          onClick={() => {
+            if (confirm('Are you sure you want to delete this server?')) {
+              deleteMutation.mutate();
+            }
+          }}
+        >
+          Delete
+        </Button>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryStat
+          label="Environment"
+          value={serverData.environment || 'Unknown'}
+          tone="primary"
+        />
+        <SummaryStat label="Agents" value={serverData.agents?.length || 0} />
+        <SummaryStat
+          label="Active Alerts"
+          value={serverData.alerts?.length || 0}
+          tone={(serverData.alerts?.length || 0) > 0 ? 'danger' : 'default'}
+        />
+        <SummaryStat label="Created" value={new Date(serverData.createdAt).toLocaleDateString()} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {serverData.tags?.filter(isServerTypeTag).map((tag) => (
+          <ServerTypeBadge key={tag} type={tag} />
+        ))}
       </div>
 
       {/* Tags */}
       <div className="flex flex-wrap items-center gap-2">
-        {serverData.tags?.filter(t => !isServerTypeTag(t)).map(tag => (
-          <span
-            key={tag}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300"
-          >
-            {tag}
-            <button onClick={() => removeTag(tag)} className="hover:text-blue-900 ml-0.5">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </span>
-        ))}
+        {serverData.tags
+          ?.filter((t) => !isServerTypeTag(t))
+          .map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300"
+            >
+              {tag}
+              <button onClick={() => removeTag(tag)} className="hover:text-blue-900 ml-0.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </span>
+          ))}
         <div className="relative">
           <Input
             ref={tagInputRef}
@@ -690,11 +748,14 @@ export default function ServerDetailPage() {
           />
           {tagSuggestions.length > 0 && (
             <div className="absolute z-10 w-48 mt-1 bg-card border rounded-lg shadow-lg max-h-40 overflow-y-auto">
-              {tagSuggestions.slice(0, 8).map(tag => (
+              {tagSuggestions.slice(0, 8).map((tag) => (
                 <button
                   key={tag}
                   className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted/50"
-                  onClick={() => { addTag(tag); tagInputRef.current?.focus(); }}
+                  onClick={() => {
+                    addTag(tag);
+                    tagInputRef.current?.focus();
+                  }}
                 >
                   {tag}
                 </button>
@@ -707,7 +768,7 @@ export default function ServerDetailPage() {
       {/* Tab Navigation */}
       <div className="border-b border-border">
         <nav className="flex gap-0 -mb-px">
-          {tabs.map(tab => (
+          {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -719,11 +780,13 @@ export default function ServerDetailPage() {
             >
               {tab.label}
               {tab.count != null && (
-                <span className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
-                  activeTab === tab.key
-                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                    : 'bg-muted text-muted-foreground'
-                }`}>
+                <span
+                  className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
+                    activeTab === tab.key
+                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
                   {tab.count}
                 </span>
               )}
@@ -744,28 +807,44 @@ export default function ServerDetailPage() {
               label="Memory Usage"
               value={metricsData?.memory ?? null}
               unit="%"
-              subtext={metricsData?.memoryTotal ? `${formatBytes(metricsData.memoryAvailable)} free of ${formatBytes(metricsData.memoryTotal)}` : undefined}
+              subtext={
+                metricsData?.memoryTotal
+                  ? `${formatBytes(metricsData.memoryAvailable)} free of ${formatBytes(metricsData.memoryTotal)}`
+                  : undefined
+              }
             />
             <MetricCard
               label="Disk Usage"
               value={metricsData?.disk ?? null}
               unit="%"
-              subtext={metricsData?.diskTotal ? `${formatBytes(metricsData.diskAvailable)} free of ${formatBytes(metricsData.diskTotal)}` : undefined}
+              subtext={
+                metricsData?.diskTotal
+                  ? `${formatBytes(metricsData.diskAvailable)} free of ${formatBytes(metricsData.diskTotal)}`
+                  : undefined
+              }
             />
             <MetricCard
               label="Load Average"
               value={metricsData?.load1 ?? null}
               decimals={2}
-              subtext={metricsData?.load5 != null && metricsData?.load15 != null ? `5m: ${metricsData.load5.toFixed(2)} / 15m: ${metricsData.load15.toFixed(2)}` : undefined}
+              subtext={
+                metricsData?.load5 != null && metricsData?.load15 != null
+                  ? `5m: ${metricsData.load5.toFixed(2)} / 15m: ${metricsData.load15.toFixed(2)}`
+                  : undefined
+              }
             />
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Network In</p>
-              <p className="text-2xl font-bold mt-1 text-green-600">{formatNetworkSpeed(metricsData?.networkIn ?? null)}</p>
+              <p className="text-2xl font-bold mt-1 text-green-600">
+                {formatNetworkSpeed(metricsData?.networkIn ?? null)}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">Download</p>
             </div>
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Network Out</p>
-              <p className="text-2xl font-bold mt-1 text-blue-600">{formatNetworkSpeed(metricsData?.networkOut ?? null)}</p>
+              <p className="text-2xl font-bold mt-1 text-blue-600">
+                {formatNetworkSpeed(metricsData?.networkOut ?? null)}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">Upload</p>
             </div>
           </div>
@@ -780,20 +859,31 @@ export default function ServerDetailPage() {
                 <div className="space-y-3">
                   {(diskMounts as DiskMount[]).map((m) => {
                     const usagePct = m.sizeBytes > 0 ? (m.usedBytes / m.sizeBytes) * 100 : 0;
-                    const barColor = usagePct > 95 ? 'bg-red-500' : usagePct > 80 ? 'bg-yellow-500' : 'bg-green-500';
+                    const barColor =
+                      usagePct > 95
+                        ? 'bg-red-500'
+                        : usagePct > 80
+                          ? 'bg-yellow-500'
+                          : 'bg-green-500';
                     return (
                       <div key={m.mount}>
                         <div className="flex items-center justify-between text-sm mb-1">
                           <span className="font-mono font-medium">{m.mount}</span>
                           <span className="text-muted-foreground">
-                            {formatBytes(m.usedBytes)} / {formatBytes(m.sizeBytes)} ({formatBytes(m.availBytes)} free)
+                            {formatBytes(m.usedBytes)} / {formatBytes(m.sizeBytes)} (
+                            {formatBytes(m.availBytes)} free)
                           </span>
                         </div>
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(usagePct, 100)}%` }} />
+                          <div
+                            className={`h-full ${barColor} rounded-full transition-all`}
+                            style={{ width: `${Math.min(usagePct, 100)}%` }}
+                          />
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
-                          <span>{m.device} ({m.fstype})</span>
+                          <span>
+                            {m.device} ({m.fstype})
+                          </span>
                           <span>{usagePct.toFixed(1)}%</span>
                         </div>
                       </div>
@@ -805,12 +895,14 @@ export default function ServerDetailPage() {
           )}
 
           {/* MySQL Metrics */}
-          {serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING') && (
+          {serverData.agents?.some(
+            (a) => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING'
+          ) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
                   </svg>
                   MySQL Database
                 </CardTitle>
@@ -864,11 +956,19 @@ export default function ServerDetailPage() {
           )}
 
           {/* LiteSpeed Metrics */}
-          {serverData.agents?.some(a => a.type === 'LITESPEED_EXPORTER' && a.status === 'RUNNING') && (
+          {serverData.agents?.some(
+            (a) => a.type === 'LITESPEED_EXPORTER' && a.status === 'RUNNING'
+          ) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <svg className="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    className="w-5 h-5 text-green-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                   </svg>
                   LiteSpeed Web Server
@@ -879,10 +979,15 @@ export default function ServerDetailPage() {
                   <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
                     <p className="text-sm text-muted-foreground">Connections</p>
                     <p className="text-2xl font-bold mt-1 text-green-600">
-                      {metricsData?.lsConnections != null ? Math.round(metricsData.lsConnections) : 'N/A'}
+                      {metricsData?.lsConnections != null
+                        ? Math.round(metricsData.lsConnections)
+                        : 'N/A'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      SSL: {metricsData?.lsSSLConnections != null ? Math.round(metricsData.lsSSLConnections) : 'N/A'}
+                      SSL:{' '}
+                      {metricsData?.lsSSLConnections != null
+                        ? Math.round(metricsData.lsSSLConnections)
+                        : 'N/A'}
                     </p>
                   </div>
                   <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
@@ -891,7 +996,10 @@ export default function ServerDetailPage() {
                       {metricsData?.lsReqPerSec?.toFixed(1) ?? 'N/A'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Processing: {metricsData?.lsReqProcessing != null ? Math.round(metricsData.lsReqProcessing) : 'N/A'}
+                      Processing:{' '}
+                      {metricsData?.lsReqProcessing != null
+                        ? Math.round(metricsData.lsReqProcessing)
+                        : 'N/A'}
                     </p>
                   </div>
                   <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
@@ -909,7 +1017,9 @@ export default function ServerDetailPage() {
                   <div className="p-4 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
                     <p className="text-sm text-muted-foreground">Bandwidth</p>
                     <p className="text-2xl font-bold mt-1 text-green-600">
-                      {metricsData?.lsBpsOut != null ? formatNetworkSpeed(metricsData.lsBpsOut) : 'N/A'}
+                      {metricsData?.lsBpsOut != null
+                        ? formatNetworkSpeed(metricsData.lsBpsOut)
+                        : 'N/A'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">Outbound</p>
                   </div>
@@ -928,15 +1038,25 @@ export default function ServerDetailPage() {
           )}
 
           {/* Exim Mail & cPanel panels side by side */}
-          {(serverData.agents?.some(a => a.type === 'EXIM_EXPORTER' && a.status === 'RUNNING') ||
-            serverData.agents?.some(a => a.type === 'CPANEL_EXPORTER' && a.status === 'RUNNING')) && (
+          {(serverData.agents?.some((a) => a.type === 'EXIM_EXPORTER' && a.status === 'RUNNING') ||
+            serverData.agents?.some(
+              (a) => a.type === 'CPANEL_EXPORTER' && a.status === 'RUNNING'
+            )) && (
             <div className="grid gap-6 md:grid-cols-2">
               {/* Exim Mail Metrics */}
-              {serverData.agents?.some(a => a.type === 'EXIM_EXPORTER' && a.status === 'RUNNING') && (
+              {serverData.agents?.some(
+                (a) => a.type === 'EXIM_EXPORTER' && a.status === 'RUNNING'
+              ) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <svg className="w-5 h-5 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        className="w-5 h-5 text-purple-500"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                         <polyline points="22,6 12,13 2,6" />
                       </svg>
@@ -948,10 +1068,15 @@ export default function ServerDetailPage() {
                       <div className="p-3 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
                         <p className="text-xs text-muted-foreground">Queue</p>
                         <p className="text-xl font-bold text-purple-600">
-                          {metricsData?.eximQueueSize != null ? Math.round(metricsData.eximQueueSize) : 'N/A'}
+                          {metricsData?.eximQueueSize != null
+                            ? Math.round(metricsData.eximQueueSize)
+                            : 'N/A'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Frozen: {metricsData?.eximQueueFrozen != null ? Math.round(metricsData.eximQueueFrozen) : 'N/A'}
+                          Frozen:{' '}
+                          {metricsData?.eximQueueFrozen != null
+                            ? Math.round(metricsData.eximQueueFrozen)
+                            : 'N/A'}
                         </p>
                       </div>
                       <div className="p-3 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
@@ -977,12 +1102,19 @@ export default function ServerDetailPage() {
                       <div className="p-3 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
                         <p className="text-xs text-muted-foreground">Bounces / Rejected</p>
                         <p className="text-xl font-bold text-purple-600">
-                          {metricsData?.eximBouncesToday != null ? Math.round(metricsData.eximBouncesToday) : 'N/A'}
+                          {metricsData?.eximBouncesToday != null
+                            ? Math.round(metricsData.eximBouncesToday)
+                            : 'N/A'}
                           {' / '}
-                          {metricsData?.eximRejectedToday != null ? Math.round(metricsData.eximRejectedToday) : 'N/A'}
+                          {metricsData?.eximRejectedToday != null
+                            ? Math.round(metricsData.eximRejectedToday)
+                            : 'N/A'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Deferred: {metricsData?.eximDeferredToday != null ? Math.round(metricsData.eximDeferredToday) : 'N/A'}
+                          Deferred:{' '}
+                          {metricsData?.eximDeferredToday != null
+                            ? Math.round(metricsData.eximDeferredToday)
+                            : 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -992,11 +1124,19 @@ export default function ServerDetailPage() {
               )}
 
               {/* cPanel Metrics */}
-              {serverData.agents?.some(a => a.type === 'CPANEL_EXPORTER' && a.status === 'RUNNING') && (
+              {serverData.agents?.some(
+                (a) => a.type === 'CPANEL_EXPORTER' && a.status === 'RUNNING'
+              ) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <svg className="w-5 h-5 text-cyan-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        className="w-5 h-5 text-cyan-500"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
                         <line x1="8" y1="21" x2="16" y2="21" />
                         <line x1="12" y1="17" x2="12" y2="21" />
@@ -1009,25 +1149,33 @@ export default function ServerDetailPage() {
                       <div className="p-3 bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg">
                         <p className="text-xs text-muted-foreground">Total Accounts</p>
                         <p className="text-xl font-bold text-cyan-600">
-                          {metricsData?.cpanelAccounts != null ? Math.round(metricsData.cpanelAccounts) : 'N/A'}
+                          {metricsData?.cpanelAccounts != null
+                            ? Math.round(metricsData.cpanelAccounts)
+                            : 'N/A'}
                         </p>
                       </div>
                       <div className="p-3 bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg">
                         <p className="text-xs text-muted-foreground">Active</p>
                         <p className="text-xl font-bold text-cyan-600">
-                          {metricsData?.cpanelAccountsActive != null ? Math.round(metricsData.cpanelAccountsActive) : 'N/A'}
+                          {metricsData?.cpanelAccountsActive != null
+                            ? Math.round(metricsData.cpanelAccountsActive)
+                            : 'N/A'}
                         </p>
                       </div>
                       <div className="p-3 bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg">
                         <p className="text-xs text-muted-foreground">Suspended</p>
                         <p className="text-xl font-bold text-red-500">
-                          {metricsData?.cpanelAccountsSuspended != null ? Math.round(metricsData.cpanelAccountsSuspended) : 'N/A'}
+                          {metricsData?.cpanelAccountsSuspended != null
+                            ? Math.round(metricsData.cpanelAccountsSuspended)
+                            : 'N/A'}
                         </p>
                       </div>
                       <div className="p-3 bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg">
                         <p className="text-xs text-muted-foreground">Domains</p>
                         <p className="text-xl font-bold text-cyan-600">
-                          {metricsData?.cpanelDomains != null ? Math.round(metricsData.cpanelDomains) : 'N/A'}
+                          {metricsData?.cpanelDomains != null
+                            ? Math.round(metricsData.cpanelDomains)
+                            : 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -1056,7 +1204,9 @@ export default function ServerDetailPage() {
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Environment</dt>
-                    <dd><Badge variant="outline">{serverData.environment}</Badge></dd>
+                    <dd>
+                      <Badge variant="outline">{serverData.environment}</Badge>
+                    </dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Region</dt>
@@ -1080,8 +1230,18 @@ export default function ServerDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <svg
+                      className="w-5 h-5 text-blue-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                      />
                     </svg>
                     System Details
                   </CardTitle>
@@ -1106,12 +1266,15 @@ export default function ServerDetailPage() {
                         <dd>{serverData.metadata.os.arch}</dd>
                       </div>
                     )}
-                    {serverData.metadata.os?.platform && !['Unknown', 'none', 'nonenone', 'physical'].includes(serverData.metadata.os.platform) && (
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Platform</dt>
-                        <dd>{serverData.metadata.os.platform}</dd>
-                      </div>
-                    )}
+                    {serverData.metadata.os?.platform &&
+                      !['Unknown', 'none', 'nonenone', 'physical'].includes(
+                        serverData.metadata.os.platform
+                      ) && (
+                        <div className="flex justify-between">
+                          <dt className="text-muted-foreground">Platform</dt>
+                          <dd>{serverData.metadata.os.platform}</dd>
+                        </div>
+                      )}
                     {serverData.metadata.os?.controlPanel && (
                       <div className="flex justify-between">
                         <dt className="text-muted-foreground">Control Panel</dt>
@@ -1124,7 +1287,9 @@ export default function ServerDetailPage() {
                         <dd className="text-right text-sm max-w-[60%]">
                           {serverData.metadata.hardware.cpuModel}
                           {serverData.metadata.hardware.cpuCores && (
-                            <span className="text-muted-foreground ml-1">({serverData.metadata.hardware.cpuCores} cores)</span>
+                            <span className="text-muted-foreground ml-1">
+                              ({serverData.metadata.hardware.cpuCores} cores)
+                            </span>
                           )}
                         </dd>
                       </div>
@@ -1132,7 +1297,9 @@ export default function ServerDetailPage() {
                     {serverData.metadata.hardware?.memoryTotal != null && (
                       <div className="flex justify-between">
                         <dt className="text-muted-foreground">Total Memory</dt>
-                        <dd className="font-medium">{formatMemoryBytes(serverData.metadata.hardware.memoryTotal)}</dd>
+                        <dd className="font-medium">
+                          {formatMemoryBytes(serverData.metadata.hardware.memoryTotal)}
+                        </dd>
                       </div>
                     )}
                   </dl>
@@ -1148,7 +1315,18 @@ export default function ServerDetailPage() {
         <div className="space-y-6">
           <BandwidthSummary serverId={serverId} />
           <ServerForecasting serverId={serverId} />
-          <MetricsCharts serverId={serverId} hasMySQLExporter={serverData.agents?.some(a => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING')} hasLiteSpeedExporter={serverData.agents?.some(a => a.type === 'LITESPEED_EXPORTER' && a.status === 'RUNNING')} hasEximExporter={serverData.agents?.some(a => a.type === 'EXIM_EXPORTER' && a.status === 'RUNNING')} />
+          <MetricsCharts
+            serverId={serverId}
+            hasMySQLExporter={serverData.agents?.some(
+              (a) => a.type === 'MYSQL_EXPORTER' && a.status === 'RUNNING'
+            )}
+            hasLiteSpeedExporter={serverData.agents?.some(
+              (a) => a.type === 'LITESPEED_EXPORTER' && a.status === 'RUNNING'
+            )}
+            hasEximExporter={serverData.agents?.some(
+              (a) => a.type === 'EXIM_EXPORTER' && a.status === 'RUNNING'
+            )}
+          />
         </div>
       )}
 
@@ -1159,8 +1337,18 @@ export default function ServerDetailPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  <svg
+                    className="w-5 h-5 text-purple-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                    />
                   </svg>
                   Virtual Machines / Containers
                   <span className="text-sm font-normal text-muted-foreground">
@@ -1170,17 +1358,29 @@ export default function ServerDetailPage() {
               </CardHeader>
               <CardContent>
                 {(() => {
-                  const running = containerList.filter(c => c.status === 'running').length;
+                  const running = containerList.filter((c) => c.status === 'running').length;
                   const stopped = containerList.length - running;
-                  const totalMemUsed = containerMetricsList?.reduce((sum, m) => sum + (m.memoryUsageBytes ?? 0), 0) ?? 0;
-                  const totalMemMax = containerMetricsList?.reduce((sum, m) => sum + (m.memoryMaxBytes ?? 0), 0) ?? 0;
-                  const totalCpu = containerMetricsList?.reduce((sum, m) => sum + (m.cpuPercent ?? 0), 0) ?? 0;
-                  const totalVCPUs = containerMetricsList?.reduce((sum, m) => sum + (m.vCPUs ?? 0), 0) ?? 0;
-                  const hasCpu = containerMetricsList?.some(m => m.cpuPercent != null);
+                  const totalMemUsed =
+                    containerMetricsList?.reduce((sum, m) => sum + (m.memoryUsageBytes ?? 0), 0) ??
+                    0;
+                  const totalMemMax =
+                    containerMetricsList?.reduce((sum, m) => sum + (m.memoryMaxBytes ?? 0), 0) ?? 0;
+                  const totalCpu =
+                    containerMetricsList?.reduce((sum, m) => sum + (m.cpuPercent ?? 0), 0) ?? 0;
+                  const totalVCPUs =
+                    containerMetricsList?.reduce((sum, m) => sum + (m.vCPUs ?? 0), 0) ?? 0;
+                  const hasCpu = containerMetricsList?.some((m) => m.cpuPercent != null);
                   const hasMem = totalMemMax > 0 || totalMemUsed > 0;
                   const totalDiskAlloc = containerList.reduce((sum, c) => {
                     const meta = c.metadata as Record<string, unknown> | null;
-                    return sum + (meta?.diskUsageBytes ? Number(meta.diskUsageBytes) : meta?.diskSizeBytes ? Number(meta.diskSizeBytes) : 0);
+                    return (
+                      sum +
+                      (meta?.diskUsageBytes
+                        ? Number(meta.diskUsageBytes)
+                        : meta?.diskSizeBytes
+                          ? Number(meta.diskSizeBytes)
+                          : 0)
+                    );
                   }, 0);
                   return (
                     <div className="flex flex-wrap gap-4 mb-4 text-sm">
@@ -1195,18 +1395,15 @@ export default function ServerDetailPage() {
                         </div>
                       )}
                       {totalVCPUs > 0 && (
-                        <div className="text-muted-foreground">
-                          {totalVCPUs} vCPUs
-                        </div>
+                        <div className="text-muted-foreground">{totalVCPUs} vCPUs</div>
                       )}
                       {hasCpu && (
-                        <div className="text-muted-foreground">
-                          CPU: {totalCpu.toFixed(1)}%
-                        </div>
+                        <div className="text-muted-foreground">CPU: {totalCpu.toFixed(1)}%</div>
                       )}
                       {hasMem && (
                         <div className="text-muted-foreground">
-                          Memory: {totalMemUsed > 0 ? `${formatBytes(totalMemUsed)} / ` : ''}{formatBytes(totalMemMax)}
+                          Memory: {totalMemUsed > 0 ? `${formatBytes(totalMemUsed)} / ` : ''}
+                          {formatBytes(totalMemMax)}
                         </div>
                       )}
                       {totalDiskAlloc > 0 && (
@@ -1216,7 +1413,12 @@ export default function ServerDetailPage() {
                       )}
                       {storagePool && (
                         <div className="text-muted-foreground">
-                          {storagePool.name.startsWith('/') ? `Storage ${storagePool.name}` : `VG ${storagePool.name}`}: {formatBytes(storagePool.sizeBytes - storagePool.freeBytes)} / {formatBytes(storagePool.sizeBytes)} ({formatBytes(storagePool.freeBytes)} free)
+                          {storagePool.name.startsWith('/')
+                            ? `Storage ${storagePool.name}`
+                            : `VG ${storagePool.name}`}
+                          : {formatBytes(storagePool.sizeBytes - storagePool.freeBytes)} /{' '}
+                          {formatBytes(storagePool.sizeBytes)} ({formatBytes(storagePool.freeBytes)}{' '}
+                          free)
                         </div>
                       )}
                     </div>
@@ -1244,19 +1446,23 @@ export default function ServerDetailPage() {
                         { key: 'disk', label: 'Disk', align: 'text-right' },
                         { key: 'rx', label: 'RX', align: 'text-right' },
                         { key: 'tx', label: 'TX', align: 'text-right' },
-                      ].map(col => (
+                      ].map((col) => (
                         <TableHead
                           key={col.key}
                           className={`${col.align} cursor-pointer select-none hover:text-foreground`}
-                          onClick={() => setContainerSort(prev =>
-                            prev.key === col.key
-                              ? { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-                              : { key: col.key, dir: 'asc' }
-                          )}
+                          onClick={() =>
+                            setContainerSort((prev) =>
+                              prev.key === col.key
+                                ? { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+                                : { key: col.key, dir: 'asc' }
+                            )
+                          }
                         >
                           {col.label}
                           {containerSort.key === col.key && (
-                            <span className="ml-1 text-xs">{containerSort.dir === 'asc' ? '▲' : '▼'}</span>
+                            <span className="ml-1 text-xs">
+                              {containerSort.dir === 'asc' ? '▲' : '▼'}
+                            </span>
                           )}
                         </TableHead>
                       ))}
@@ -1265,16 +1471,19 @@ export default function ServerDetailPage() {
                   <TableBody>
                     {(() => {
                       const getMetrics = (c: VirtualContainer) =>
-                        containerMetricsList?.find(m => m.domain === c.name || m.domain === c.containerId);
+                        containerMetricsList?.find(
+                          (m) => m.domain === c.name || m.domain === c.containerId
+                        );
                       const searchLower = containerSearch.toLowerCase().trim();
                       const filtered = searchLower
-                        ? containerList.filter(c =>
-                            c.name.toLowerCase().includes(searchLower) ||
-                            c.containerId.toLowerCase().includes(searchLower) ||
-                            (c.ipAddress || '').toLowerCase().includes(searchLower) ||
-                            (c.hostname || '').toLowerCase().includes(searchLower) ||
-                            c.status.toLowerCase().includes(searchLower) ||
-                            c.type.toLowerCase().includes(searchLower)
+                        ? containerList.filter(
+                            (c) =>
+                              c.name.toLowerCase().includes(searchLower) ||
+                              c.containerId.toLowerCase().includes(searchLower) ||
+                              (c.ipAddress || '').toLowerCase().includes(searchLower) ||
+                              (c.hostname || '').toLowerCase().includes(searchLower) ||
+                              c.status.toLowerCase().includes(searchLower) ||
+                              c.type.toLowerCase().includes(searchLower)
                           )
                         : containerList;
                       const sorted = [...filtered].sort((a, b) => {
@@ -1282,12 +1491,22 @@ export default function ServerDetailPage() {
                         const ma = getMetrics(a);
                         const mb = getMetrics(b);
                         switch (containerSort.key) {
-                          case 'name': return dir * a.name.localeCompare(b.name);
-                          case 'type': return dir * a.type.localeCompare(b.type);
-                          case 'status': return dir * a.status.localeCompare(b.status);
-                          case 'ip': return dir * (a.ipAddress || '').localeCompare(b.ipAddress || '');
-                          case 'cpu': return dir * ((ma?.cpuPercent ?? -1) - (mb?.cpuPercent ?? -1));
-                          case 'memory': return dir * ((ma?.memoryUsageBytes ?? ma?.memoryMaxBytes ?? -1) - (mb?.memoryUsageBytes ?? mb?.memoryMaxBytes ?? -1));
+                          case 'name':
+                            return dir * a.name.localeCompare(b.name);
+                          case 'type':
+                            return dir * a.type.localeCompare(b.type);
+                          case 'status':
+                            return dir * a.status.localeCompare(b.status);
+                          case 'ip':
+                            return dir * (a.ipAddress || '').localeCompare(b.ipAddress || '');
+                          case 'cpu':
+                            return dir * ((ma?.cpuPercent ?? -1) - (mb?.cpuPercent ?? -1));
+                          case 'memory':
+                            return (
+                              dir *
+                              ((ma?.memoryUsageBytes ?? ma?.memoryMaxBytes ?? -1) -
+                                (mb?.memoryUsageBytes ?? mb?.memoryMaxBytes ?? -1))
+                            );
                           case 'disk': {
                             const ma2 = a.metadata as Record<string, unknown> | null;
                             const mb2 = b.metadata as Record<string, unknown> | null;
@@ -1295,17 +1514,24 @@ export default function ServerDetailPage() {
                             const db = mb2?.diskUsageBytes ?? mb2?.diskSizeBytes;
                             return dir * ((da ? Number(da) : -1) - (db ? Number(db) : -1));
                           }
-                          case 'rx': return dir * ((ma?.netRxBytesPerSec ?? Number(a.networkRxBytes)) - (mb?.netRxBytesPerSec ?? Number(b.networkRxBytes)));
-                          case 'tx': return dir * ((ma?.netTxBytesPerSec ?? Number(a.networkTxBytes)) - (mb?.netTxBytesPerSec ?? Number(b.networkTxBytes)));
-                          default: return 0;
+                          case 'rx':
+                            return (
+                              dir *
+                              ((ma?.netRxBytesPerSec ?? Number(a.networkRxBytes)) -
+                                (mb?.netRxBytesPerSec ?? Number(b.networkRxBytes)))
+                            );
+                          case 'tx':
+                            return (
+                              dir *
+                              ((ma?.netTxBytesPerSec ?? Number(a.networkTxBytes)) -
+                                (mb?.netTxBytesPerSec ?? Number(b.networkTxBytes)))
+                            );
+                          default:
+                            return 0;
                         }
                       });
                       return sorted.map((c) => (
-                        <ContainerRow
-                          key={c.id}
-                          container={c}
-                          metrics={getMetrics(c)}
-                        />
+                        <ContainerRow key={c.id} container={c} metrics={getMetrics(c)} />
                       ));
                     })()}
                   </TableBody>
@@ -1315,7 +1541,9 @@ export default function ServerDetailPage() {
           ) : (
             <Card>
               <CardContent className="py-12">
-                <p className="text-center text-muted-foreground">No containers or VMs detected on this server.</p>
+                <p className="text-center text-muted-foreground">
+                  No containers or VMs detected on this server.
+                </p>
               </CardContent>
             </Card>
           )}
@@ -1338,10 +1566,16 @@ export default function ServerDetailPage() {
             </CardHeader>
             <CardContent>
               {showRegisterForm && (
-                <form onSubmit={handleRegisterAgent} className="mb-6 p-4 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg border border-blue-500/20">
-                  <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-3">Register Existing Exporter</h4>
+                <form
+                  onSubmit={handleRegisterAgent}
+                  className="mb-6 p-4 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg border border-blue-500/20"
+                >
+                  <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-3">
+                    Register Existing Exporter
+                  </h4>
                   <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
-                    Use this to register an exporter that is already installed and running on the server.
+                    Use this to register an exporter that is already installed and running on the
+                    server.
                   </p>
 
                   {registerError && (
@@ -1413,9 +1647,15 @@ export default function ServerDetailPage() {
               {serverData.agents && serverData.agents.length > 0 ? (
                 <div className="space-y-3">
                   {serverData.agents.map((agent) => (
-                    <div key={agent.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div
+                      key={agent.id}
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                    >
                       <div>
-                        <p className="font-medium">{AGENT_TYPES.find(t => t.value === agent.type)?.label || agent.type.replaceAll('_', ' ')}</p>
+                        <p className="font-medium">
+                          {AGENT_TYPES.find((t) => t.value === agent.type)?.label ||
+                            agent.type.replaceAll('_', ' ')}
+                        </p>
                         <p className="text-sm text-muted-foreground">Port: {agent.port}</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1433,8 +1673,18 @@ export default function ServerDetailPage() {
                           }}
                           disabled={unregisterAgentMutation.isPending}
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
                           </svg>
                         </Button>
                       </div>
@@ -1465,7 +1715,10 @@ export default function ServerDetailPage() {
               <CardContent>
                 <div className="space-y-3">
                   {serverData.alerts.map((alert) => (
-                    <div key={alert.id} className="flex items-center justify-between p-3 bg-red-500/10 dark:bg-red-500/20 rounded-lg border border-red-500/20">
+                    <div
+                      key={alert.id}
+                      className="flex items-center justify-between p-3 bg-red-500/10 dark:bg-red-500/20 rounded-lg border border-red-500/20"
+                    >
                       <div>
                         <p className="font-medium text-red-800">{alert.message}</p>
                         <p className="text-sm text-red-600">
@@ -1481,7 +1734,9 @@ export default function ServerDetailPage() {
           ) : (
             <Card>
               <CardContent className="py-12">
-                <p className="text-center text-muted-foreground">No active alerts for this server.</p>
+                <p className="text-center text-muted-foreground">
+                  No active alerts for this server.
+                </p>
               </CardContent>
             </Card>
           )}

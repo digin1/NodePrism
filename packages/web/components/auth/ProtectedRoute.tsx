@@ -16,16 +16,18 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-400">Loading...</p>
+      <div className="dashboard-grid flex min-h-screen items-center justify-center bg-background px-6">
+        <div className="monitor-panel rounded-[1.5rem] px-10 py-12 text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+          <p className="mt-4 text-sm uppercase tracking-[0.3em] text-muted-foreground">
+            Verifying operator session
+          </p>
           <button
             onClick={() => {
               localStorage.removeItem('nodeprism_token');
               window.location.href = '/login';
             }}
-            className="mt-4 text-sm text-gray-500 hover:text-gray-300 underline"
+            className="mt-4 text-sm text-muted-foreground underline hover:text-foreground"
           >
             Taking too long? Click here to login
           </button>

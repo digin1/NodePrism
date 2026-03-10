@@ -8,9 +8,24 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
-import { serverApi, serverGroupApi, maintenanceApi, ServerGroup, MaintenanceWindow } from '@/lib/api';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Modal, ModalDescription, ModalPanel, ModalTitle } from '@/components/ui/modal';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
+import {
+  serverApi,
+  serverGroupApi,
+  maintenanceApi,
+  ServerGroup,
+  MaintenanceWindow,
+} from '@/lib/api';
 import { ServerTypeBadge, isServerTypeTag } from '@/components/icons/ServerTypeIcons';
 
 const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary'> = {
@@ -65,12 +80,13 @@ export default function ServersPage() {
 
   const { data: servers, isLoading } = useQuery({
     queryKey: ['servers', { search, status: statusFilter, environment: envFilter, tag: tagFilter }],
-    queryFn: () => serverApi.list({
-      search: search || undefined,
-      status: statusFilter || undefined,
-      environment: envFilter || undefined,
-      tag: tagFilter || undefined,
-    }),
+    queryFn: () =>
+      serverApi.list({
+        search: search || undefined,
+        status: statusFilter || undefined,
+        environment: envFilter || undefined,
+        tag: tagFilter || undefined,
+      }),
   });
 
   const { data: allTags } = useQuery({
@@ -90,7 +106,7 @@ export default function ServersPage() {
   });
 
   const maintenanceServerIds = new Set(
-    (activeMaintenanceWindows as MaintenanceWindow[] | undefined)?.map(w => w.serverId) || []
+    (activeMaintenanceWindows as MaintenanceWindow[] | undefined)?.map((w) => w.serverId) || []
   );
 
   const { data: flatGroups } = useQuery({
@@ -113,8 +129,13 @@ export default function ServersPage() {
   });
 
   const updateGroupMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<{ name: string; description: string; parentId: string | null }> }) =>
-      serverGroupApi.update(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<{ name: string; description: string; parentId: string | null }>;
+    }) => serverGroupApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['serverGroups'] });
       resetGroupModal();
@@ -212,7 +233,11 @@ export default function ServersPage() {
     if (editingGroup) {
       updateGroupMutation.mutate({
         id: editingGroup.id,
-        data: { name: groupName, description: groupDescription || undefined, parentId: groupParentId },
+        data: {
+          name: groupName,
+          description: groupDescription || undefined,
+          parentId: groupParentId,
+        },
       });
     } else {
       createGroupMutation.mutate({
@@ -224,7 +249,7 @@ export default function ServersPage() {
   };
 
   const toggleGroup = (groupId: string) => {
-    setExpandedGroups(prev => {
+    setExpandedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(groupId)) next.delete(groupId);
       else next.add(groupId);
@@ -233,7 +258,7 @@ export default function ServersPage() {
   };
 
   const toggleServerSelection = (serverId: string) => {
-    setSelectedServers(prev => {
+    setSelectedServers((prev) => {
       const next = new Set(prev);
       if (next.has(serverId)) next.delete(serverId);
       else next.add(serverId);
@@ -246,19 +271,22 @@ export default function ServersPage() {
     if (selectedServers.size === serverList.length) {
       setSelectedServers(new Set());
     } else {
-      setSelectedServers(new Set(serverList.map(s => s.id)));
+      setSelectedServers(new Set(serverList.map((s) => s.id)));
     }
   };
 
   const removeTagFromServer = (serverId: string, tag: string) => {
-    const server = serverList?.find(s => s.id === serverId);
+    const server = serverList?.find((s) => s.id === serverId);
     if (!server) return;
-    const newTags = (server.tags || []).filter(t => t !== tag);
+    const newTags = (server.tags || []).filter((t) => t !== tag);
     updateServerMutation.mutate({ id: serverId, data: { tags: newTags } });
   };
 
   const handleBulkTagSubmit = () => {
-    const tags = bulkTagInput.split(',').map(t => t.trim()).filter(Boolean);
+    const tags = bulkTagInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
     if (tags.length === 0 || selectedServers.size === 0) return;
     bulkTagMutation.mutate({
       serverIds: Array.from(selectedServers),
@@ -271,7 +299,16 @@ export default function ServersPage() {
     setBulkTagInput(value);
     const lastTag = value.split(',').pop()?.trim().toLowerCase() || '';
     if (lastTag && allTags) {
-      setBulkTagSuggestions(allTags.filter(t => t.toLowerCase().includes(lastTag) && !value.split(',').map(v => v.trim()).includes(t)));
+      setBulkTagSuggestions(
+        allTags.filter(
+          (t) =>
+            t.toLowerCase().includes(lastTag) &&
+            !value
+              .split(',')
+              .map((v) => v.trim())
+              .includes(t)
+        )
+      );
     } else {
       setBulkTagSuggestions([]);
     }
@@ -287,10 +324,10 @@ export default function ServersPage() {
 
   // Get servers for a specific group
   const getServersInGroup = (groupId: string) =>
-    serverList?.filter(s => s.groupId === groupId || s.group?.id === groupId) || [];
+    serverList?.filter((s) => s.groupId === groupId || s.group?.id === groupId) || [];
 
   // Get ungrouped servers
-  const ungroupedServers = serverList?.filter(s => !s.groupId && !s.group) || [];
+  const ungroupedServers = serverList?.filter((s) => !s.groupId && !s.group) || [];
 
   const renderServerRow = (server: Server) => (
     <TableRow key={server.id}>
@@ -307,7 +344,7 @@ export default function ServersPage() {
           <Link href={`/servers/${server.id}`} className="font-medium hover:underline">
             {server.hostname}
           </Link>
-          {server.tags?.filter(isServerTypeTag).map(tag => (
+          {server.tags?.filter(isServerTypeTag).map((tag) => (
             <ServerTypeBadge key={tag} type={tag} />
           ))}
         </div>
@@ -315,11 +352,11 @@ export default function ServersPage() {
       <TableCell className="font-mono text-sm">{server.ipAddress}</TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
-          <Badge variant={statusColors[server.status] || 'secondary'}>
-            {server.status}
-          </Badge>
+          <Badge variant={statusColors[server.status] || 'secondary'}>{server.status}</Badge>
           {maintenanceServerIds.has(server.id) && (
-            <Badge variant="warning" className="text-xs">Maint</Badge>
+            <Badge variant="warning" className="text-xs">
+              Maint
+            </Badge>
           )}
         </div>
       </TableCell>
@@ -328,21 +365,26 @@ export default function ServersPage() {
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
-          {server.tags?.filter(t => !isServerTypeTag(t)).map(tag => (
-            <span
-              key={tag}
-              className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400"
-            >
-              {tag}
-              <button
-                onClick={(e) => { e.stopPropagation(); removeTagFromServer(server.id, tag); }}
-                className="ml-0.5 hover:text-blue-900"
+          {server.tags
+            ?.filter((t) => !isServerTypeTag(t))
+            .map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400"
               >
-                x
-              </button>
-            </span>
-          ))}
-          {(!server.tags || server.tags.filter(t => !isServerTypeTag(t)).length === 0) && (
+                {tag}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeTagFromServer(server.id, tag);
+                  }}
+                  className="ml-0.5 hover:text-blue-900"
+                >
+                  x
+                </button>
+              </span>
+            ))}
+          {(!server.tags || server.tags.filter((t) => !isServerTypeTag(t)).length === 0) && (
             <span className="text-muted-foreground text-xs">-</span>
           )}
         </div>
@@ -358,7 +400,9 @@ export default function ServersPage() {
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           <Link href={`/servers/${server.id}`}>
-            <Button size="sm" variant="ghost">View</Button>
+            <Button size="sm" variant="ghost">
+              View
+            </Button>
           </Link>
           <Button
             size="sm"
@@ -405,8 +449,18 @@ export default function ServersPage() {
             className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground"
           >
             {hasChildren ? (
-              <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              <svg
+                className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             ) : (
               <span className="w-4" />
@@ -422,14 +476,38 @@ export default function ServersPage() {
             {serverCount} server{serverCount !== 1 ? 's' : ''}
           </span>
           <div className="flex gap-1">
-            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openCreateGroup(group.id); }}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                openCreateGroup(group.id);
+              }}
+            >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
             </Button>
-            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEditGroup(group); }}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditGroup(group);
+              }}
+            >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
               </svg>
             </Button>
             <Button
@@ -444,7 +522,12 @@ export default function ServersPage() {
               }}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
               </svg>
             </Button>
           </div>
@@ -454,15 +537,13 @@ export default function ServersPage() {
         {isExpanded && (
           <div>
             {/* Child Groups */}
-            {group.children?.map(child => renderGroupNode(child, depth + 1))}
+            {group.children?.map((child) => renderGroupNode(child, depth + 1))}
 
             {/* Servers in group */}
             {groupServers.length > 0 && (
               <div style={{ paddingLeft: `${depth * 24}px` }}>
                 <Table>
-                  <TableBody>
-                    {groupServers.map(renderServerRow)}
-                  </TableBody>
+                  <TableBody>{groupServers.map(renderServerRow)}</TableBody>
                 </Table>
               </div>
             )}
@@ -474,27 +555,46 @@ export default function ServersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Servers</h2>
-          <p className="text-muted-foreground">Manage your monitored servers</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => openCreateGroup()}>
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+      <PageHeader
+        eyebrow="Fleet Inventory"
+        title="Monitored servers"
+        description="Search, group, retag, and move infrastructure assets while keeping alert and maintenance state visible."
+      >
+        <Button variant="outline" onClick={() => openCreateGroup()}>
+          <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+            />
+          </svg>
+          New Group
+        </Button>
+        <Link href="/servers/new">
+          <Button>
+            <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
             </svg>
-            New Group
+            Add Server
           </Button>
-          <Link href="/servers/new">
-            <Button>
-              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Server
-            </Button>
-          </Link>
-        </div>
+        </Link>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryStat label="Total Servers" value={serverList?.length || 0} tone="primary" />
+        <SummaryStat
+          label="Online"
+          value={serverList?.filter((s) => s.status === 'ONLINE').length || 0}
+          tone="success"
+        />
+        <SummaryStat label="In Maintenance" value={maintenanceServerIds.size} tone="warning" />
+        <SummaryStat label="Active Selection" value={selectedServers.size} />
       </div>
 
       {/* Filters */}
@@ -528,8 +628,10 @@ export default function ServersPage() {
             <div className="w-full sm:w-40 sm:shrink-0">
               <Select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
                 <option value="">All Tags</option>
-                {allTags?.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
+                {allTags?.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
                 ))}
               </Select>
             </div>
@@ -560,7 +662,14 @@ export default function ServersPage() {
           <Button size="sm" variant="outline" onClick={() => setShowBulkTagModal(true)}>
             Manage Tags
           </Button>
-          <Button size="sm" variant="outline" onClick={() => { setBulkMoveGroupId(null); setShowBulkMoveModal(true); }}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setBulkMoveGroupId(null);
+              setShowBulkMoveModal(true);
+            }}
+          >
             Move to Group
           </Button>
           <Button
@@ -568,7 +677,11 @@ export default function ServersPage() {
             variant="outline"
             className="text-red-600 dark:text-red-400 border-red-500/20 hover:bg-red-500/10"
             onClick={() => {
-              if (confirm(`Delete ${selectedServers.size} server${selectedServers.size !== 1 ? 's' : ''}? This cannot be undone.`)) {
+              if (
+                confirm(
+                  `Delete ${selectedServers.size} server${selectedServers.size !== 1 ? 's' : ''}? This cannot be undone.`
+                )
+              ) {
                 bulkDeleteMutation.mutate(Array.from(selectedServers));
               }
             }}
@@ -590,24 +703,27 @@ export default function ServersPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
+            <LoadingState rows={5} />
           ) : !serverList?.length ? (
-            <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium">No servers</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Get started by adding a new server.</p>
-              <div className="mt-6">
+            <EmptyState
+              title="No servers"
+              description="Register your first node to start collecting telemetry, alerts, uptime checks, and inventory data."
+              icon={
+                <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"
+                  />
+                </svg>
+              }
+              action={
                 <Link href="/servers/new">
                   <Button>Add Server</Button>
                 </Link>
-              </div>
-            </div>
+              }
+            />
           ) : viewMode === 'list' ? (
             /* Flat List View */
             <Table>
@@ -631,30 +747,38 @@ export default function ServersPage() {
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {serverList?.map(renderServerRow)}
-              </TableBody>
+              <TableBody>{serverList?.map(renderServerRow)}</TableBody>
             </Table>
           ) : (
             /* Group Tree View */
             <div>
               {/* Render groups */}
-              {groups?.map(group => renderGroupNode(group))}
+              {groups?.map((group) => renderGroupNode(group))}
 
               {/* Ungrouped servers */}
               {ungroupedServers.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
-                    <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
+                    <svg
+                      className="w-5 h-5 text-muted-foreground"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"
+                      />
                     </svg>
                     <span className="font-medium text-muted-foreground">Ungrouped</span>
-                    <span className="text-sm text-muted-foreground">{ungroupedServers.length} server{ungroupedServers.length !== 1 ? 's' : ''}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {ungroupedServers.length} server{ungroupedServers.length !== 1 ? 's' : ''}
+                    </span>
                   </div>
                   <Table>
-                    <TableBody>
-                      {ungroupedServers.map(renderServerRow)}
-                    </TableBody>
+                    <TableBody>{ungroupedServers.map(renderServerRow)}</TableBody>
                   </Table>
                 </div>
               )}
@@ -662,7 +786,9 @@ export default function ServersPage() {
               {/* No groups message */}
               {(!groups || groups.length === 0) && ungroupedServers.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
-                  <p>No groups created yet. Click &quot;New Group&quot; to organize your servers.</p>
+                  <p>
+                    No groups created yet. Click &quot;New Group&quot; to organize your servers.
+                  </p>
                 </div>
               )}
             </div>
@@ -671,12 +797,10 @@ export default function ServersPage() {
       </Card>
 
       {/* Create/Edit Group Modal */}
-      {showGroupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={resetGroupModal}>
-          <div className="bg-card rounded-lg shadow-xl border p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-4">
-              {editingGroup ? 'Edit Group' : 'Create Group'}
-            </h3>
+      <Modal open={showGroupModal} onClose={resetGroupModal}>
+        <ModalPanel onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-4">
+            <ModalTitle>{editingGroup ? 'Edit Group' : 'Create Group'}</ModalTitle>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Name</label>
@@ -688,7 +812,9 @@ export default function ServersPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Description</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">
+                  Description
+                </label>
                 <Input
                   value={groupDescription}
                   onChange={(e) => setGroupDescription(e.target.value)}
@@ -696,78 +822,94 @@ export default function ServersPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Parent Group</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">
+                  Parent Group
+                </label>
                 <Select
                   value={groupParentId || ''}
                   onChange={(e) => setGroupParentId(e.target.value || null)}
                 >
                   <option value="">None (top level)</option>
                   {flatGroups
-                    ?.filter(g => g.id !== editingGroup?.id)
-                    .map(g => (
-                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ?.filter((g) => g.id !== editingGroup?.id)
+                    .map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
                     ))}
                 </Select>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={resetGroupModal}>Cancel</Button>
+              <Button variant="outline" onClick={resetGroupModal}>
+                Cancel
+              </Button>
               <Button onClick={handleSaveGroup} disabled={!groupName.trim()}>
                 {editingGroup ? 'Save' : 'Create'}
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        </ModalPanel>
+      </Modal>
 
       {/* Move Server Modal */}
-      {movingServer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setMovingServer(null)}>
-          <div className="bg-card rounded-lg shadow-xl border p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-2">Move Server</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Move <strong>{movingServer.hostname}</strong> to a group
-            </p>
+      <Modal open={!!movingServer} onClose={() => setMovingServer(null)}>
+        <ModalPanel onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-4">
+            <ModalTitle>Move Server</ModalTitle>
+            <ModalDescription>
+              Move <strong>{movingServer?.hostname}</strong> to a group
+            </ModalDescription>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1">Target Group</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
+                Target Group
+              </label>
               <Select
                 value={moveTargetGroupId || ''}
                 onChange={(e) => setMoveTargetGroupId(e.target.value || null)}
               >
                 <option value="">Ungrouped</option>
-                {flatGroups?.map(g => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
+                {flatGroups?.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
                 ))}
               </Select>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setMovingServer(null)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setMovingServer(null)}>
+                Cancel
+              </Button>
               <Button
                 onClick={() => {
+                  if (!movingServer) return;
                   moveServerMutation.mutate({
                     serverIds: [movingServer.id],
                     groupId: moveTargetGroupId,
                   });
                 }}
+                disabled={!movingServer}
               >
                 Move
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        </ModalPanel>
+      </Modal>
 
       {/* Bulk Tag Modal */}
-      {showBulkTagModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBulkTagModal(false)}>
-          <div className="bg-card rounded-lg shadow-xl border p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-2">Bulk Tag Operations</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+      <Modal open={showBulkTagModal} onClose={() => setShowBulkTagModal(false)}>
+        <ModalPanel onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-4">
+            <ModalTitle>Bulk Tag Operations</ModalTitle>
+            <ModalDescription>
               {selectedServers.size} server{selectedServers.size !== 1 ? 's' : ''} selected
-            </p>
+            </ModalDescription>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Operation</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">
+                  Operation
+                </label>
                 <div className="flex gap-2">
                   <button
                     className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${bulkTagMode === 'add' ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400' : 'border-border text-muted-foreground'}`}
@@ -796,7 +938,7 @@ export default function ServersPage() {
                 />
                 {bulkTagSuggestions.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-card border rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                    {bulkTagSuggestions.slice(0, 8).map(tag => (
+                    {bulkTagSuggestions.slice(0, 8).map((tag) => (
                       <button
                         key={tag}
                         className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
@@ -810,50 +952,65 @@ export default function ServersPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowBulkTagModal(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setShowBulkTagModal(false)}>
+                Cancel
+              </Button>
               <Button
                 onClick={handleBulkTagSubmit}
                 disabled={!bulkTagInput.trim() || bulkTagMutation.isPending}
               >
-                {bulkTagMutation.isPending ? 'Applying...' : `${bulkTagMode === 'add' ? 'Add' : 'Remove'} Tags`}
+                {bulkTagMutation.isPending
+                  ? 'Applying...'
+                  : `${bulkTagMode === 'add' ? 'Add' : 'Remove'} Tags`}
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        </ModalPanel>
+      </Modal>
 
       {/* Bulk Move Modal */}
-      {showBulkMoveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBulkMoveModal(false)}>
-          <div className="bg-card rounded-lg shadow-xl border p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-2">Move Servers to Group</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+      <Modal open={showBulkMoveModal} onClose={() => setShowBulkMoveModal(false)}>
+        <ModalPanel onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-4">
+            <ModalTitle>Move Servers to Group</ModalTitle>
+            <ModalDescription>
               {selectedServers.size} server{selectedServers.size !== 1 ? 's' : ''} selected
-            </p>
+            </ModalDescription>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1">Target Group</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
+                Target Group
+              </label>
               <Select
                 value={bulkMoveGroupId || ''}
                 onChange={(e) => setBulkMoveGroupId(e.target.value || null)}
               >
                 <option value="">Ungrouped</option>
-                {flatGroups?.map(g => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
+                {flatGroups?.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
                 ))}
               </Select>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowBulkMoveModal(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setShowBulkMoveModal(false)}>
+                Cancel
+              </Button>
               <Button
-                onClick={() => bulkMoveMutation.mutate({ serverIds: Array.from(selectedServers), groupId: bulkMoveGroupId })}
+                onClick={() =>
+                  bulkMoveMutation.mutate({
+                    serverIds: Array.from(selectedServers),
+                    groupId: bulkMoveGroupId,
+                  })
+                }
                 disabled={bulkMoveMutation.isPending}
               >
                 {bulkMoveMutation.isPending ? 'Moving...' : 'Move'}
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        </ModalPanel>
+      </Modal>
     </div>
   );
 }

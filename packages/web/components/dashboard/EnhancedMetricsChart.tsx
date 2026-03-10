@@ -6,8 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { metricsApi, anomalyApi } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { useFormatDate } from '@/hooks/useFormatDate';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 
 interface MetricPoint {
   timestamp: number;
@@ -26,6 +35,15 @@ interface EnhancedMetricsChartProps {
   title: string;
   height?: number;
 }
+
+const GRID_STROKE = 'rgba(113, 128, 150, 0.18)';
+const AXIS_STROKE = 'rgba(148, 163, 184, 0.78)';
+const TOOLTIP_STYLE = {
+  backgroundColor: 'rgba(10, 15, 22, 0.96)',
+  border: '1px solid rgba(100, 116, 139, 0.35)',
+  borderRadius: '16px',
+  color: '#e5eef8',
+};
 
 export function EnhancedMetricsChart({
   serverId,
@@ -69,7 +87,9 @@ export function EnhancedMetricsChart({
   });
 
   // Prometheus query_range returns { status: string, data: { resultType: string, result: [...] } }
-  const metricData = metrics as { data?: { result?: Array<{ values: [number, string][] }> } } | undefined;
+  const metricData = metrics as
+    | { data?: { result?: Array<{ values: [number, string][] }> } }
+    | undefined;
   const anomalyData = anomalies as
     | Array<{ startedAt: string; endedAt?: string; score: number; metricName: string }>
     | undefined;
@@ -85,9 +105,14 @@ export function EnhancedMetricsChart({
   const anomalyOverlays = convertToAnomalyOverlays(anomalyData, metricName);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">{title}</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+            Metric Analysis
+          </p>
+          <CardTitle className="text-lg">{title}</CardTitle>
+        </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1">
             {(['1h', '6h', '24h', '7d'] as const).map((range) => (
@@ -121,36 +146,44 @@ export function EnhancedMetricsChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="relative bg-gray-50 rounded-lg" style={{ height: `${height}px` }}>
+        <div
+          className="relative rounded-[1.25rem] border border-border/60 bg-surface/70 p-3"
+          style={{ height: `${height}px` }}
+        >
           {metricsLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-muted-foreground">Loading metrics...</div>
-            </div>
+            <LoadingState rows={1} className="h-full" rowClassName="h-full" />
           ) : chartData.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-muted-foreground">No data available</div>
-            </div>
+            <EmptyState
+              className="h-full min-h-0 border-0 bg-transparent px-4 py-0"
+              title="No data available"
+              description="No samples were returned for this metric and time range."
+            />
           ) : (
             <div className="relative h-full">
               <ResponsiveContainer width="100%" height={height - 20}>
                 <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={(ts) => formatTimeOnly(ts * 1000)}
-                    stroke="#6b7280"
-                    fontSize={12}
+                    stroke={AXIS_STROKE}
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
                   />
-                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <YAxis stroke={AXIS_STROKE} fontSize={11} tickLine={false} axisLine={false} />
                   <Tooltip
                     labelFormatter={(ts) => formatDateTime(ts * 1000)}
                     formatter={(value: number) => [value.toFixed(4), 'Value']}
+                    contentStyle={TOOLTIP_STYLE}
+                    itemStyle={{ color: '#e5eef8' }}
+                    labelStyle={{ color: '#94a3b8' }}
                   />
                   <Line
                     type="monotone"
                     dataKey="value"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
+                    stroke="#38bdf8"
+                    strokeWidth={2.4}
                     dot={false}
                   />
                   {showBaseline && baselineChartData.length > 0 && (

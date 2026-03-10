@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { userApi, UserInfo } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFormatDate } from '@/hooks/useFormatDate';
@@ -27,7 +28,12 @@ export default function UsersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const [createForm, setCreateForm] = useState({ email: '', name: '', password: '', role: 'VIEWER' });
+  const [createForm, setCreateForm] = useState({
+    email: '',
+    name: '',
+    password: '',
+    role: 'VIEWER',
+  });
   const [editForm, setEditForm] = useState({ name: '', role: '', password: '' });
 
   const { data: users, isLoading } = useQuery({
@@ -54,8 +60,13 @@ export default function UsersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name?: string; role?: string; password?: string } }) =>
-      userApi.update(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { name?: string; role?: string; password?: string };
+    }) => userApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setEditingId(null);
@@ -93,27 +104,36 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/settings">
-            <Button variant="ghost" size="icon">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">User Management</h1>
-            <p className="text-sm text-muted-foreground">Manage system users and their roles</p>
-          </div>
-        </div>
+      <PageHeader
+        eyebrow="Access"
+        title="User management"
+        description="Manage system users, roles, and administrative access to the monitoring platform."
+      >
+        <Link href="/settings">
+          <Button variant="outline">Back to Settings</Button>
+        </Link>
         <Button onClick={() => setShowCreate(!showCreate)}>
           {showCreate ? 'Cancel' : 'Add User'}
         </Button>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <SummaryStat label="Users" value={userList?.length || 0} tone="primary" />
+        <SummaryStat
+          label="Admins"
+          value={userList?.filter((u) => u.role === 'ADMIN').length || 0}
+        />
+        <SummaryStat
+          label="Operators"
+          value={userList?.filter((u) => u.role === 'OPERATOR').length || 0}
+        />
+        <SummaryStat label="Current Role" value={currentUser?.role || 'Unknown'} />
       </div>
 
       {message && (
-        <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-500/10 dark:bg-green-500/20 text-green-800 dark:text-green-300' : 'bg-red-500/10 dark:bg-red-500/20 text-red-800 dark:text-red-300'}`}>
+        <div
+          className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-500/10 dark:bg-green-500/20 text-green-800 dark:text-green-300' : 'bg-red-500/10 dark:bg-red-500/20 text-red-800 dark:text-red-300'}`}
+        >
           {message.text}
         </div>
       )}
@@ -126,7 +146,10 @@ export default function UsersPage() {
           </CardHeader>
           <CardContent>
             <form
-              onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                createMutation.mutate();
+              }}
               className="space-y-4"
             >
               <div className="grid gap-4 md:grid-cols-2">
@@ -189,13 +212,16 @@ export default function UsersPage() {
             {isLoading ? 'Loading...' : `${userList?.length || 0} Users`}
           </CardTitle>
           <CardDescription>
-            Roles: <strong>Admin</strong> (full access), <strong>Operator</strong> (manage servers/alerts), <strong>Viewer</strong> (read-only)
+            Roles: <strong>Admin</strong> (full access), <strong>Operator</strong> (manage
+            servers/alerts), <strong>Viewer</strong> (read-only)
           </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-3">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
             </div>
           ) : !userList?.length ? (
             <p className="text-center text-muted-foreground py-8">No users found</p>
@@ -226,7 +252,9 @@ export default function UsersPage() {
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">New Password (leave blank to keep)</label>
+                          <label className="text-xs text-muted-foreground">
+                            New Password (leave blank to keep)
+                          </label>
                           <Input
                             type="password"
                             value={editForm.password}
@@ -236,10 +264,16 @@ export default function UsersPage() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={handleSaveEdit} disabled={updateMutation.isPending}>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveEdit}
+                          disabled={updateMutation.isPending}
+                        >
                           {updateMutation.isPending ? 'Saving...' : 'Save'}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                          Cancel
+                        </Button>
                       </div>
                     </div>
                   ) : (
@@ -251,17 +285,19 @@ export default function UsersPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{user.name}</span>
-                            <Badge variant={ROLE_COLORS[user.role] || 'secondary'}>{user.role}</Badge>
-                            {user.id === currentUser?.id && (
-                              <Badge variant="outline">You</Badge>
-                            )}
+                            <Badge variant={ROLE_COLORS[user.role] || 'secondary'}>
+                              {user.role}
+                            </Badge>
+                            {user.id === currentUser?.id && <Badge variant="outline">You</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{user.email}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right text-xs text-muted-foreground">
-                          <p>Last login: {user.lastLogin ? formatDateTime(user.lastLogin) : 'Never'}</p>
+                          <p>
+                            Last login: {user.lastLogin ? formatDateTime(user.lastLogin) : 'Never'}
+                          </p>
                           <p>Created: {formatDateOnly(user.createdAt)}</p>
                         </div>
                         <div className="flex gap-1">
@@ -274,7 +310,11 @@ export default function UsersPage() {
                               variant="ghost"
                               className="text-red-600 hover:text-red-700"
                               onClick={() => {
-                                if (confirm(`Delete user "${user.name}" (${user.email})? This cannot be undone.`)) {
+                                if (
+                                  confirm(
+                                    `Delete user "${user.name}" (${user.email})? This cannot be undone.`
+                                  )
+                                ) {
                                   deleteMutation.mutate(user.id);
                                 }
                               }}

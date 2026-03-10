@@ -30,6 +30,9 @@ class AnomalyDetectorService {
   private trainingTimer?: NodeJS.Timeout;
   private scoringTimer?: NodeJS.Timeout;
   private isRunning = false;
+  private isTraining = false;
+  private isScoring = false;
+  private stopPromise?: Promise<void>;
 
   constructor() {
     this.redis = new RedisClient();
@@ -82,6 +85,13 @@ class AnomalyDetectorService {
   }
 
   private async runTrainingCycle(): Promise<void> {
+    if (this.isTraining) {
+      logger.warn('Skipping training cycle because previous cycle is still running');
+      return;
+    }
+
+    this.isTraining = true;
+
     try {
       logger.debug('Starting training cycle...');
 
@@ -128,10 +138,19 @@ class AnomalyDetectorService {
       logger.info('Training cycle completed');
     } catch (error) {
       logger.error('Training cycle failed', { error });
+    } finally {
+      this.isTraining = false;
     }
   }
 
   private async runScoringCycle(): Promise<void> {
+    if (this.isScoring) {
+      logger.warn('Skipping scoring cycle because previous cycle is still running');
+      return;
+    }
+
+    this.isScoring = true;
+
     try {
       // Get current metric values
       const currentMetrics = await this.metricsCollector.fetchCurrentMetrics();
@@ -177,6 +196,8 @@ class AnomalyDetectorService {
       }
     } catch (error) {
       logger.error('Scoring cycle failed', { error });
+    } finally {
+      this.isScoring = false;
     }
   }
 
@@ -195,19 +216,27 @@ class AnomalyDetectorService {
   }
 
   async stop(): Promise<void> {
-    logger.info('Stopping Anomaly Detector Service...');
-    this.isRunning = false;
-
-    if (this.trainingTimer) {
-      clearInterval(this.trainingTimer);
+    if (this.stopPromise) {
+      return this.stopPromise;
     }
 
-    if (this.scoringTimer) {
-      clearInterval(this.scoringTimer);
-    }
+    this.stopPromise = (async () => {
+      logger.info('Stopping Anomaly Detector Service...');
+      this.isRunning = false;
 
-    await this.redis.disconnect();
-    logger.info('Anomaly Detector Service stopped');
+      if (this.trainingTimer) {
+        clearInterval(this.trainingTimer);
+      }
+
+      if (this.scoringTimer) {
+        clearInterval(this.scoringTimer);
+      }
+
+      await this.redis.disconnect();
+      logger.info('Anomaly Detector Service stopped');
+    })();
+
+    return this.stopPromise;
   }
 }
 

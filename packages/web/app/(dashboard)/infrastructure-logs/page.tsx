@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { logsApi } from '@/lib/api';
 import { useFormatDate } from '@/hooks/useFormatDate';
 
@@ -96,7 +97,12 @@ export default function InfrastructureLogsPage() {
   }, [hostnameFilter, jobFilter, levelFilter]);
 
   // Fetch log data
-  const { data: logResults, isLoading, error, refetch } = useQuery({
+  const {
+    data: logResults,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['lokiLogs', submittedQuery, timeRange, limit],
     queryFn: async () => {
       const now = Date.now();
@@ -118,7 +124,7 @@ export default function InfrastructureLogsPage() {
 
   // Filter by text
   const filteredLogs = filterText
-    ? logEntries.filter(e => e.message.toLowerCase().includes(filterText.toLowerCase()))
+    ? logEntries.filter((e) => e.message.toLowerCase().includes(filterText.toLowerCase()))
     : logEntries;
 
   // Tail mode via SSE
@@ -153,7 +159,7 @@ export default function InfrastructureLogsPage() {
             }
           }
           if (entries.length > 0) {
-            setTailLogs(prev => [...entries, ...prev].slice(0, 500));
+            setTailLogs((prev) => [...entries, ...prev].slice(0, 500));
           }
         }
       } catch {
@@ -217,11 +223,11 @@ export default function InfrastructureLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Infrastructure Logs</h2>
-          <p className="text-muted-foreground">Query logs from Loki (Promtail)</p>
-        </div>
+      <PageHeader
+        eyebrow="Loki"
+        title="Infrastructure logs"
+        description="Query, filter, and tail centralized logs from Loki and Promtail across infrastructure services."
+      >
         <div className="flex gap-2">
           <Button
             variant={isTailing ? 'default' : 'outline'}
@@ -241,6 +247,12 @@ export default function InfrastructureLogsPage() {
             )}
           </Button>
         </div>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SummaryStat label="Displayed Logs" value={displayLogs.length} tone="primary" />
+        <SummaryStat label="Mode" value={isTailing ? 'Tail' : 'Query'} />
+        <SummaryStat label="Window" value={timeRange} />
       </div>
 
       {/* Query Builder */}
@@ -253,37 +265,34 @@ export default function InfrastructureLogsPage() {
           <div className="flex flex-wrap gap-3">
             <div className="min-w-[180px]">
               <label className="text-xs text-muted-foreground mb-1 block">Hostname</label>
-              <Select
-                value={hostnameFilter}
-                onChange={(e) => setHostnameFilter(e.target.value)}
-              >
+              <Select value={hostnameFilter} onChange={(e) => setHostnameFilter(e.target.value)}>
                 <option value="">All Hosts</option>
                 {hostnames?.map((h: string) => (
-                  <option key={h} value={h}>{h}</option>
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
                 ))}
               </Select>
             </div>
             <div className="min-w-[140px]">
               <label className="text-xs text-muted-foreground mb-1 block">Job</label>
-              <Select
-                value={jobFilter}
-                onChange={(e) => setJobFilter(e.target.value)}
-              >
+              <Select value={jobFilter} onChange={(e) => setJobFilter(e.target.value)}>
                 <option value="">All Jobs</option>
                 {jobs?.map((j: string) => (
-                  <option key={j} value={j}>{j}</option>
+                  <option key={j} value={j}>
+                    {j}
+                  </option>
                 ))}
               </Select>
             </div>
             <div className="min-w-[140px]">
               <label className="text-xs text-muted-foreground mb-1 block">Level</label>
-              <Select
-                value={levelFilter}
-                onChange={(e) => setLevelFilter(e.target.value)}
-              >
+              <Select value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)}>
                 <option value="">All Levels</option>
                 {levels?.map((l: string) => (
-                  <option key={l} value={l}>{l}</option>
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
                 ))}
               </Select>
             </div>
@@ -304,7 +313,11 @@ export default function InfrastructureLogsPage() {
               placeholder='{job="syslog"} |~ "error"'
               className="font-mono text-sm"
             />
-            <Select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} className="w-32">
+            <Select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value)}
+              className="w-32"
+            >
               <option value="15m">15 min</option>
               <option value="1h">1 hour</option>
               <option value="3h">3 hours</option>
@@ -341,9 +354,7 @@ export default function InfrastructureLogsPage() {
             placeholder="Filter logs..."
             className="max-w-sm"
           />
-          <span className="text-sm text-muted-foreground">
-            {displayLogs.length} log entries
-          </span>
+          <span className="text-sm text-muted-foreground">{displayLogs.length} log entries</span>
         </div>
       )}
 
@@ -357,25 +368,31 @@ export default function InfrastructureLogsPage() {
           ) : null}
 
           {isLoading && !isTailing ? (
-            <div className="p-4 space-y-2">
-              {[...Array(10)].map((_, i) => (
-                <Skeleton key={i} className="h-5 w-full" />
-              ))}
-            </div>
+            <LoadingState rows={10} className="p-4" rowClassName="h-5" />
           ) : displayLogs.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <p className="text-sm">
-                {isTailing ? 'Waiting for logs...' : 'No logs found. Try a different query or time range.'}
-              </p>
-            </div>
+            <EmptyState
+              className="min-h-[240px] rounded-none border-0"
+              title={isTailing ? 'Waiting for logs' : 'No log lines returned'}
+              description={
+                isTailing
+                  ? 'Live tail is connected. New log events will appear here as they arrive.'
+                  : 'The current query and time range returned no log entries. Broaden the search window or adjust the filter.'
+              }
+            />
           ) : (
             <div className="overflow-auto max-h-[600px] font-mono text-xs">
               <table className="w-full">
                 <thead className="sticky top-0 bg-card border-b">
                   <tr>
-                    <th className="text-left px-3 py-2 text-muted-foreground font-medium w-44">Timestamp</th>
-                    <th className="text-left px-3 py-2 text-muted-foreground font-medium w-28">Source</th>
-                    <th className="text-left px-3 py-2 text-muted-foreground font-medium">Message</th>
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium w-44">
+                      Timestamp
+                    </th>
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium w-28">
+                      Source
+                    </th>
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium">
+                      Message
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -385,8 +402,11 @@ export default function InfrastructureLogsPage() {
                       <tr
                         key={i}
                         className={`border-b border-border/30 hover:bg-muted/30 ${
-                          severity === 'error' || severity === 'fatal' ? 'bg-red-500/5' :
-                          severity === 'warn' ? 'bg-yellow-500/5' : ''
+                          severity === 'error' || severity === 'fatal'
+                            ? 'bg-red-500/5'
+                            : severity === 'warn'
+                              ? 'bg-yellow-500/5'
+                              : ''
                         }`}
                       >
                         <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap align-top">
@@ -394,10 +414,15 @@ export default function InfrastructureLogsPage() {
                         </td>
                         <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap align-top">
                           <span className="px-1.5 py-0.5 rounded bg-muted text-[10px]">
-                            {entry.labels.hostname?.split('.')[0] || entry.labels.job || entry.labels.filename?.split('/').pop() || '-'}
+                            {entry.labels.hostname?.split('.')[0] ||
+                              entry.labels.job ||
+                              entry.labels.filename?.split('/').pop() ||
+                              '-'}
                           </span>
                         </td>
-                        <td className={`px-3 py-1.5 whitespace-pre-wrap break-all ${severityColors[severity] || 'text-foreground'}`}>
+                        <td
+                          className={`px-3 py-1.5 whitespace-pre-wrap break-all ${severityColors[severity] || 'text-foreground'}`}
+                        >
                           {entry.message}
                         </td>
                       </tr>

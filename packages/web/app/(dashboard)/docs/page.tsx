@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 
 const sections = [
   {
@@ -13,7 +14,10 @@ server (API + Web UI) and lightweight agents deployed on monitored servers.`,
     title: 'Architecture',
     items: [
       { label: 'Web UI (Port 3000)', desc: 'Next.js dashboard for visualization and management' },
-      { label: 'API Server (Port 4000)', desc: 'Express.js REST API backend with PostgreSQL and Redis' },
+      {
+        label: 'API Server (Port 4000)',
+        desc: 'Express.js REST API backend with PostgreSQL and Redis',
+      },
       { label: 'Config Sync (Port 4002)', desc: 'Service that synchronizes alert configurations' },
       { label: 'Anomaly Detector (Port 4003)', desc: 'Statistical anomaly detection engine' },
       { label: 'Agent (Port 9101)', desc: 'Lightweight agent deployed on monitored servers' },
@@ -24,11 +28,14 @@ server (API + Web UI) and lightweight agents deployed on monitored servers.`,
   },
   {
     title: 'API Endpoints',
-    docsUrl: process.env.NEXT_PUBLIC_DOCS_URL || 'http://localhost:3080',
+    docsUrl: process.env.NEXT_PUBLIC_DOCS_URL || 'https://digin1.github.io/NodePrism/',
     items: [
       { label: 'GET /health', desc: 'Health check with dependency status' },
       { label: 'POST /api/auth/login', desc: 'Authenticate and receive JWT token' },
-      { label: 'GET /api/servers', desc: 'List all monitored servers (filterable by status, environment, tags)' },
+      {
+        label: 'GET /api/servers',
+        desc: 'List all monitored servers (filterable by status, environment, tags)',
+      },
       { label: 'GET /api/servers/:id', desc: 'Get detailed server information' },
       { label: 'GET /api/metrics/query', desc: 'Query Prometheus metrics (PromQL)' },
       { label: 'GET /api/metrics/query_range', desc: 'Range query for time-series data' },
@@ -59,17 +66,50 @@ server (API + Web UI) and lightweight agents deployed on monitored servers.`,
   {
     title: 'Available Agent Types',
     items: [
-      { label: 'Node Exporter (port 9100)', desc: 'System metrics — CPU, memory, disk, network, load average. Required for basic server monitoring.' },
-      { label: 'MySQL Exporter (port 9104)', desc: 'MySQL/MariaDB metrics — connections, queries/sec, InnoDB stats, slow queries. Requires a read-only DB user (GRANT PROCESS, REPLICATION CLIENT, SELECT).' },
-      { label: 'PostgreSQL Exporter (port 9187)', desc: 'PostgreSQL metrics — connections, query stats, replication lag. Requires pg_monitor role.' },
-      { label: 'MongoDB Exporter (port 9216)', desc: 'MongoDB metrics — operations, connections, replication. Requires clusterMonitor + read role.' },
-      { label: 'Nginx Exporter (port 9113)', desc: 'Nginx metrics — active connections, requests/sec. Requires stub_status enabled.' },
-      { label: 'Redis Exporter (port 9121)', desc: 'Redis metrics — memory, keys, commands/sec. For Redis 6+ ACLs, use a read-only user.' },
-      { label: 'Libvirt Exporter (port 9177)', desc: 'KVM/QEMU per-VM metrics — CPU time, memory, disk I/O, network per domain. Auto-detected on KVM hosts. Uses read-only libvirt socket (cannot modify VMs).' },
-      { label: 'LiteSpeed Exporter (port 9122)', desc: 'LiteSpeed metrics — requests/sec, connections, bandwidth, per-vhost stats, LSAPI/PHP workers. Reads .rtreport files (read-only).' },
-      { label: 'Exim Exporter (port 9123)', desc: 'Exim mail metrics — queue size, frozen messages, deliveries/bounces/rejections per day, per-domain send/receive counts.' },
-      { label: 'cPanel Exporter (port 9124)', desc: 'cPanel metrics — total accounts, domains, suspended accounts, per-account bandwidth and disk usage. Read-only file access.' },
-      { label: 'Promtail (port 9080)', desc: 'Log collector — ships syslog, auth.log, journal, and custom logs to Loki for centralized log viewing.' },
+      {
+        label: 'Node Exporter (port 9100)',
+        desc: 'System metrics — CPU, memory, disk, network, load average. Required for basic server monitoring.',
+      },
+      {
+        label: 'MySQL Exporter (port 9104)',
+        desc: 'MySQL/MariaDB metrics — connections, queries/sec, InnoDB stats, slow queries. Requires a read-only DB user (GRANT PROCESS, REPLICATION CLIENT, SELECT).',
+      },
+      {
+        label: 'PostgreSQL Exporter (port 9187)',
+        desc: 'PostgreSQL metrics — connections, query stats, replication lag. Requires pg_monitor role.',
+      },
+      {
+        label: 'MongoDB Exporter (port 9216)',
+        desc: 'MongoDB metrics — operations, connections, replication. Requires clusterMonitor + read role.',
+      },
+      {
+        label: 'Nginx Exporter (port 9113)',
+        desc: 'Nginx metrics — active connections, requests/sec. Requires stub_status enabled.',
+      },
+      {
+        label: 'Redis Exporter (port 9121)',
+        desc: 'Redis metrics — memory, keys, commands/sec. For Redis 6+ ACLs, use a read-only user.',
+      },
+      {
+        label: 'Libvirt Exporter (port 9177)',
+        desc: 'KVM/QEMU per-VM metrics — CPU time, memory, disk I/O, network per domain. Auto-detected on KVM hosts. Uses read-only libvirt socket (cannot modify VMs).',
+      },
+      {
+        label: 'LiteSpeed Exporter (port 9122)',
+        desc: 'LiteSpeed metrics — requests/sec, connections, bandwidth, per-vhost stats, LSAPI/PHP workers. Reads .rtreport files (read-only).',
+      },
+      {
+        label: 'Exim Exporter (port 9123)',
+        desc: 'Exim mail metrics — queue size, frozen messages, deliveries/bounces/rejections per day, per-domain send/receive counts.',
+      },
+      {
+        label: 'cPanel Exporter (port 9124)',
+        desc: 'cPanel metrics — total accounts, domains, suspended accounts, per-account bandwidth and disk usage. Read-only file access.',
+      },
+      {
+        label: 'Promtail (port 9080)',
+        desc: 'Log collector — ships syslog, auth.log, journal, and custom logs to Loki for centralized log viewing.',
+      },
     ],
   },
   {
@@ -79,11 +119,26 @@ When an agent is installed on a virtualization host (KVM, OpenVZ, or Virtuozzo),
 an inventory of all VMs/containers and reports them to the API. This data appears in the server detail
 page under "Virtual Machines / Containers" with sortable columns and summary stats.`,
     items: [
-      { label: 'KVM / QEMU', desc: 'VMs detected via virsh. Install the Libvirt Exporter for live per-VM CPU, memory, disk I/O, and network metrics via Prometheus. The exporter uses the read-only libvirt socket for safety.' },
-      { label: 'OpenVZ', desc: 'Containers detected via vzlist. A periodic collector (systemd timer, every 30s) gathers per-container CPU% (vzstat), memory (/proc/user_beancounters), vCPUs, and network stats (/sys/class/net).' },
-      { label: 'Virtuozzo', desc: 'Containers/VMs detected via prlctl. Metrics gathered via prlctl statistics (CPU, memory) with a periodic collector.' },
-      { label: 'Grafana Dashboard', desc: 'The "Container / VM Overview" Grafana dashboard shows live status timeline, CPU/memory graphs (top 20), disk I/O and network rates (top 10), plus inventory tables from PostgreSQL.' },
-      { label: 'API Endpoints', desc: 'GET /api/containers/server/:id — list containers. GET /api/containers/server/:id/metrics — live metrics (Prometheus for KVM, metadata for OpenVZ/Virtuozzo). GET /api/containers/:id — single container details.' },
+      {
+        label: 'KVM / QEMU',
+        desc: 'VMs detected via virsh. Install the Libvirt Exporter for live per-VM CPU, memory, disk I/O, and network metrics via Prometheus. The exporter uses the read-only libvirt socket for safety.',
+      },
+      {
+        label: 'OpenVZ',
+        desc: 'Containers detected via vzlist. A periodic collector (systemd timer, every 30s) gathers per-container CPU% (vzstat), memory (/proc/user_beancounters), vCPUs, and network stats (/sys/class/net).',
+      },
+      {
+        label: 'Virtuozzo',
+        desc: 'Containers/VMs detected via prlctl. Metrics gathered via prlctl statistics (CPU, memory) with a periodic collector.',
+      },
+      {
+        label: 'Grafana Dashboard',
+        desc: 'The "Container / VM Overview" Grafana dashboard shows live status timeline, CPU/memory graphs (top 20), disk I/O and network rates (top 10), plus inventory tables from PostgreSQL.',
+      },
+      {
+        label: 'API Endpoints',
+        desc: 'GET /api/containers/server/:id — list containers. GET /api/containers/server/:id/metrics — live metrics (Prometheus for KVM, metadata for OpenVZ/Virtuozzo). GET /api/containers/:id — single container details.',
+      },
     ],
   },
   {
@@ -118,10 +173,11 @@ export default function DocsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-foreground">Documentation</h2>
-        <p className="text-muted-foreground">Reference guide for NodePrism</p>
-      </div>
+      <PageHeader
+        eyebrow="Reference"
+        title="Documentation"
+        description="Reference guide for NodePrism, including architecture, APIs, agent setup, and operational guidance."
+      />
 
       {sections.map((section) => (
         <Card key={section.title}>
@@ -147,7 +203,10 @@ export default function DocsPage() {
             {section.items && (
               <dl className="space-y-3">
                 {section.items.map((item) => (
-                  <div key={item.label} className="flex flex-col sm:flex-row sm:gap-4 py-1 border-b last:border-0">
+                  <div
+                    key={item.label}
+                    className="flex flex-col sm:flex-row sm:gap-4 py-1 border-b last:border-0"
+                  >
                     <dt className="font-mono text-sm font-medium min-w-[260px] text-foreground">
                       {item.label}
                     </dt>
@@ -159,7 +218,9 @@ export default function DocsPage() {
             {section.steps && (
               <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
                 {section.steps.map((step, i) => (
-                  <li key={i} className="leading-relaxed">{step.replace('{MANAGER_IP}', managerIp)}</li>
+                  <li key={i} className="leading-relaxed">
+                    {step.replace('{MANAGER_IP}', managerIp)}
+                  </li>
                 ))}
               </ol>
             )}

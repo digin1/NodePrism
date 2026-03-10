@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { incidentApi } from '@/lib/api';
 import { useFormatDate } from '@/hooks/useFormatDate';
 
@@ -126,9 +127,8 @@ export default function IncidentDetailPage() {
 
   const isOpen = incident && incident.status !== 'RESOLVED' && incident.status !== 'POSTMORTEM';
   const duration = incident
-    ? (incident.resolvedAt
-        ? new Date(incident.resolvedAt).getTime()
-        : Date.now()) - new Date(incident.startedAt).getTime()
+    ? (incident.resolvedAt ? new Date(incident.resolvedAt).getTime() : Date.now()) -
+      new Date(incident.startedAt).getTime()
     : 0;
 
   if (isLoading) {
@@ -148,7 +148,12 @@ export default function IncidentDetailPage() {
           <Link href="/incidents">
             <Button variant="ghost" size="icon">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </Button>
           </Link>
@@ -156,9 +161,13 @@ export default function IncidentDetailPage() {
         </div>
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">This incident does not exist or has been deleted.</p>
+            <p className="text-muted-foreground">
+              This incident does not exist or has been deleted.
+            </p>
             <Link href="/incidents">
-              <Button variant="outline" className="mt-4">Back to Incidents</Button>
+              <Button variant="outline" className="mt-4">
+                Back to Incidents
+              </Button>
             </Link>
           </CardContent>
         </Card>
@@ -168,27 +177,45 @@ export default function IncidentDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start gap-4">
+      <PageHeader
+        eyebrow="Incident Detail"
+        title={incident.title}
+        description={incident.description || `Created ${formatDateTime(incident.createdAt)}`}
+      >
         <Link href="/incidents">
-          <Button variant="ghost" size="icon" className="mt-1">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Button>
+          <Button variant="outline">Back to Incidents</Button>
         </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-2xl font-bold">{incident.title}</h2>
-            <Badge variant={severityColors[incident.severity]}>{incident.severity}</Badge>
-            <Badge variant={statusColors[incident.status]}>
-              {statusLabels[incident.status] || incident.status}
-            </Badge>
-          </div>
-          {incident.description && (
-            <p className="text-muted-foreground mt-1">{incident.description}</p>
+        <Badge variant={severityColors[incident.severity]}>{incident.severity}</Badge>
+        <Badge variant={statusColors[incident.status]}>
+          {statusLabels[incident.status] || incident.status}
+        </Badge>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <SummaryStat
+          label="Status"
+          value={statusLabels[incident.status] || incident.status}
+          tone="primary"
+        />
+        <SummaryStat
+          label="Severity"
+          value={incident.severity}
+          tone={
+            incident.severity === 'CRITICAL'
+              ? 'danger'
+              : incident.severity === 'WARNING'
+                ? 'warning'
+                : 'default'
+          }
+        />
+        <SummaryStat label="Updates" value={incident.updates?.length || 0} />
+        <SummaryStat
+          label="Duration"
+          value={formatDuration(
+            new Date(incident.resolvedAt || Date.now()).getTime() -
+              new Date(incident.startedAt).getTime()
           )}
-        </div>
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -225,12 +252,12 @@ export default function IncidentDetailPage() {
                         update.status === 'RESOLVED'
                           ? 'bg-green-500'
                           : update.status === 'IDENTIFIED'
-                          ? 'bg-yellow-500'
-                          : update.status === 'MONITORING'
-                          ? 'bg-blue-500'
-                          : update.status === 'INVESTIGATING'
-                          ? 'bg-red-500'
-                          : 'bg-gray-400'
+                            ? 'bg-yellow-500'
+                            : update.status === 'MONITORING'
+                              ? 'bg-blue-500'
+                              : update.status === 'INVESTIGATING'
+                                ? 'bg-red-500'
+                                : 'bg-gray-400'
                       }`}
                     />
                     <div>
@@ -257,8 +284,8 @@ export default function IncidentDetailPage() {
                         Incident resolved
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {formatDateTime(incident.resolvedAt)} &middot;
-                        Duration: {formatDuration(duration)}
+                        {formatDateTime(incident.resolvedAt)} &middot; Duration:{' '}
+                        {formatDuration(duration)}
                       </p>
                     </div>
                   </div>
@@ -281,10 +308,7 @@ export default function IncidentDetailPage() {
                   onChange={(e) => setUpdateMessage(e.target.value)}
                 />
                 <div className="flex items-center gap-3">
-                  <Select
-                    value={updateStatus}
-                    onChange={(e) => setUpdateStatus(e.target.value)}
-                  >
+                  <Select value={updateStatus} onChange={(e) => setUpdateStatus(e.target.value)}>
                     <option value="">No status change</option>
                     <option value="INVESTIGATING">Investigating</option>
                     <option value="IDENTIFIED">Identified</option>
@@ -353,9 +377,7 @@ export default function IncidentDetailPage() {
                         <option value="INFO">Info</option>
                       </Select>
                     ) : (
-                      <Badge variant={severityColors[incident.severity]}>
-                        {incident.severity}
-                      </Badge>
+                      <Badge variant={severityColors[incident.severity]}>{incident.severity}</Badge>
                     )}
                   </dd>
                 </div>
@@ -493,7 +515,9 @@ export default function IncidentDetailPage() {
                 className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200 dark:border-red-800"
                 size="sm"
                 onClick={() => {
-                  if (confirm('Are you sure you want to delete this incident? This cannot be undone.')) {
+                  if (
+                    confirm('Are you sure you want to delete this incident? This cannot be undone.')
+                  ) {
                     deleteMutation.mutate();
                   }
                 }}

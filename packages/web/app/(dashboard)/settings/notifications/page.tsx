@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { notificationApi, NotificationChannel } from '@/lib/api';
 import { useFormatDate } from '@/hooks/useFormatDate';
 
@@ -23,35 +24,76 @@ const TYPE_LABELS: Record<string, string> = {
   PAGERDUTY: 'PagerDuty',
 };
 
-const CONFIG_FIELDS: Record<string, { key: string; label: string; type?: string; placeholder: string; required?: boolean }[]> = {
+const CONFIG_FIELDS: Record<
+  string,
+  { key: string; label: string; type?: string; placeholder: string; required?: boolean }[]
+> = {
   EMAIL: [
     { key: 'host', label: 'SMTP Host', placeholder: 'smtp.gmail.com', required: true },
     { key: 'port', label: 'Port', type: 'number', placeholder: '587', required: true },
     { key: 'secure', label: 'Use TLS', type: 'checkbox', placeholder: '' },
     { key: 'username', label: 'Username', placeholder: 'user@example.com', required: true },
-    { key: 'password', label: 'Password', type: 'password', placeholder: 'App password', required: true },
+    {
+      key: 'password',
+      label: 'Password',
+      type: 'password',
+      placeholder: 'App password',
+      required: true,
+    },
     { key: 'from', label: 'From Address', placeholder: 'nodeprism@example.com', required: true },
-    { key: 'to', label: 'To (comma-separated)', placeholder: 'admin@example.com, team@example.com', required: true },
+    {
+      key: 'to',
+      label: 'To (comma-separated)',
+      placeholder: 'admin@example.com, team@example.com',
+      required: true,
+    },
   ],
   SLACK: [
-    { key: 'webhookUrl', label: 'Webhook URL', placeholder: 'https://hooks.slack.com/services/...', required: true },
+    {
+      key: 'webhookUrl',
+      label: 'Webhook URL',
+      placeholder: 'https://hooks.slack.com/services/...',
+      required: true,
+    },
     { key: 'channel', label: 'Channel (optional)', placeholder: '#monitoring' },
     { key: 'username', label: 'Bot Name', placeholder: 'NodePrism' },
   ],
   DISCORD: [
-    { key: 'webhookUrl', label: 'Webhook URL', placeholder: 'https://discord.com/api/webhooks/...', required: true },
+    {
+      key: 'webhookUrl',
+      label: 'Webhook URL',
+      placeholder: 'https://discord.com/api/webhooks/...',
+      required: true,
+    },
   ],
   WEBHOOK: [
     { key: 'url', label: 'URL', placeholder: 'https://example.com/webhook', required: true },
     { key: 'method', label: 'Method', placeholder: 'POST' },
-    { key: 'secret', label: 'Secret (X-NodePrism-Secret header)', type: 'password', placeholder: 'optional shared secret' },
+    {
+      key: 'secret',
+      label: 'Secret (X-NodePrism-Secret header)',
+      type: 'password',
+      placeholder: 'optional shared secret',
+    },
   ],
   TELEGRAM: [
-    { key: 'botToken', label: 'Bot Token', type: 'password', placeholder: '123456:ABC-DEF...', required: true },
+    {
+      key: 'botToken',
+      label: 'Bot Token',
+      type: 'password',
+      placeholder: '123456:ABC-DEF...',
+      required: true,
+    },
     { key: 'chatId', label: 'Chat ID', placeholder: '-1001234567890', required: true },
   ],
   PAGERDUTY: [
-    { key: 'routingKey', label: 'Routing Key', type: 'password', placeholder: 'Integration key from PagerDuty service', required: true },
+    {
+      key: 'routingKey',
+      label: 'Routing Key',
+      type: 'password',
+      placeholder: 'Integration key from PagerDuty service',
+      required: true,
+    },
   ],
 };
 
@@ -61,7 +103,11 @@ export default function NotificationsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<{ id: string; success: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<{
+    id: string;
+    success: boolean;
+    message: string;
+  } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     type: 'SLACK' as string,
@@ -84,7 +130,10 @@ export default function NotificationsPage() {
       const config = { ...formData.config };
       // Convert comma-separated 'to' to array for email
       if (formData.type === 'EMAIL' && typeof config.to === 'string') {
-        config.to = (config.to as string).split(',').map(s => s.trim()).filter(Boolean);
+        config.to = (config.to as string)
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
       }
       // Convert port to number for email
       if (formData.type === 'EMAIL' && config.port) {
@@ -103,7 +152,10 @@ export default function NotificationsPage() {
       if (!editingId) throw new Error('No channel selected');
       const config = { ...formData.config };
       if (formData.type === 'EMAIL' && typeof config.to === 'string') {
-        config.to = (config.to as string).split(',').map(s => s.trim()).filter(Boolean);
+        config.to = (config.to as string)
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
       }
       if (formData.type === 'EMAIL' && config.port) {
         config.port = parseInt(config.port as string);
@@ -171,23 +223,31 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/settings">
-            <Button variant="ghost" size="icon">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Notification Channels</h1>
-            <p className="text-sm text-muted-foreground">Configure where alerts are sent</p>
-          </div>
-        </div>
-        <Button onClick={() => { resetForm(); setShowCreate(true); }}>
+      <PageHeader
+        eyebrow="Delivery"
+        title="Notification channels"
+        description="Configure how alerts and reports are delivered across chat, email, webhooks, and paging systems."
+      >
+        <Link href="/settings">
+          <Button variant="outline">Back to Settings</Button>
+        </Link>
+        <Button
+          onClick={() => {
+            resetForm();
+            setShowCreate(true);
+          }}
+        >
           + Add Channel
         </Button>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SummaryStat label="Channels" value={channelList?.length || 0} tone="primary" />
+        <SummaryStat
+          label="Form Mode"
+          value={editingId ? 'Editing' : showCreate ? 'Creating' : 'Idle'}
+        />
+        <SummaryStat label="Recent Logs" value={(logs as any[] | undefined)?.length || 0} />
       </div>
 
       {/* Create / Edit Form */}
@@ -200,40 +260,57 @@ export default function NotificationsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground mb-1 block">Name</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-1 block">
+                    Name
+                  </label>
                   <Input
                     placeholder="My Slack Channel"
                     value={formData.name}
-                    onChange={e => setFormData(d => ({ ...d, name: e.target.value }))}
+                    onChange={(e) => setFormData((d) => ({ ...d, name: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground mb-1 block">Type</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-1 block">
+                    Type
+                  </label>
                   <Select
                     value={formData.type}
-                    onChange={e => setFormData(d => ({ ...d, type: e.target.value, config: {} }))}
+                    onChange={(e) =>
+                      setFormData((d) => ({ ...d, type: e.target.value, config: {} }))
+                    }
                   >
-                    {CHANNEL_TYPES.map(t => (
-                      <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+                    {CHANNEL_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {TYPE_LABELS[t]}
+                      </option>
                     ))}
                   </Select>
                 </div>
               </div>
 
               <div className="border-t border-border pt-4">
-                <h3 className="text-sm font-medium text-muted-foreground mb-3">{TYPE_LABELS[formData.type]} Configuration</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                  {TYPE_LABELS[formData.type]} Configuration
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {CONFIG_FIELDS[formData.type]?.map(field => (
-                    <div key={field.key} className={field.type === 'checkbox' ? 'flex items-center gap-2 col-span-2' : ''}>
+                  {CONFIG_FIELDS[formData.type]?.map((field) => (
+                    <div
+                      key={field.key}
+                      className={
+                        field.type === 'checkbox' ? 'flex items-center gap-2 col-span-2' : ''
+                      }
+                    >
                       {field.type === 'checkbox' ? (
                         <>
                           <input
                             type="checkbox"
                             checked={!!formData.config[field.key]}
-                            onChange={e => setFormData(d => ({
-                              ...d,
-                              config: { ...d.config, [field.key]: e.target.checked },
-                            }))}
+                            onChange={(e) =>
+                              setFormData((d) => ({
+                                ...d,
+                                config: { ...d.config, [field.key]: e.target.checked },
+                              }))
+                            }
                             className="rounded border-border"
                           />
                           <label className="text-sm text-muted-foreground">{field.label}</label>
@@ -241,16 +318,19 @@ export default function NotificationsPage() {
                       ) : (
                         <>
                           <label className="text-sm font-medium text-muted-foreground mb-1 block">
-                            {field.label} {field.required && <span className="text-red-400">*</span>}
+                            {field.label}{' '}
+                            {field.required && <span className="text-red-400">*</span>}
                           </label>
                           <Input
                             type={field.type || 'text'}
                             placeholder={field.placeholder}
                             value={(formData.config[field.key] as string) || ''}
-                            onChange={e => setFormData(d => ({
-                              ...d,
-                              config: { ...d.config, [field.key]: e.target.value },
-                            }))}
+                            onChange={(e) =>
+                              setFormData((d) => ({
+                                ...d,
+                                config: { ...d.config, [field.key]: e.target.value },
+                              }))
+                            }
                           />
                         </>
                       )}
@@ -261,12 +341,18 @@ export default function NotificationsPage() {
 
               <div className="flex gap-2 pt-2">
                 <Button
-                  onClick={() => editingId ? updateMutation.mutate() : createMutation.mutate()}
+                  onClick={() => (editingId ? updateMutation.mutate() : createMutation.mutate())}
                   disabled={createMutation.isPending || updateMutation.isPending || !formData.name}
                 >
-                  {createMutation.isPending || updateMutation.isPending ? 'Saving...' : editingId ? 'Update' : 'Create'}
+                  {createMutation.isPending || updateMutation.isPending
+                    ? 'Saving...'
+                    : editingId
+                      ? 'Update'
+                      : 'Create'}
                 </Button>
-                <Button variant="ghost" onClick={resetForm}>Cancel</Button>
+                <Button variant="ghost" onClick={resetForm}>
+                  Cancel
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -276,32 +362,36 @@ export default function NotificationsPage() {
       {/* Channel List */}
       {isLoading ? (
         <div className="space-y-4">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20" />
+          ))}
         </div>
       ) : !channelList?.length ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <p className="text-lg mb-2">No notification channels configured</p>
-            <p className="text-sm">Add a channel to start receiving alert notifications via Slack, Email, Discord, etc.</p>
+            <p className="text-sm">
+              Add a channel to start receiving alert notifications via Slack, Email, Discord, etc.
+            </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {channelList.map(channel => (
+          {channelList.map((channel) => (
             <Card key={channel.id}>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className={`w-2 h-2 rounded-full ${channel.enabled ? 'bg-green-500' : 'bg-gray-500'}`} />
+                    <div
+                      className={`w-2 h-2 rounded-full ${channel.enabled ? 'bg-green-500' : 'bg-gray-500'}`}
+                    />
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{channel.name}</span>
                         <Badge variant={channel.enabled ? 'default' : 'secondary'}>
                           {TYPE_LABELS[channel.type]}
                         </Badge>
-                        {!channel.enabled && (
-                          <Badge variant="secondary">Disabled</Badge>
-                        )}
+                        {!channel.enabled && <Badge variant="secondary">Disabled</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground mt-0.5">
                         {channel._count?.logs || 0} notifications sent
@@ -310,7 +400,9 @@ export default function NotificationsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {testResult?.id === channel.id && (
-                      <span className={`text-sm ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                      <span
+                        className={`text-sm ${testResult.success ? 'text-green-400' : 'text-red-400'}`}
+                      >
                         {testResult.message}
                       </span>
                     )}
@@ -325,7 +417,9 @@ export default function NotificationsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => toggleMutation.mutate({ id: channel.id, enabled: !channel.enabled })}
+                      onClick={() =>
+                        toggleMutation.mutate({ id: channel.id, enabled: !channel.enabled })
+                      }
                     >
                       {channel.enabled ? 'Disable' : 'Enable'}
                     </Button>

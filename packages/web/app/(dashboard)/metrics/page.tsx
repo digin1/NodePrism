@@ -1,11 +1,20 @@
 'use client';
 
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 import { metricsApi } from '@/lib/api';
 import { EnhancedMetricsChart } from '@/components/dashboard/EnhancedMetricsChart';
 
@@ -60,9 +69,16 @@ export default function MetricsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Metrics Explorer</h2>
-        <p className="text-muted-foreground">Query Prometheus metrics directly</p>
+      <PageHeader
+        eyebrow="Prometheus"
+        title="Metrics explorer"
+        description="Run direct PromQL queries, inspect returned series, and pivot into the wider monitoring stack."
+      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SummaryStat label="Current Query" value={submittedQuery} tone="primary" />
+        <SummaryStat label="Series Returned" value={queryResult?.data?.result?.length || 0} />
+        <SummaryStat label="Result Type" value={queryResult?.data?.resultType || 'vector'} />
       </div>
 
       {/* Query Form */}
@@ -115,43 +131,43 @@ export default function MetricsPage() {
               Error executing query: {(error as Error)?.message || 'Unknown error'}
             </div>
           ) : isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            <LoadingState rows={4} />
           ) : queryResult?.data?.result && queryResult.data.result.length > 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {queryResult.data.result.length} result(s) - Type: {queryResult.data.resultType}
               </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2 font-medium">Metric</th>
-                      <th className="text-right p-2 font-medium">Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {queryResult.data.result.map((item, i) => (
-                      <tr key={i} className="border-b hover:bg-muted/50">
-                        <td className="p-2">
-                          <code className="text-xs bg-muted px-2 py-1 rounded">
-                            {JSON.stringify(item.metric)}
-                          </code>
-                        </td>
-                        <td className="p-2 text-right font-mono">
-                          {item.value?.[1] !== undefined
-                            ? parseFloat(item.value[1]).toFixed(4)
-                            : 'N/A'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Metric</TableHead>
+                    <TableHead className="text-right">Value</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {queryResult.data.result.map((item, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <code className="rounded-md bg-muted/60 px-2 py-1 text-[11px] text-cyan-100">
+                          {JSON.stringify(item.metric)}
+                        </code>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {item.value?.[1] !== undefined
+                          ? parseFloat(item.value[1]).toFixed(4)
+                          : 'N/A'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No results. Try a different query.
-            </div>
+            <EmptyState
+              className="min-h-[180px]"
+              title="No query results"
+              description="The current PromQL expression returned no series. Adjust the selector, labels, or time range and run it again."
+            />
           )}
         </CardContent>
       </Card>

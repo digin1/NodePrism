@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Modal, ModalPanel, ModalTitle } from '@/components/ui/modal';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 import { incidentApi } from '@/lib/api';
 import { useFormatDate } from '@/hooks/useFormatDate';
 
@@ -142,7 +144,14 @@ export default function IncidentsPage() {
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['incidentStats'] });
       setShowCreateModal(false);
-      setCreateForm({ title: '', description: '', severity: 'WARNING', assignee: '', alertId: '', serverId: '' });
+      setCreateForm({
+        title: '',
+        description: '',
+        severity: 'WARNING',
+        assignee: '',
+        alertId: '',
+        serverId: '',
+      });
       // Clear URL params after creation
       if (searchParams?.get('title')) {
         window.history.replaceState({}, '', '/incidents');
@@ -168,49 +177,29 @@ export default function IncidentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Incidents</h2>
-          <p className="text-muted-foreground">Track and manage service incidents</p>
-        </div>
+      <PageHeader
+        eyebrow="Response"
+        title="Incident management"
+        description="Track active investigations, maintain timelines, and coordinate operational response."
+      >
         <Button onClick={() => setShowCreateModal(true)}>
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Create Incident
         </Button>
-      </div>
+      </PageHeader>
 
-      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="stat-card-accent" style={{ '--accent-color': '#ef4444' } as React.CSSProperties}>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Open</p>
-            <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">{incidentStats?.open || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="stat-card-accent" style={{ '--accent-color': '#10b981' } as React.CSSProperties}>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Resolved</p>
-            <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">{incidentStats?.resolved || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="stat-card-accent" style={{ '--accent-color': '#3b82f6' } as React.CSSProperties}>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</p>
-            <p className="text-3xl font-bold mt-1">{incidentStats?.total || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="stat-card-accent" style={{ '--accent-color': '#8b5cf6' } as React.CSSProperties}>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Avg Resolution</p>
-            <p className="text-3xl font-bold mt-1">
-              {incidentStats?.avgResolutionTime
-                ? formatDuration(incidentStats.avgResolutionTime)
-                : '-'}
-            </p>
-          </CardContent>
-        </Card>
+        <SummaryStat label="Open" value={incidentStats?.open || 0} tone="danger" />
+        <SummaryStat label="Resolved" value={incidentStats?.resolved || 0} tone="success" />
+        <SummaryStat label="Total" value={incidentStats?.total || 0} tone="primary" />
+        <SummaryStat
+          label="Avg Resolution"
+          value={
+            incidentStats?.avgResolutionTime ? formatDuration(incidentStats.avgResolutionTime) : '-'
+          }
+        />
       </div>
 
       {/* Filter */}
@@ -233,35 +222,47 @@ export default function IncidentsPage() {
         {/* Incident List */}
         <div className="lg:col-span-2 space-y-3">
           {isLoading ? (
-            [...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
+            <LoadingState rows={4} rowClassName="h-20" />
           ) : !incidentList?.length ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <svg className="mx-auto h-12 w-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <EmptyState
+              title="No incidents"
+              description="No active incident records are open. The environment is currently operating within expected thresholds."
+              icon={
+                <svg
+                  className="h-12 w-12 text-emerald-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium">No incidents</h3>
-                <p className="mt-1 text-sm text-muted-foreground">All systems operating normally.</p>
-              </CardContent>
-            </Card>
+              }
+            />
           ) : (
             incidentList.map((incident) => (
               <Card
                 key={incident.id}
                 className={`cursor-pointer transition-colors ${
-                  selectedIncident?.id === incident.id
-                    ? 'ring-2 ring-primary'
-                    : 'hover:bg-muted/30'
+                  selectedIncident?.id === incident.id ? 'ring-2 ring-primary' : 'hover:bg-muted/30'
                 }`}
                 onClick={() => setSelectedIncident(incident)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className={`mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      incident.status === 'RESOLVED' ? 'bg-green-500' :
-                      incident.severity === 'CRITICAL' ? 'bg-red-500 animate-pulse-dot' :
-                      'bg-yellow-500 animate-pulse-dot'
-                    }`} />
+                    <div
+                      className={`mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                        incident.status === 'RESOLVED'
+                          ? 'bg-green-500'
+                          : incident.severity === 'CRITICAL'
+                            ? 'bg-red-500 animate-pulse-dot'
+                            : 'bg-yellow-500 animate-pulse-dot'
+                      }`}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{incident.title}</span>
@@ -273,7 +274,9 @@ export default function IncidentsPage() {
                         </Badge>
                       </div>
                       {incident.description && (
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{incident.description}</p>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {incident.description}
+                        </p>
                       )}
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                         <span>Started {formatDateTime(incident.startedAt)}</span>
@@ -281,8 +284,10 @@ export default function IncidentsPage() {
                         {incident._count && <span>{incident._count.updates} updates</span>}
                         {incident.resolvedAt && (
                           <span>
-                            Duration: {formatDuration(
-                              new Date(incident.resolvedAt).getTime() - new Date(incident.startedAt).getTime()
+                            Duration:{' '}
+                            {formatDuration(
+                              new Date(incident.resolvedAt).getTime() -
+                                new Date(incident.startedAt).getTime()
                             )}
                           </span>
                         )}
@@ -326,12 +331,17 @@ export default function IncidentsPage() {
                       {/* Updates */}
                       {detail.updates?.map((update) => (
                         <div key={update.id} className="relative">
-                          <div className={`absolute -left-4 w-2.5 h-2.5 rounded-full ring-2 ring-background ${
-                            update.status === 'RESOLVED' ? 'bg-green-500' :
-                            update.status === 'IDENTIFIED' ? 'bg-yellow-500' :
-                            update.status === 'MONITORING' ? 'bg-blue-500' :
-                            'bg-gray-400'
-                          }`} />
+                          <div
+                            className={`absolute -left-4 w-2.5 h-2.5 rounded-full ring-2 ring-background ${
+                              update.status === 'RESOLVED'
+                                ? 'bg-green-500'
+                                : update.status === 'IDENTIFIED'
+                                  ? 'bg-yellow-500'
+                                  : update.status === 'MONITORING'
+                                    ? 'bg-blue-500'
+                                    : 'bg-gray-400'
+                            }`}
+                          />
                           <div className="text-sm">
                             {update.status && (
                               <Badge variant={statusColors[update.status]} className="mb-1">
@@ -359,7 +369,7 @@ export default function IncidentsPage() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <textarea
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-y"
+                      className="min-h-[80px] w-full resize-y rounded-[1rem] border border-border/70 bg-surface/80 px-3 py-2 text-sm text-foreground outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
                       placeholder="Describe the update..."
                       value={updateMessage}
                       onChange={(e) => setUpdateMessage(e.target.value)}
@@ -373,11 +383,13 @@ export default function IncidentsPage() {
                     </Select>
                     <Button
                       className="w-full"
-                      onClick={() => addUpdateMutation.mutate({
-                        id: detail.id,
-                        message: updateMessage,
-                        status: updateStatus,
-                      })}
+                      onClick={() =>
+                        addUpdateMutation.mutate({
+                          id: detail.id,
+                          message: updateMessage,
+                          status: updateStatus,
+                        })
+                      }
                       disabled={!updateMessage || addUpdateMutation.isPending}
                     >
                       {addUpdateMutation.isPending ? 'Posting...' : 'Post Update'}
@@ -397,50 +409,61 @@ export default function IncidentsPage() {
       </div>
 
       {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <Card className="w-full max-w-lg mx-4">
-            <CardHeader>
-              <CardTitle>Create Incident</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)}>
+        <ModalPanel className="max-w-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-4">
+            <ModalTitle>Create Incident</ModalTitle>
+            <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground block mb-1">Title</label>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Title
+                </label>
                 <Input
                   value={createForm.title}
-                  onChange={(e) => setCreateForm(p => ({ ...p, title: e.target.value }))}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))}
                   placeholder="Brief description of the incident"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground block mb-1">Description</label>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Description
+                </label>
                 <textarea
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-y"
+                  className="min-h-[80px] w-full resize-y rounded-[1rem] border border-border/70 bg-surface/80 px-3 py-2 text-sm text-foreground outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
                   placeholder="Detailed description..."
                   value={createForm.description}
-                  onChange={(e) => setCreateForm(p => ({ ...p, description: e.target.value }))}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">Severity</label>
-                  <Select value={createForm.severity} onChange={(e) => setCreateForm(p => ({ ...p, severity: e.target.value }))}>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1">
+                    Severity
+                  </label>
+                  <Select
+                    value={createForm.severity}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, severity: e.target.value }))}
+                  >
                     <option value="CRITICAL">Critical</option>
                     <option value="WARNING">Warning</option>
                     <option value="INFO">Info</option>
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">Assignee</label>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1">
+                    Assignee
+                  </label>
                   <Input
                     value={createForm.assignee}
-                    onChange={(e) => setCreateForm(p => ({ ...p, assignee: e.target.value }))}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, assignee: e.target.value }))}
                     placeholder="Optional"
                   />
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setShowCreateModal(false)}>
+                  Cancel
+                </Button>
                 <Button
                   onClick={() => createMutation.mutate(createForm)}
                   disabled={!createForm.title || createMutation.isPending}
@@ -448,10 +471,10 @@ export default function IncidentsPage() {
                   {createMutation.isPending ? 'Creating...' : 'Create Incident'}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          </div>
+        </ModalPanel>
+      </Modal>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { auditApi, AuditLogEntry } from '@/lib/api';
 import { useFormatDate } from '@/hooks/useFormatDate';
 
@@ -41,7 +42,7 @@ function getActionColor(action: string): string {
 }
 
 function formatAction(action: string): string {
-  return action.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return action.replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function formatDetails(details: Record<string, unknown> | null): string {
@@ -49,10 +50,12 @@ function formatDetails(details: Record<string, unknown> | null): string {
   const entries = Object.entries(details)
     .filter(([, v]) => v !== null && v !== undefined)
     .slice(0, 4);
-  return entries.map(([k, v]) => {
-    const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
-    return `${k}: ${val.length > 50 ? val.substring(0, 50) + '...' : val}`;
-  }).join(', ');
+  return entries
+    .map(([k, v]) => {
+      const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return `${k}: ${val.length > 50 ? val.substring(0, 50) + '...' : val}`;
+    })
+    .join(', ');
 }
 
 export default function AuditPage() {
@@ -68,58 +71,40 @@ export default function AuditPage() {
 
   const { data: logs, isLoading } = useQuery({
     queryKey: ['auditLogs', entityType, page],
-    queryFn: () => auditApi.list({
-      ...(entityType && { entityType }),
-      limit: pageSize,
-      offset: page * pageSize,
-    }),
+    queryFn: () =>
+      auditApi.list({
+        ...(entityType && { entityType }),
+        limit: pageSize,
+        offset: page * pageSize,
+      }),
   });
 
   const logList = logs as AuditLogEntry[] | undefined;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/settings">
-            <Button variant="ghost" size="icon">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Audit Log</h1>
-            <p className="text-sm text-muted-foreground">Track all changes made to the system</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Governance"
+        title="Audit log"
+        description="Track system changes, administrative actions, and security-relevant events."
+      >
+        <Link href="/settings">
+          <Button variant="outline">Back to Settings</Button>
+        </Link>
+      </PageHeader>
 
-      {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="py-4">
-              <p className="text-sm text-muted-foreground">Total Events</p>
-              <p className="text-2xl font-bold">{(stats as any).total}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="py-4">
-              <p className="text-sm text-muted-foreground">Last 24 Hours</p>
-              <p className="text-2xl font-bold">{(stats as any).last24h}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="py-4">
-              <p className="text-sm text-muted-foreground">Top Action</p>
-              <p className="text-2xl font-bold">
-                {(stats as any).byAction?.[0]?.action
-                  ? formatAction((stats as any).byAction[0].action)
-                  : 'None'}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 md:grid-cols-3">
+          <SummaryStat label="Total Events" value={(stats as any).total} tone="primary" />
+          <SummaryStat label="Last 24 Hours" value={(stats as any).last24h} />
+          <SummaryStat
+            label="Top Action"
+            value={
+              (stats as any).byAction?.[0]?.action
+                ? formatAction((stats as any).byAction[0].action)
+                : 'None'
+            }
+          />
         </div>
       )}
 
@@ -128,11 +113,16 @@ export default function AuditPage() {
         <label className="text-sm text-muted-foreground">Filter by type:</label>
         <Select
           value={entityType}
-          onChange={e => { setEntityType(e.target.value); setPage(0); }}
+          onChange={(e) => {
+            setEntityType(e.target.value);
+            setPage(0);
+          }}
           className="w-48"
         >
-          {ENTITY_TYPES.map(t => (
-            <option key={t.value} value={t.value}>{t.label}</option>
+          {ENTITY_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
           ))}
         </Select>
       </div>
@@ -145,7 +135,9 @@ export default function AuditPage() {
         <CardContent>
           {isLoading ? (
             <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12" />)}
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
             </div>
           ) : !logList?.length ? (
             <p className="text-center text-muted-foreground py-8">No audit events found</p>
@@ -173,7 +165,9 @@ export default function AuditPage() {
                           {log.user?.name || log.user?.email || 'System'}
                         </td>
                         <td className="py-2.5 pr-4">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${getActionColor(log.action)}`}>
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs font-medium ${getActionColor(log.action)}`}
+                          >
                             {formatAction(log.action)}
                           </span>
                         </td>
@@ -202,7 +196,7 @@ export default function AuditPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
                 >
                   Previous
@@ -211,7 +205,7 @@ export default function AuditPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setPage(p => p + 1)}
+                  onClick={() => setPage((p) => p + 1)}
                   disabled={(logList?.length || 0) < pageSize}
                 >
                   Next

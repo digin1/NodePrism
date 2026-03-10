@@ -1,6 +1,5 @@
 'use client';
 
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { serverApi } from '@/lib/api';
 
 export default function NewServerPage() {
@@ -36,13 +36,27 @@ export default function NewServerPage() {
     createMutation.mutate();
   };
 
-  const managerUrl = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:4000` : 'http://<manager-ip>:4000';
+  const managerUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.protocol}//${window.location.hostname}:4000`
+      : 'http://<manager-ip>:4000';
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-foreground">Add New Server</h2>
-        <p className="text-muted-foreground">Register a server for monitoring</p>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <PageHeader
+        eyebrow="Provision"
+        title="Add new server"
+        description="Register a new server, assign its environment, and prepare the agent installation workflow."
+      >
+        <Button variant="outline" onClick={() => router.back()}>
+          Cancel
+        </Button>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SummaryStat label="Environment" value={formData.environment} tone="primary" />
+        <SummaryStat label="Region" value={formData.region || 'Not set'} />
+        <SummaryStat label="Agent URL" value="Ready" tone="success" />
       </div>
 
       <Card>
@@ -116,11 +130,12 @@ export default function NewServerPage() {
       </Card>
 
       {/* Agent Install Instructions */}
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
           <CardTitle>Next Step: Install Agent</CardTitle>
           <CardDescription>
-            After creating the server, run this command on the target server to install the monitoring agent
+            After creating the server, run this command on the target server to install the
+            monitoring agent
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -131,10 +146,13 @@ chmod +x nodeprism-agent.sh
 sudo ./nodeprism-agent.sh install`}</pre>
           </div>
           <p className="text-sm text-muted-foreground">
-            The agent script will guide you through selecting which exporters to install (node_exporter, mysql_exporter, etc.) and automatically register with this NodePrism instance.
+            The agent script will guide you through selecting which exporters to install
+            (node_exporter, mysql_exporter, etc.) and automatically register with this NodePrism
+            instance.
           </p>
           <p className="text-sm text-muted-foreground">
-            Alternatively, servers are auto-registered when agents connect — you can skip this form and just run the agent script directly on the target server.
+            Alternatively, servers are auto-registered when agents connect — you can skip this form
+            and just run the agent script directly on the target server.
           </p>
         </CardContent>
       </Card>

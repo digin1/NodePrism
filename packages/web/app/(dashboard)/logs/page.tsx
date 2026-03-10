@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { io, Socket } from 'socket.io-client';
 
 // Use relative URL to go through Next.js proxy
@@ -167,11 +168,11 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Event Log</h2>
-          <p className="text-muted-foreground">Monitor server and system events</p>
-        </div>
+      <PageHeader
+        eyebrow="Event Stream"
+        title="System event log"
+        description="Monitor server and system events, alert transitions, and live platform activity."
+      >
         <div className="flex gap-2">
           <Button
             variant={autoRefresh ? 'default' : 'outline'}
@@ -184,41 +185,15 @@ export default function EventsPage() {
             {isFetching ? 'Loading...' : 'Refresh'}
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
-      {/* Stats Summary */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground">Total Events</div>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-red-600">Critical</div>
-              <div className="text-2xl font-bold text-red-600">{stats.bySeverity?.CRITICAL || 0}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-yellow-600">Warning</div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.bySeverity?.WARNING || 0}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-blue-600">Info</div>
-              <div className="text-2xl font-bold text-blue-600">{stats.bySeverity?.INFO || 0}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground">Debug</div>
-              <div className="text-2xl font-bold text-muted-foreground">{stats.bySeverity?.DEBUG || 0}</div>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
+          <SummaryStat label="Total Events" value={stats.total} tone="primary" />
+          <SummaryStat label="Critical" value={stats.bySeverity?.CRITICAL || 0} tone="danger" />
+          <SummaryStat label="Warning" value={stats.bySeverity?.WARNING || 0} tone="warning" />
+          <SummaryStat label="Info" value={stats.bySeverity?.INFO || 0} />
+          <SummaryStat label="Debug" value={stats.bySeverity?.DEBUG || 0} />
         </div>
       )}
 

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { alertApi } from '@/lib/api';
 
 interface AlertTemplate {
@@ -78,7 +79,8 @@ const PRESETS = [
   },
   {
     name: 'Disk Usage',
-    query: '(1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100',
+    query:
+      '(1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100',
     units: '%',
     warn: '$value > 80',
     crit: '$value > 90',
@@ -156,7 +158,9 @@ function TemplateFormComponent({
           required
         />
         <p className="text-xs text-muted-foreground">
-          Should return a single numeric value. <code className="bg-muted px-1 rounded">server_id</code> label is injected automatically per server.
+          Should return a single numeric value.{' '}
+          <code className="bg-muted px-1 rounded">server_id</code> label is injected automatically
+          per server.
         </p>
       </div>
 
@@ -171,7 +175,8 @@ function TemplateFormComponent({
             required
           />
           <p className="text-xs text-muted-foreground">
-            Use <code className="bg-muted px-1 rounded">$value</code> with: {'>'} {'<'} {'>='} {'<='} == !=
+            Use <code className="bg-muted px-1 rounded">$value</code> with: {'>'} {'<'} {'>='}{' '}
+            {'<='} == !=
           </p>
         </div>
         <div className="space-y-1.5">
@@ -189,10 +194,7 @@ function TemplateFormComponent({
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Evaluation Interval</label>
-          <Select
-            value={form.every}
-            onChange={(e) => setForm({ ...form, every: e.target.value })}
-          >
+          <Select value={form.every} onChange={(e) => setForm({ ...form, every: e.target.value })}>
             <option value="30s">30 seconds</option>
             <option value="1m">1 minute</option>
             <option value="2m">2 minutes</option>
@@ -201,10 +203,7 @@ function TemplateFormComponent({
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Fire After</label>
-          <Select
-            value={form.for}
-            onChange={(e) => setForm({ ...form, for: e.target.value })}
-          >
+          <Select value={form.for} onChange={(e) => setForm({ ...form, for: e.target.value })}>
             <option value="0s">Immediately</option>
             <option value="1m">1 minute</option>
             <option value="2m">2 minutes</option>
@@ -264,7 +263,9 @@ export default function AlertTemplatesPage() {
         });
         window.history.replaceState({}, '', '/alerts/templates');
         setTimeout(() => {
-          document.getElementById(`template-${template.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          document
+            .getElementById(`template-${template.id}`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
       }
     }
@@ -368,41 +369,36 @@ export default function AlertTemplatesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/alerts">
-            <Button variant="ghost" size="icon">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Button>
-          </Link>
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Alert Templates</h2>
-            <p className="text-muted-foreground">
-              Per-server threshold templates with warning and critical conditions
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/alerts/rules">
-            <Button variant="outline">Rules</Button>
-          </Link>
-          <Button
-            onClick={() => {
-              if (showCreate) {
-                setShowCreate(false);
-              } else {
-                setShowCreate(true);
-                setEditingId(null);
-                setForm(DEFAULT_FORM);
-              }
-            }}
-          >
-            {showCreate ? 'Cancel' : 'Create Template'}
-          </Button>
-        </div>
+      <PageHeader
+        eyebrow="Template Library"
+        title="Alert templates"
+        description="Define reusable per-server threshold templates with warning and critical conditions."
+      >
+        <Link href="/alerts">
+          <Button variant="outline">Back to Alerts</Button>
+        </Link>
+        <Link href="/alerts/rules">
+          <Button variant="outline">Rules</Button>
+        </Link>
+        <Button
+          onClick={() => {
+            if (showCreate) {
+              setShowCreate(false);
+            } else {
+              setShowCreate(true);
+              setEditingId(null);
+              setForm(DEFAULT_FORM);
+            }
+          }}
+        >
+          {showCreate ? 'Cancel' : 'Create Template'}
+        </Button>
+      </PageHeader>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SummaryStat label="Templates" value={filtered?.length || 0} tone="primary" />
+        <SummaryStat label="Create Mode" value={showCreate ? 'Open' : 'Closed'} />
+        <SummaryStat label="Search" value={search || 'All'} />
       </div>
 
       {/* Create Form */}
@@ -411,7 +407,8 @@ export default function AlertTemplatesPage() {
           <CardHeader>
             <CardTitle>Create Alert Template</CardTitle>
             <CardDescription>
-              Define a PromQL query and threshold conditions. The query is evaluated per-server automatically.
+              Define a PromQL query and threshold conditions. The query is evaluated per-server
+              automatically.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -456,8 +453,18 @@ export default function AlertTemplatesPage() {
             </div>
           ) : !filtered?.length ? (
             <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <svg
+                className="mx-auto h-12 w-12 text-muted-foreground"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
               </svg>
               <h3 className="mt-2 text-sm font-medium text-foreground">
                 {search ? 'No matching templates' : 'No alert templates'}
@@ -484,8 +491,18 @@ export default function AlertTemplatesPage() {
                     /* ── Inline Edit Mode ── */
                     <div className="p-4">
                       <div className="flex items-center gap-2 mb-4">
-                        <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        <svg
+                          className="w-4 h-4 text-primary"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
                         </svg>
                         <span className="text-sm font-medium text-primary">Editing Template</span>
                       </div>
@@ -509,27 +526,35 @@ export default function AlertTemplatesPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-medium">{template.name}</h4>
                             {!template.enabled && (
-                              <Badge variant="outline" className="opacity-60">Disabled</Badge>
+                              <Badge variant="outline" className="opacity-60">
+                                Disabled
+                              </Badge>
                             )}
                             {template._count?.alerts ? (
                               <Badge variant="danger">{template._count.alerts} firing</Badge>
                             ) : null}
-                            {template.units && (
-                              <Badge variant="secondary">{template.units}</Badge>
-                            )}
+                            {template.units && <Badge variant="secondary">{template.units}</Badge>}
                           </div>
                           {template.description && (
-                            <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {template.description}
+                            </p>
                           )}
                           <p className="text-xs font-mono text-muted-foreground mt-2 bg-muted p-2 rounded break-all">
                             {template.query}
                           </p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                             <span>
-                              Warn: <code className="text-yellow-600 dark:text-yellow-400">{template.warnCondition?.condition}</code>
+                              Warn:{' '}
+                              <code className="text-yellow-600 dark:text-yellow-400">
+                                {template.warnCondition?.condition}
+                              </code>
                             </span>
                             <span>
-                              Crit: <code className="text-red-600 dark:text-red-400">{template.critCondition?.condition}</code>
+                              Crit:{' '}
+                              <code className="text-red-600 dark:text-red-400">
+                                {template.critCondition?.condition}
+                              </code>
                             </span>
                             <span>Every: {template.every}</span>
                             <span>For: {template.for}</span>
@@ -542,7 +567,9 @@ export default function AlertTemplatesPage() {
                             onClick={() => handleTest(template.id)}
                             disabled={testMutation.isPending && testingId === template.id}
                           >
-                            {testMutation.isPending && testingId === template.id ? 'Testing...' : 'Test'}
+                            {testMutation.isPending && testingId === template.id
+                              ? 'Testing...'
+                              : 'Test'}
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => startEdit(template)}>
                             Edit
@@ -550,7 +577,9 @@ export default function AlertTemplatesPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => toggleMutation.mutate({ id: template.id, enabled: !template.enabled })}
+                            onClick={() =>
+                              toggleMutation.mutate({ id: template.id, enabled: !template.enabled })
+                            }
                             disabled={toggleMutation.isPending}
                           >
                             {template.enabled ? 'Disable' : 'Enable'}
@@ -560,7 +589,9 @@ export default function AlertTemplatesPage() {
                             variant="ghost"
                             className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
                             onClick={() => {
-                              if (confirm('Delete this template? Active alerts will be orphaned.')) {
+                              if (
+                                confirm('Delete this template? Active alerts will be orphaned.')
+                              ) {
                                 deleteMutation.mutate(template.id);
                               }
                             }}
@@ -575,7 +606,8 @@ export default function AlertTemplatesPage() {
                         <div className="mt-4 pt-4 border-t border-border">
                           <div className="flex items-center justify-between mb-3">
                             <h5 className="text-sm font-medium">
-                              Test Results ({testResults.length} server{testResults.length !== 1 ? 's' : ''} matched)
+                              Test Results ({testResults.length} server
+                              {testResults.length !== 1 ? 's' : ''} matched)
                             </h5>
                             <Button
                               size="sm"
@@ -590,7 +622,8 @@ export default function AlertTemplatesPage() {
                           </div>
                           {testResults.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
-                              No servers matched this template. Check matchLabels or ensure servers are online.
+                              No servers matched this template. Check matchLabels or ensure servers
+                              are online.
                             </p>
                           ) : (
                             <div className="overflow-x-auto">
@@ -609,7 +642,9 @@ export default function AlertTemplatesPage() {
                                       <td className="py-2 pr-4">{r.hostname}</td>
                                       <td className="py-2 pr-4 font-mono">
                                         {r.value !== null ? r.value.toFixed(2) : 'N/A'}
-                                        {r.value !== null && template.units ? ` ${template.units}` : ''}
+                                        {r.value !== null && template.units
+                                          ? ` ${template.units}`
+                                          : ''}
                                       </td>
                                       <td className="py-2 pr-4">
                                         <Badge variant={r.warnFiring ? 'warning' : 'secondary'}>
@@ -642,7 +677,9 @@ export default function AlertTemplatesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Quick-Start Presets</CardTitle>
-          <CardDescription>Click to pre-fill the create form with common monitoring templates</CardDescription>
+          <CardDescription>
+            Click to pre-fill the create form with common monitoring templates
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2">
@@ -669,14 +706,23 @@ export default function AlertTemplatesPage() {
                 <div className="flex items-center gap-2">
                   <p className="font-medium">{preset.name}</p>
                   {preset.units && (
-                    <Badge variant="secondary" className="text-[10px]">{preset.units}</Badge>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {preset.units}
+                    </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{preset.description}</p>
-                <p className="text-xs font-mono text-muted-foreground mt-2 truncate">{preset.query}</p>
+                <p className="text-xs font-mono text-muted-foreground mt-2 truncate">
+                  {preset.query}
+                </p>
                 <div className="flex gap-3 mt-1.5 text-[11px] text-muted-foreground">
-                  <span>Warn: <code className="text-yellow-600 dark:text-yellow-400">{preset.warn}</code></span>
-                  <span>Crit: <code className="text-red-600 dark:text-red-400">{preset.crit}</code></span>
+                  <span>
+                    Warn:{' '}
+                    <code className="text-yellow-600 dark:text-yellow-400">{preset.warn}</code>
+                  </span>
+                  <span>
+                    Crit: <code className="text-red-600 dark:text-red-400">{preset.crit}</code>
+                  </span>
                 </div>
               </button>
             ))}

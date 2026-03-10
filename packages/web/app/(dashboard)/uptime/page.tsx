@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Modal, ModalPanel, ModalTitle } from '@/components/ui/modal';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 import { uptimeApi } from '@/lib/api';
 import { useFormatDate } from '@/hooks/useFormatDate';
 
@@ -79,7 +81,16 @@ export default function UptimePage() {
       queryClient.invalidateQueries({ queryKey: ['uptimeMonitors'] });
       queryClient.invalidateQueries({ queryKey: ['uptimeStats'] });
       setShowCreateModal(false);
-      setFormData({ name: '', type: 'HTTP', target: '', interval: 60, timeout: 10, method: 'GET', expectedStatus: 200, keyword: '' });
+      setFormData({
+        name: '',
+        type: 'HTTP',
+        target: '',
+        interval: 60,
+        timeout: 10,
+        method: 'GET',
+        expectedStatus: 200,
+        keyword: '',
+      });
     },
   });
 
@@ -104,63 +115,52 @@ export default function UptimePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Uptime Monitoring</h2>
-          <p className="text-muted-foreground">Monitor the availability of your services</p>
-        </div>
+      <PageHeader
+        eyebrow="Availability"
+        title="Uptime monitoring"
+        description="Track service reachability, response times, and availability trends across configured checks."
+      >
         <Button onClick={() => setShowCreateModal(true)}>
           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Add Monitor
         </Button>
-      </div>
+      </PageHeader>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="stat-card-accent" style={{ '--accent-color': '#3b82f6' } as React.CSSProperties}>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Monitors</p>
-            <p className="text-3xl font-bold mt-1">{uptimeStats?.total || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="stat-card-accent" style={{ '--accent-color': '#10b981' } as React.CSSProperties}>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Up</p>
-            <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">{uptimeStats?.up || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="stat-card-accent" style={{ '--accent-color': '#ef4444' } as React.CSSProperties}>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Down</p>
-            <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">{uptimeStats?.down || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="stat-card-accent" style={{ '--accent-color': '#8b5cf6' } as React.CSSProperties}>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Avg Response</p>
-            <p className="text-3xl font-bold mt-1">
-              {uptimeStats?.avgResponseTime != null ? `${Math.round(uptimeStats.avgResponseTime)}ms` : '-'}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryStat label="Total Monitors" value={uptimeStats?.total || 0} tone="primary" />
+        <SummaryStat label="Healthy" value={uptimeStats?.up || 0} tone="success" />
+        <SummaryStat
+          label="Down"
+          value={uptimeStats?.down || 0}
+          tone={(uptimeStats?.down || 0) > 0 ? 'danger' : 'default'}
+        />
+        <SummaryStat
+          label="Avg Response"
+          value={uptimeStats?.avgResponseTime != null ? `${uptimeStats.avgResponseTime}ms` : 'N/A'}
+        />
       </div>
 
       {/* Monitor List */}
       <div className="space-y-3">
         {isLoading ? (
-          [...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
+          <LoadingState rows={4} rowClassName="h-24" />
         ) : !monitorList?.length ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <svg className="mx-auto h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <EmptyState
+            title="No monitors configured"
+            description="Add an uptime monitor to start tracking reachability, response times, and availability drift."
+            icon={
+              <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
-              <h3 className="mt-2 text-sm font-medium">No monitors configured</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Add a monitor to start tracking uptime.</p>
-            </CardContent>
-          </Card>
+            }
+          />
         ) : (
           monitorList.map((monitor) => (
             <Card key={monitor.id} className="hover:bg-muted/30 transition-colors">
@@ -168,12 +168,17 @@ export default function UptimePage() {
                 <div className="flex items-center gap-4">
                   {/* Status indicator */}
                   <div className="flex-shrink-0">
-                    <div className={`w-3 h-3 rounded-full ${
-                      monitor.currentStatus === 'UP' ? 'bg-green-500 animate-pulse-dot' :
-                      monitor.currentStatus === 'DOWN' ? 'bg-red-500 animate-pulse-dot' :
-                      monitor.currentStatus === 'DEGRADED' ? 'bg-yellow-500 animate-pulse-dot' :
-                      'bg-gray-400'
-                    }`} />
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        monitor.currentStatus === 'UP'
+                          ? 'bg-green-500 animate-pulse-dot'
+                          : monitor.currentStatus === 'DOWN'
+                            ? 'bg-red-500 animate-pulse-dot'
+                            : monitor.currentStatus === 'DEGRADED'
+                              ? 'bg-yellow-500 animate-pulse-dot'
+                              : 'bg-gray-400'
+                      }`}
+                    />
                   </div>
 
                   {/* Info */}
@@ -184,20 +189,30 @@ export default function UptimePage() {
                         {monitor.type}
                       </Badge>
                       {!monitor.enabled && (
-                        <Badge variant="secondary" className="text-xs bg-gray-500/10 text-gray-500">Paused</Badge>
+                        <Badge variant="secondary" className="text-xs bg-gray-500/10 text-gray-500">
+                          Paused
+                        </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground font-mono truncate">{monitor.target}</p>
+                    <p className="text-sm text-muted-foreground font-mono truncate">
+                      {monitor.target}
+                    </p>
                   </div>
 
                   {/* Uptime percentage */}
                   <div className="text-right flex-shrink-0">
-                    <div className={`text-lg font-bold ${
-                      (monitor.uptimePercentage ?? 0) >= 99.9 ? 'text-green-600 dark:text-green-400' :
-                      (monitor.uptimePercentage ?? 0) >= 99 ? 'text-yellow-600 dark:text-yellow-400' :
-                      'text-red-600 dark:text-red-400'
-                    }`}>
-                      {monitor.uptimePercentage != null ? `${monitor.uptimePercentage.toFixed(2)}%` : '-'}
+                    <div
+                      className={`text-lg font-bold ${
+                        (monitor.uptimePercentage ?? 0) >= 99.9
+                          ? 'text-green-600 dark:text-green-400'
+                          : (monitor.uptimePercentage ?? 0) >= 99
+                            ? 'text-yellow-600 dark:text-yellow-400'
+                            : 'text-red-600 dark:text-red-400'
+                      }`}
+                    >
+                      {monitor.uptimePercentage != null
+                        ? `${monitor.uptimePercentage.toFixed(2)}%`
+                        : '-'}
                     </div>
                     <p className="text-xs text-muted-foreground">24h uptime</p>
                   </div>
@@ -219,9 +234,11 @@ export default function UptimePage() {
                         <div
                           key={i}
                           className={`h-6 flex-1 rounded-sm ${
-                            check.status === 'UP' ? 'bg-green-500/70' :
-                            check.status === 'DOWN' ? 'bg-red-500/70' :
-                            'bg-yellow-500/70'
+                            check.status === 'UP'
+                              ? 'bg-green-500/70'
+                              : check.status === 'DOWN'
+                                ? 'bg-red-500/70'
+                                : 'bg-yellow-500/70'
                           }`}
                           title={`${check.status} - ${formatDateTime(check.checkedAt)}`}
                         />
@@ -234,17 +251,44 @@ export default function UptimePage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => toggleMutation.mutate({ id: monitor.id, enabled: !monitor.enabled })}
+                      onClick={() =>
+                        toggleMutation.mutate({ id: monitor.id, enabled: !monitor.enabled })
+                      }
                       title={monitor.enabled ? 'Pause' : 'Resume'}
                     >
                       {monitor.enabled ? (
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
                         </svg>
                       ) : (
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
                         </svg>
                       )}
                     </Button>
@@ -258,8 +302,18 @@ export default function UptimePage() {
                         }
                       }}
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
                       </svg>
                     </Button>
                   </div>
@@ -270,11 +324,17 @@ export default function UptimePage() {
                   <div className="mt-2 ml-7 text-xs text-muted-foreground">
                     Last checked: {formatDateTime(monitor.lastCheck.checkedAt)}
                     {monitor.lastCheck.message && (
-                      <span className={`ml-2 ${
-                        monitor.lastCheck.status === 'UP' ? 'text-green-500' :
-                        monitor.lastCheck.status === 'DEGRADED' ? 'text-yellow-500' :
-                        'text-red-500'
-                      }`}>{monitor.lastCheck.message}</span>
+                      <span
+                        className={`ml-2 ${
+                          monitor.lastCheck.status === 'UP'
+                            ? 'text-green-500'
+                            : monitor.lastCheck.status === 'DEGRADED'
+                              ? 'text-yellow-500'
+                              : 'text-red-500'
+                        }`}
+                      >
+                        {monitor.lastCheck.message}
+                      </span>
                     )}
                   </div>
                 )}
@@ -285,25 +345,28 @@ export default function UptimePage() {
       </div>
 
       {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <Card className="w-full max-w-lg mx-4">
-            <CardHeader>
-              <CardTitle>Add Uptime Monitor</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)}>
+        <ModalPanel className="max-w-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-4">
+            <ModalTitle>Add Uptime Monitor</ModalTitle>
+            <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-muted-foreground block mb-1">Name</label>
                 <Input
                   value={formData.name}
-                  onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
+                  onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
                   placeholder="My Website"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">Type</label>
-                  <Select value={formData.type} onChange={(e) => setFormData(p => ({ ...p, type: e.target.value }))}>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1">
+                    Type
+                  </label>
+                  <Select
+                    value={formData.type}
+                    onChange={(e) => setFormData((p) => ({ ...p, type: e.target.value }))}
+                  >
                     <option value="HTTP">HTTP</option>
                     <option value="HTTPS">HTTPS</option>
                     <option value="TCP">TCP</option>
@@ -315,8 +378,11 @@ export default function UptimePage() {
                   <label className="text-sm font-medium text-muted-foreground block mb-1">
                     {formData.type === 'HTTP' || formData.type === 'HTTPS' ? 'Method' : 'Protocol'}
                   </label>
-                  {(formData.type === 'HTTP' || formData.type === 'HTTPS') ? (
-                    <Select value={formData.method} onChange={(e) => setFormData(p => ({ ...p, method: e.target.value }))}>
+                  {formData.type === 'HTTP' || formData.type === 'HTTPS' ? (
+                    <Select
+                      value={formData.method}
+                      onChange={(e) => setFormData((p) => ({ ...p, method: e.target.value }))}
+                    >
                       <option value="GET">GET</option>
                       <option value="POST">POST</option>
                       <option value="HEAD">HEAD</option>
@@ -327,59 +393,80 @@ export default function UptimePage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground block mb-1">Target</label>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Target
+                </label>
                 <Input
                   value={formData.target}
-                  onChange={(e) => setFormData(p => ({ ...p, target: e.target.value }))}
+                  onChange={(e) => setFormData((p) => ({ ...p, target: e.target.value }))}
                   placeholder={
                     formData.type === 'HTTP' || formData.type === 'HTTPS'
                       ? 'https://example.com'
                       : formData.type === 'TCP'
-                      ? 'hostname:port'
-                      : 'hostname or IP'
+                        ? 'hostname:port'
+                        : 'hostname or IP'
                   }
                 />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">Interval (s)</label>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1">
+                    Interval (s)
+                  </label>
                   <Input
                     type="number"
                     value={formData.interval}
-                    onChange={(e) => setFormData(p => ({ ...p, interval: parseInt(e.target.value) || 60 }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, interval: parseInt(e.target.value) || 60 }))
+                    }
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">Timeout (s)</label>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1">
+                    Timeout (s)
+                  </label>
                   <Input
                     type="number"
                     value={formData.timeout}
-                    onChange={(e) => setFormData(p => ({ ...p, timeout: parseInt(e.target.value) || 10 }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, timeout: parseInt(e.target.value) || 10 }))
+                    }
                   />
                 </div>
                 {(formData.type === 'HTTP' || formData.type === 'HTTPS') && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground block mb-1">Expected Status</label>
+                    <label className="text-sm font-medium text-muted-foreground block mb-1">
+                      Expected Status
+                    </label>
                     <Input
                       type="number"
                       value={formData.expectedStatus}
-                      onChange={(e) => setFormData(p => ({ ...p, expectedStatus: parseInt(e.target.value) || 200 }))}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          expectedStatus: parseInt(e.target.value) || 200,
+                        }))
+                      }
                     />
                   </div>
                 )}
               </div>
               {(formData.type === 'HTTP' || formData.type === 'HTTPS') && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">Keyword (optional)</label>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1">
+                    Keyword (optional)
+                  </label>
                   <Input
                     value={formData.keyword}
-                    onChange={(e) => setFormData(p => ({ ...p, keyword: e.target.value }))}
+                    onChange={(e) => setFormData((p) => ({ ...p, keyword: e.target.value }))}
                     placeholder="Expected text in response body"
                   />
                 </div>
               )}
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setShowCreateModal(false)}>
+                  Cancel
+                </Button>
                 <Button
                   onClick={() => createMutation.mutate(formData)}
                   disabled={!formData.name || !formData.target || createMutation.isPending}
@@ -387,10 +474,10 @@ export default function UptimePage() {
                   {createMutation.isPending ? 'Creating...' : 'Create Monitor'}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          </div>
+        </ModalPanel>
+      </Modal>
     </div>
   );
 }

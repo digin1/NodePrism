@@ -1,12 +1,13 @@
 'use client';
 
-
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { healthApi, metricsApi, settingsApi, SystemSettings } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -111,7 +112,13 @@ export default function SettingsPage() {
   const handleSaveSettings = async () => {
     setSaving(true);
     try {
-      await updateSettingsMutation.mutateAsync({ systemName, primaryColor, timezone, dateFormat, dailyReportTime });
+      await updateSettingsMutation.mutateAsync({
+        systemName,
+        primaryColor,
+        timezone,
+        dateFormat,
+        dailyReportTime,
+      });
     } finally {
       setSaving(false);
     }
@@ -129,14 +136,34 @@ export default function SettingsPage() {
   const depStatus = (dep?: DependencyHealth) =>
     dep ? (dep.status === 'ok' ? 'running' : 'down') : 'unknown';
 
-  const depDetail = (dep?: DependencyHealth) =>
-    dep ? `${dep.responseTime}ms` : undefined;
+  const depDetail = (dep?: DependencyHealth) => (dep ? `${dep.responseTime}ms` : undefined);
 
   const services = [
-    { name: 'API Gateway', port: 4000, status: healthData?.status === 'ok' || healthData?.status === 'degraded' ? 'running' : 'unknown', detail: healthData?.responseTime ? `${healthData.responseTime}ms` : undefined },
-    { name: 'PostgreSQL', port: 5432, status: depStatus(healthData?.dependencies?.database), detail: depDetail(healthData?.dependencies?.database) },
-    { name: 'Redis', port: 6379, status: depStatus(healthData?.dependencies?.redis), detail: depDetail(healthData?.dependencies?.redis) },
-    { name: 'Prometheus', port: 9090, status: depStatus(healthData?.dependencies?.prometheus), detail: depDetail(healthData?.dependencies?.prometheus) },
+    {
+      name: 'API Gateway',
+      port: 4000,
+      status:
+        healthData?.status === 'ok' || healthData?.status === 'degraded' ? 'running' : 'unknown',
+      detail: healthData?.responseTime ? `${healthData.responseTime}ms` : undefined,
+    },
+    {
+      name: 'PostgreSQL',
+      port: 5432,
+      status: depStatus(healthData?.dependencies?.database),
+      detail: depDetail(healthData?.dependencies?.database),
+    },
+    {
+      name: 'Redis',
+      port: 6379,
+      status: depStatus(healthData?.dependencies?.redis),
+      detail: depDetail(healthData?.dependencies?.redis),
+    },
+    {
+      name: 'Prometheus',
+      port: 9090,
+      status: depStatus(healthData?.dependencies?.prometheus),
+      detail: depDetail(healthData?.dependencies?.prometheus),
+    },
     { name: 'Grafana', port: 3030, status: 'running' },
     { name: 'AlertManager', port: 9093, status: 'running' },
     { name: 'Loki', port: 3100, status: 'running' },
@@ -148,15 +175,29 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-foreground">Settings</h2>
-        <p className="text-muted-foreground">System configuration and branding</p>
+      <PageHeader
+        eyebrow="Configuration"
+        title="Settings"
+        description="System configuration, branding, status, exports, and administrative controls for the platform."
+      />
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <SummaryStat label="Role" value={user?.role || 'Unknown'} tone="primary" />
+        <SummaryStat label="Targets" value={(targets as any)?.activeTargets || 0} />
+        <SummaryStat
+          label="Health"
+          value={(health as Health | undefined)?.status || 'unknown'}
+          tone={(health as Health | undefined)?.status === 'ok' ? 'success' : 'warning'}
+        />
+        <SummaryStat label="Timezone" value={timezone} />
       </div>
 
       {message && (
         <div
           className={`p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-500/10 dark:bg-green-500/20 text-green-800 dark:text-green-300' : 'bg-red-500/10 dark:bg-red-500/20 text-red-800 dark:text-red-300'
+            message.type === 'success'
+              ? 'bg-green-500/10 dark:bg-green-500/20 text-green-800 dark:text-green-300'
+              : 'bg-red-500/10 dark:bg-red-500/20 text-red-800 dark:text-red-300'
           }`}
         >
           {message.text}
@@ -168,14 +209,19 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>System Branding</CardTitle>
-            <CardDescription>Customize the look and feel of your NodePrism instance</CardDescription>
+            <CardDescription>
+              Customize the look and feel of your NodePrism instance
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Logo Upload */}
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">Logo</label>
               <div className="flex items-center gap-4">
-                <div className="rounded-lg flex items-center justify-center bg-white overflow-hidden py-2 px-4" style={{ minHeight: '80px' }}>
+                <div
+                  className="rounded-lg flex items-center justify-center bg-white overflow-hidden py-2 px-4"
+                  style={{ minHeight: '80px' }}
+                >
                   {logoUrl ? (
                     <img
                       src={logoUrl}
@@ -222,12 +268,14 @@ export default function SettingsPage() {
 
             {/* System Name */}
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">System Name</label>
-              <input
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                System Name
+              </label>
+              <Input
                 type="text"
                 value={systemName}
                 onChange={(e) => setSystemName(e.target.value)}
-                className="w-full max-w-md px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="max-w-md"
                 placeholder="NodePrism"
               />
               <p className="text-xs text-muted-foreground mt-2">
@@ -237,7 +285,9 @@ export default function SettingsPage() {
 
             {/* Primary Color */}
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Primary Color</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Primary Color
+              </label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -245,11 +295,11 @@ export default function SettingsPage() {
                   onChange={(e) => setPrimaryColor(e.target.value)}
                   className="w-12 h-10 rounded border cursor-pointer"
                 />
-                <input
+                <Input
                   type="text"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="w-32 px-3 py-2 border rounded-lg font-mono text-sm"
+                  className="w-32 font-mono text-sm"
                   placeholder="#3B82F6"
                 />
               </div>
@@ -257,16 +307,40 @@ export default function SettingsPage() {
 
             {/* Timezone */}
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Timezone</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Timezone
+              </label>
               <Select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
                 {[
-                  'UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
-                  'America/Toronto', 'America/Vancouver', 'America/Sao_Paulo', 'America/Argentina/Buenos_Aires',
-                  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow', 'Europe/Istanbul',
-                  'Asia/Dubai', 'Asia/Kolkata', 'Asia/Shanghai', 'Asia/Tokyo', 'Asia/Seoul', 'Asia/Singapore',
-                  'Australia/Sydney', 'Australia/Melbourne', 'Pacific/Auckland', 'Africa/Cairo', 'Africa/Johannesburg',
+                  'UTC',
+                  'America/New_York',
+                  'America/Chicago',
+                  'America/Denver',
+                  'America/Los_Angeles',
+                  'America/Toronto',
+                  'America/Vancouver',
+                  'America/Sao_Paulo',
+                  'America/Argentina/Buenos_Aires',
+                  'Europe/London',
+                  'Europe/Paris',
+                  'Europe/Berlin',
+                  'Europe/Moscow',
+                  'Europe/Istanbul',
+                  'Asia/Dubai',
+                  'Asia/Kolkata',
+                  'Asia/Shanghai',
+                  'Asia/Tokyo',
+                  'Asia/Seoul',
+                  'Asia/Singapore',
+                  'Australia/Sydney',
+                  'Australia/Melbourne',
+                  'Pacific/Auckland',
+                  'Africa/Cairo',
+                  'Africa/Johannesburg',
                 ].map((tz) => (
-                  <option key={tz} value={tz}>{tz}</option>
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
                 ))}
               </Select>
               <p className="text-xs text-muted-foreground mt-2">
@@ -276,18 +350,37 @@ export default function SettingsPage() {
 
             {/* Date Format */}
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Date Format</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Date Format
+              </label>
               <Select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)}>
                 {[
-                  { value: 'YYYY-MM-DD HH:mm:ss', label: 'YYYY-MM-DD HH:mm:ss (2026-03-07 14:30:00)' },
-                  { value: 'DD/MM/YYYY HH:mm:ss', label: 'DD/MM/YYYY HH:mm:ss (07/03/2026 14:30:00)' },
-                  { value: 'MM/DD/YYYY HH:mm:ss', label: 'MM/DD/YYYY HH:mm:ss (03/07/2026 14:30:00)' },
-                  { value: 'DD-MM-YYYY HH:mm:ss', label: 'DD-MM-YYYY HH:mm:ss (07-03-2026 14:30:00)' },
-                  { value: 'YYYY/MM/DD HH:mm:ss', label: 'YYYY/MM/DD HH:mm:ss (2026/03/07 14:30:00)' },
+                  {
+                    value: 'YYYY-MM-DD HH:mm:ss',
+                    label: 'YYYY-MM-DD HH:mm:ss (2026-03-07 14:30:00)',
+                  },
+                  {
+                    value: 'DD/MM/YYYY HH:mm:ss',
+                    label: 'DD/MM/YYYY HH:mm:ss (07/03/2026 14:30:00)',
+                  },
+                  {
+                    value: 'MM/DD/YYYY HH:mm:ss',
+                    label: 'MM/DD/YYYY HH:mm:ss (03/07/2026 14:30:00)',
+                  },
+                  {
+                    value: 'DD-MM-YYYY HH:mm:ss',
+                    label: 'DD-MM-YYYY HH:mm:ss (07-03-2026 14:30:00)',
+                  },
+                  {
+                    value: 'YYYY/MM/DD HH:mm:ss',
+                    label: 'YYYY/MM/DD HH:mm:ss (2026/03/07 14:30:00)',
+                  },
                   { value: 'MMM DD, YYYY HH:mm', label: 'MMM DD, YYYY HH:mm (Mar 07, 2026 14:30)' },
                   { value: 'DD MMM YYYY HH:mm', label: 'DD MMM YYYY HH:mm (07 Mar 2026 14:30)' },
                 ].map((fmt) => (
-                  <option key={fmt.value} value={fmt.value}>{fmt.label}</option>
+                  <option key={fmt.value} value={fmt.value}>
+                    {fmt.label}
+                  </option>
                 ))}
               </Select>
               <p className="text-xs text-muted-foreground mt-2">
@@ -297,15 +390,18 @@ export default function SettingsPage() {
 
             {/* Daily Report Time */}
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Daily Report Time</label>
-              <input
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Daily Report Time
+              </label>
+              <Input
                 type="time"
                 value={dailyReportTime}
                 onChange={(e) => setDailyReportTime(e.target.value)}
-                className="w-full max-w-md px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="max-w-md"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Time to send the daily infrastructure report (in the timezone selected above). Requires restart to take effect.
+                Time to send the daily infrastructure report (in the timezone selected above).
+                Requires restart to take effect.
               </p>
             </div>
 
@@ -368,7 +464,9 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Notification Channels</CardTitle>
-                <CardDescription>Configure where alerts are delivered (Email, Slack, Discord, etc.)</CardDescription>
+                <CardDescription>
+                  Configure where alerts are delivered (Email, Slack, Discord, etc.)
+                </CardDescription>
               </div>
               <a href="/settings/notifications">
                 <Button>Manage Channels</Button>
@@ -402,7 +500,9 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Daily Infrastructure Report</CardTitle>
-                <CardDescription>Scheduled daily report sent to Slack and Telegram at {dailyReportTime} {timezone}</CardDescription>
+                <CardDescription>
+                  Scheduled daily report sent to Slack and Telegram at {dailyReportTime} {timezone}
+                </CardDescription>
               </div>
               <Button
                 variant="outline"
@@ -413,7 +513,10 @@ export default function SettingsPage() {
                     setMessage({ type: 'success', text: 'Daily report sent successfully' });
                     setTimeout(() => setMessage(null), 5000);
                   } catch {
-                    setMessage({ type: 'error', text: 'Failed to send report. Check server logs.' });
+                    setMessage({
+                      type: 'error',
+                      text: 'Failed to send report. Check server logs.',
+                    });
                     setTimeout(() => setMessage(null), 3000);
                   }
                 }}
@@ -432,7 +535,9 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Database Backup</CardTitle>
-                <CardDescription>Scheduled PostgreSQL backups with configurable retention</CardDescription>
+                <CardDescription>
+                  Scheduled PostgreSQL backups with configurable retention
+                </CardDescription>
               </div>
               <Button
                 variant="outline"
@@ -461,22 +566,28 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Configuration Export / Import</CardTitle>
             <CardDescription>
-              Export or import alert rules, templates, dashboards, notification channels, and settings
+              Export or import alert rules, templates, dashboards, notification channels, and
+              settings
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Export */}
             <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Export Configuration</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                Export Configuration
+              </h4>
               <p className="text-xs text-muted-foreground mb-3">
-                Download a JSON file containing all your alert rules, templates, dashboards, notification channels, and settings.
+                Download a JSON file containing all your alert rules, templates, dashboards,
+                notification channels, and settings.
               </p>
               <Button
                 variant="outline"
                 onClick={async () => {
                   try {
                     const data = await settingsApi.exportConfig();
-                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const blob = new Blob([JSON.stringify(data, null, 2)], {
+                      type: 'application/json',
+                    });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
@@ -497,12 +608,17 @@ export default function SettingsPage() {
 
             {/* Import */}
             <div className="border-t pt-6">
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Import Configuration</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                Import Configuration
+              </h4>
               <p className="text-xs text-muted-foreground mb-3">
                 Upload a previously exported JSON file to restore configuration.
               </p>
               <div className="flex items-center gap-4">
-                <Select value={importMode} onChange={(e) => setImportMode(e.target.value as 'skip' | 'overwrite')}>
+                <Select
+                  value={importMode}
+                  onChange={(e) => setImportMode(e.target.value as 'skip' | 'overwrite')}
+                >
                   <option value="skip">Skip existing</option>
                   <option value="overwrite">Overwrite existing</option>
                 </Select>
@@ -518,16 +634,20 @@ export default function SettingsPage() {
                       const text = await file.text();
                       const parsed = JSON.parse(text);
                       if (!parsed.version) {
-                        setMessage({ type: 'error', text: 'Invalid config file: missing version field' });
+                        setMessage({
+                          type: 'error',
+                          text: 'Invalid config file: missing version field',
+                        });
                         setTimeout(() => setMessage(null), 3000);
                         return;
                       }
-                      const result = await settingsApi.importConfig(parsed, importMode) as any;
+                      const result = (await settingsApi.importConfig(parsed, importMode)) as any;
                       const parts: string[] = [];
                       if (result.alertRules) parts.push(`${result.alertRules} alert rules`);
                       if (result.alertTemplates) parts.push(`${result.alertTemplates} templates`);
                       if (result.dashboards) parts.push(`${result.dashboards} dashboards`);
-                      if (result.notificationChannels) parts.push(`${result.notificationChannels} channels`);
+                      if (result.notificationChannels)
+                        parts.push(`${result.notificationChannels} channels`);
                       if (result.settings) parts.push('settings');
                       if (result.skipped) parts.push(`${result.skipped} skipped`);
                       setMessage({
@@ -537,7 +657,10 @@ export default function SettingsPage() {
                       queryClient.invalidateQueries();
                       setTimeout(() => setMessage(null), 5000);
                     } catch {
-                      setMessage({ type: 'error', text: 'Failed to import configuration. Check file format.' });
+                      setMessage({
+                        type: 'error',
+                        text: 'Failed to import configuration. Check file format.',
+                      });
                       setTimeout(() => setMessage(null), 3000);
                     }
                     // Reset input so the same file can be re-imported
@@ -573,7 +696,15 @@ export default function SettingsPage() {
                     {service.detail && <span className="ml-2 text-xs">({service.detail})</span>}
                   </p>
                 </div>
-                <Badge variant={service.status === 'running' ? 'success' : service.status === 'down' ? 'danger' : 'secondary'}>
+                <Badge
+                  variant={
+                    service.status === 'running'
+                      ? 'success'
+                      : service.status === 'down'
+                        ? 'danger'
+                        : 'secondary'
+                  }
+                >
                   {service.status}
                 </Badge>
               </div>
@@ -591,7 +722,9 @@ export default function SettingsPage() {
           <dl className="space-y-4">
             <div className="flex justify-between py-2 border-b">
               <dt className="text-muted-foreground">API URL</dt>
-              <dd className="font-mono text-sm">{process.env.NEXT_PUBLIC_API_URL || '/api (proxied)'}</dd>
+              <dd className="font-mono text-sm">
+                {process.env.NEXT_PUBLIC_API_URL || '/api (proxied)'}
+              </dd>
             </div>
             <div className="flex justify-between py-2 border-b">
               <dt className="text-muted-foreground">Status</dt>
@@ -629,8 +762,12 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="font-medium">Grafana</p>
-                <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}</p>
-                <p className="text-xs text-muted-foreground mt-1">Default credentials configured in .env</p>
+                <p className="text-sm text-muted-foreground">
+                  {process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Default credentials configured in .env
+                </p>
               </div>
             </a>
             <a
@@ -644,7 +781,9 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="font-medium">Prometheus</p>
-                <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}</p>
+                <p className="text-sm text-muted-foreground">
+                  {process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090'}
+                </p>
               </div>
             </a>
             <a
@@ -658,7 +797,9 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="font-medium">AlertManager</p>
-                <p className="text-sm text-muted-foreground">{process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}</p>
+                <p className="text-sm text-muted-foreground">
+                  {process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093'}
+                </p>
               </div>
             </a>
           </div>

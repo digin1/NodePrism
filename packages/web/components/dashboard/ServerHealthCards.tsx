@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 import { serverApi, anomalyApi } from '@/lib/api';
 import { useWebSocket } from '@/components/providers';
 import { useEffect } from 'react';
@@ -78,7 +78,7 @@ function ServerHealthCard({ server, anomalyRate }: ServerHealthCardProps) {
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="border-border/60 bg-surface/70 transition-all hover:border-cyan-400/25 hover:bg-accent/15">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">{server.hostname}</CardTitle>
@@ -163,30 +163,21 @@ export function ServerHealthCards() {
 
   if (serversLoading || ratesLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[...Array(6)].map((_, i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-4 w-20" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-4 w-full mb-2" />
-              <Skeleton className="h-4 w-3/4" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <LoadingState
+        rows={6}
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+        rowClassName="h-40"
+      />
     );
   }
 
   if (!serverList || serverList.length === 0) {
     return (
-      <Card>
-        <CardContent className="text-center py-8">
-          <p className="text-muted-foreground">No servers configured</p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        className="min-h-[220px]"
+        title="No servers configured"
+        description="Server health cards will appear here once nodes begin reporting into the platform."
+      />
     );
   }
 

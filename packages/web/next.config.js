@@ -16,7 +16,8 @@ const nextConfig = {
     NEXT_PUBLIC_GRAFANA_URL: process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030',
     NEXT_PUBLIC_PROMETHEUS_URL: process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090',
     NEXT_PUBLIC_ALERTMANAGER_URL: process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093',
-    NEXT_PUBLIC_DOCS_URL: process.env.NEXT_PUBLIC_DOCS_URL || 'http://localhost:3080',
+    NEXT_PUBLIC_DOCS_URL:
+      process.env.NEXT_PUBLIC_DOCS_URL || 'https://digin1.github.io/NodePrism/',
   },
   // Disable automatic trailing slash redirects so proxied tools (AlertManager, Prometheus)
   // can use trailing slashes for relative asset resolution without redirect loops

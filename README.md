@@ -50,12 +50,30 @@
 - Node.js 20+ and pnpm 8+
 - PostgreSQL 15+ (runs in Docker)
 
-### Installation
+### One-Line Deploy (Ubuntu/Debian)
+
+```bash
+curl -sL https://raw.githubusercontent.com/digin1/NodePrism/main/deploy.sh | sudo bash
+```
+
+This installs all dependencies (Docker, Node.js 20, pnpm, PM2), clones the repo, starts infrastructure containers, builds and launches the app.
+
+### Manual Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/digin1/NodePrism.git
 cd NodePrism
+
+# Copy env file and configure
+cp .env.example .env
+# Edit .env — set SERVER_IP to your server's public IP
+
+# Initialize Prometheus config files
+bash infrastructure/docker/init-prometheus.sh
+
+# Symlink .env for Docker Compose
+ln -sf "$(pwd)/.env" infrastructure/docker/.env
 
 # Install dependencies
 pnpm install
@@ -63,19 +81,30 @@ pnpm install
 # Start infrastructure services (PostgreSQL, Redis, Prometheus, etc.)
 pnpm docker:up
 
-# Build and start the application
-pnpm run build && pnpm run start
+# Build and start the application with PM2
+pnpm run build && pnpm run start:pm2
 ```
 
 ### Access
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Web UI | http://localhost:3000 | Register on first visit |
-| API | http://localhost:4000 | — |
-| Grafana | http://localhost:3030 | admin / admin |
-| Prometheus | http://localhost:9090 | — |
-| Documentation | http://localhost:3080 | — |
+| Web UI | `http://<server-ip>:3000` | Register on first visit |
+| Grafana | `http://<server-ip>:3000/grafana/` | admin / admin |
+| Prometheus | `http://<server-ip>:3000/prometheus/` | — |
+| AlertManager | `http://<server-ip>:3000/alertmanager/` | — |
+| API | `http://<server-ip>:4000` | — |
+| Documentation | [Online docs](https://digin1.github.io/NodePrism/) | — |
+
+### Adding Remote Servers (Agent)
+
+Install the NodePrism agent on any server you want to monitor:
+
+```bash
+curl -sL http://<nodeprism-ip>:3000/agent-install.sh | sudo bash
+```
+
+The agent collects system metrics, container stats, and log data, and ships them to the manager node.
 
 ## Architecture
 
@@ -146,6 +175,16 @@ NodePrism/
 | **Infrastructure** | Docker Compose, Turborepo, pnpm workspaces |
 | **Language** | TypeScript (strict mode) |
 
+## Production (PM2)
+
+```bash
+pnpm run build && pnpm run start:pm2   # Build and start all services
+pnpm run status:pm2                     # Check service status
+pnpm run logs:pm2                       # Tail all logs
+pnpm run stop:pm2                       # Stop all services
+pnpm run restart:pm2                    # Restart all services
+```
+
 ## Development
 
 ```bash
@@ -163,30 +202,24 @@ pnpm lint
 
 # Format code
 pnpm format
-
-# Generate documentation
-pnpm docs:generate
 ```
 
 ### Docker Commands
 
 ```bash
-# Start all infrastructure services
-pnpm docker:up
-
-# Stop all services
-pnpm docker:down
-
-# View logs
-pnpm docker:logs
-
-# Restart a specific service
-docker compose -f infrastructure/docker/docker-compose.yml restart prometheus
+pnpm docker:up      # Start all infrastructure services
+pnpm docker:down    # Stop all services
+pnpm docker:logs    # View logs
 ```
 
 ## Documentation
 
-Full documentation is available at `http://localhost:3080` when running the docs container, covering:
+Full documentation is available online and locally:
+
+- **Online**: [https://digin1.github.io/NodePrism/](https://digin1.github.io/NodePrism/)
+- **Local**: `http://localhost:3080` when running the docs container
+
+Topics covered:
 
 - Architecture overview
 - API reference & endpoints

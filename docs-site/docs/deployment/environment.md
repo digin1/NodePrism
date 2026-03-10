@@ -131,3 +131,24 @@ cp .env.example .env
 |----------|---------|-------------|
 | `STATUS_SYNC_INTERVAL` | `30000` | How often to sync server status from Prometheus (ms) |
 
+## Public URLs (for Web UI external links)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NEXT_PUBLIC_GRAFANA_URL` | `/grafana/` | Relative paths - proxied through Next.js (recommended) |
+| `NEXT_PUBLIC_PROMETHEUS_URL` | `/prometheus/` | - |
+| `NEXT_PUBLIC_ALERTMANAGER_URL` | `/alertmanager/` | - |
+| `NEXT_PUBLIC_DOCS_URL` | `http://localhost:3080` | - |
+
+## App URL
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_URL` | `http://your-server-ip:3000` | Full URL where the app is accessible (used for cookies, links) |
+
+## Daily Report
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DAILY_REPORT_TIME` | `08:00` | - |
+

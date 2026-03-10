@@ -8,7 +8,7 @@ const router: ExpressRouter = Router();
 
 // Validation schemas
 const createServerSchema = z.object({
-  hostname: z.string().min(1),
+  hostname: z.string().min(1).max(255),
   ipAddress: z.string().ip(),
   environment: z.enum(['DEVELOPMENT', 'STAGING', 'PRODUCTION']).default('PRODUCTION'),
   groupId: z.string().uuid().nullable().optional(),
@@ -40,9 +40,9 @@ router.get('/tags', async (req: Request, res: Response, next: NextFunction) => {
 router.put('/tags/bulk', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schema = z.object({
-      serverIds: z.array(z.string().uuid()).min(1),
-      addTags: z.array(z.string().min(1)).default([]),
-      removeTags: z.array(z.string().min(1)).default([]),
+      serverIds: z.array(z.string().uuid()).min(1).max(200),
+      addTags: z.array(z.string().min(1).max(50)).max(50).default([]),
+      removeTags: z.array(z.string().min(1).max(50)).max(50).default([]),
     });
     const data = schema.parse(req.body);
 
@@ -84,7 +84,7 @@ router.put('/tags/bulk', async (req: Request, res: Response, next: NextFunction)
 router.delete('/bulk', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schema = z.object({
-      serverIds: z.array(z.string().uuid()).min(1),
+      serverIds: z.array(z.string().uuid()).min(1).max(200),
     });
     const data = schema.parse(req.body);
 

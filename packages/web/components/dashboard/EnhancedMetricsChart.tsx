@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { metricsApi, anomalyApi } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 interface MetricPoint {
   timestamp: number;
@@ -32,6 +33,7 @@ export function EnhancedMetricsChart({
   title,
   height = 300,
 }: EnhancedMetricsChartProps) {
+  const { formatDateTime, formatTimeOnly } = useFormatDate();
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('6h');
   const [showAnomalies, setShowAnomalies] = useState(true);
   const [showBaseline, setShowBaseline] = useState(false);
@@ -135,13 +137,13 @@ export function EnhancedMetricsChart({
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis
                     dataKey="timestamp"
-                    tickFormatter={(ts) => new Date(ts * 1000).toLocaleTimeString()}
+                    tickFormatter={(ts) => formatTimeOnly(ts * 1000)}
                     stroke="#6b7280"
                     fontSize={12}
                   />
                   <YAxis stroke="#6b7280" fontSize={12} />
                   <Tooltip
-                    labelFormatter={(ts) => new Date(ts * 1000).toLocaleString()}
+                    labelFormatter={(ts) => formatDateTime(ts * 1000)}
                     formatter={(value: number) => [value.toFixed(4), 'Value']}
                   />
                   <Line

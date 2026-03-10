@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { alertApi, anomalyApi } from '@/lib/api';
 import { useWebSocket } from '@/components/providers';
 import { useEffect, useState } from 'react';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 interface TimelineEvent {
   id: string;
@@ -20,6 +21,7 @@ interface TimelineEvent {
 }
 
 export function EventTimeline() {
+  const { formatDateTime } = useFormatDate();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
 
   const { data: alerts, isLoading: alertsLoading } = useQuery({
@@ -257,7 +259,7 @@ export function EventTimeline() {
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>{event.timestamp.toLocaleString()}</span>
+                    <span>{formatDateTime(event.timestamp)}</span>
                     {event.serverId && <span>Server: {event.serverId}</span>}
                   </div>
                 </div>

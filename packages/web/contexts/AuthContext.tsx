@@ -122,6 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    // Clear session cookie via API (httpOnly cookie can't be cleared client-side)
+    fetch(`${API_URL}/api/auth/logout`, { method: 'POST' }).catch(() => {});
     localStorage.removeItem('nodeprism_token');
     setToken(null);
     setUser(null);

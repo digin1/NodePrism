@@ -208,7 +208,7 @@ router.get('/events', async (req: Request, res: Response, next: NextFunction) =>
         },
       },
       orderBy: { startedAt: 'desc' },
-      take: parseInt(limit as string) || 100,
+      take: Math.min(parseInt(limit as string) || 100, 500),
       skip: parseInt(offset as string) || 0,
     });
 
@@ -241,7 +241,7 @@ router.get('/models', async (req: Request, res: Response, next: NextFunction) =>
         },
       },
       orderBy: { trainedAt: 'desc' },
-      take: parseInt(limit as string, 10) || 50,
+      take: Math.min(parseInt(limit as string, 10) || 50, 500),
       skip: parseInt(offset as string, 10) || 0,
     });
 

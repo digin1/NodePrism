@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { incidentApi } from '@/lib/api';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 interface IncidentUpdate {
   id: string;
@@ -80,6 +81,7 @@ function formatDuration(ms: number): string {
 export default function IncidentsPage() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const { formatDateTime } = useFormatDate();
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -274,7 +276,7 @@ export default function IncidentsPage() {
                         <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{incident.description}</p>
                       )}
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span>Started {new Date(incident.startedAt).toLocaleString()}</span>
+                        <span>Started {formatDateTime(incident.startedAt)}</span>
                         {incident.assignee && <span>Assigned to {incident.assignee}</span>}
                         {incident._count && <span>{incident._count.updates} updates</span>}
                         {incident.resolvedAt && (
@@ -316,7 +318,7 @@ export default function IncidentsPage() {
                             <p className="text-xs text-muted-foreground">by {detail.createdBy}</p>
                           )}
                           <p className="text-xs text-muted-foreground">
-                            {new Date(detail.createdAt).toLocaleString()}
+                            {formatDateTime(detail.createdAt)}
                           </p>
                         </div>
                       </div>
@@ -339,7 +341,7 @@ export default function IncidentsPage() {
                             <p className="text-muted-foreground">{update.message}</p>
                             <p className="text-xs text-muted-foreground mt-1">
                               {update.createdBy && `${update.createdBy} - `}
-                              {new Date(update.createdAt).toLocaleString()}
+                              {formatDateTime(update.createdAt)}
                             </p>
                           </div>
                         </div>

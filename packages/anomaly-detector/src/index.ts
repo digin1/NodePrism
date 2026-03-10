@@ -6,6 +6,18 @@ import { AnomalyScorer } from './services/anomalyScorer';
 import { AnomalyEventStore } from './services/anomalyEventStore';
 import { RedisClient } from './utils/redis';
 
+// Prevent unhandled rejections from crashing the process
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection (caught globally)', {
+    error: reason instanceof Error ? reason.message : String(reason),
+  });
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught exception (caught globally)', { error: error.message });
+  // Don't exit — let PM2 decide based on health, not crashes
+});
+
 const TRAINING_INTERVAL = parseInt(process.env.TRAINING_INTERVAL || '300000', 10); // 5 minutes
 const SCORING_INTERVAL = parseInt(process.env.SCORING_INTERVAL || '10000', 10); // 10 seconds
 
@@ -42,17 +54,21 @@ class AnomalyDetectorService {
       // Initial training run
       await this.runTrainingCycle();
 
-      // Start periodic training
-      this.trainingTimer = setInterval(async () => {
+      // Start periodic training (wrapped to prevent unhandled rejections)
+      this.trainingTimer = setInterval(() => {
         if (this.isRunning) {
-          await this.runTrainingCycle();
+          this.runTrainingCycle().catch(err =>
+            logger.error('Training cycle threw unexpectedly', { error: err.message })
+          );
         }
       }, TRAINING_INTERVAL);
 
-      // Start periodic scoring
-      this.scoringTimer = setInterval(async () => {
+      // Start periodic scoring (wrapped to prevent unhandled rejections)
+      this.scoringTimer = setInterval(() => {
         if (this.isRunning) {
-          await this.runScoringCycle();
+          this.runScoringCycle().catch(err =>
+            logger.error('Scoring cycle threw unexpectedly', { error: err.message })
+          );
         }
       }, SCORING_INTERVAL);
 
@@ -73,26 +89,39 @@ class AnomalyDetectorService {
       const metrics = await this.metricsCollector.getTrainableMetrics();
       logger.info(`Found ${metrics.length} metrics to train`);
 
-      for (const metric of metrics) {
-        try {
-          // Fetch historical data for training (last 4 hours)
-          const data = await this.metricsCollector.fetchMetricData(
-            metric,
-            4 * 60 * 60 // 4 hours in seconds
-          );
+      // Process in batches to limit memory usage
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < metrics.length; i += BATCH_SIZE) {
+        const batch = metrics.slice(i, i + BATCH_SIZE);
 
-          if (data.length < 100) {
-            logger.debug(
-              `Skipping ${metric.metricKey} - insufficient data points (${data.length})`
+        for (const metric of batch) {
+          if (!this.isRunning) return; // Stop early if shutting down
+
+          try {
+            // Fetch historical data for training (last 4 hours)
+            const data = await this.metricsCollector.fetchMetricData(
+              metric,
+              4 * 60 * 60 // 4 hours in seconds
             );
-            continue;
-          }
 
-          // Train model
-          await this.modelTrainer.trainModel(metric.metricKey, metric.serverId, data);
-          logger.debug(`Trained model for ${metric.metricKey} on server ${metric.serverId}`);
-        } catch (error) {
-          logger.warn(`Failed to train model for ${metric.metricKey}`, { error });
+            if (data.length < 100) {
+              logger.debug(
+                `Skipping ${metric.metricKey} - insufficient data points (${data.length})`
+              );
+              continue;
+            }
+
+            // Train model
+            await this.modelTrainer.trainModel(metric.metricKey, metric.serverId, data);
+            logger.debug(`Trained model for ${metric.metricKey} on server ${metric.serverId}`);
+          } catch (error) {
+            logger.warn(`Failed to train model for ${metric.metricKey}`, { error });
+          }
+        }
+
+        // Yield to event loop and allow GC between batches
+        if (i + BATCH_SIZE < metrics.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
 

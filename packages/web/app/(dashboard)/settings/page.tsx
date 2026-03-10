@@ -37,6 +37,7 @@ export default function SettingsPage() {
   const [primaryColor, setPrimaryColor] = useState('#3B82F6');
   const [timezone, setTimezone] = useState('UTC');
   const [dateFormat, setDateFormat] = useState('YYYY-MM-DD HH:mm:ss');
+  const [dailyReportTime, setDailyReportTime] = useState('08:00');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [importMode, setImportMode] = useState<'skip' | 'overwrite'>('skip');
@@ -64,6 +65,7 @@ export default function SettingsPage() {
       setPrimaryColor(settings.primaryColor || '#3B82F6');
       setTimezone(settings.timezone || 'UTC');
       setDateFormat(settings.dateFormat || 'YYYY-MM-DD HH:mm:ss');
+      setDailyReportTime(settings.dailyReportTime || '08:00');
     }
   }, [settings]);
 
@@ -109,7 +111,7 @@ export default function SettingsPage() {
   const handleSaveSettings = async () => {
     setSaving(true);
     try {
-      await updateSettingsMutation.mutateAsync({ systemName, primaryColor, timezone, dateFormat });
+      await updateSettingsMutation.mutateAsync({ systemName, primaryColor, timezone, dateFormat, dailyReportTime });
     } finally {
       setSaving(false);
     }
@@ -293,6 +295,20 @@ export default function SettingsPage() {
               </p>
             </div>
 
+            {/* Daily Report Time */}
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Daily Report Time</label>
+              <input
+                type="time"
+                value={dailyReportTime}
+                onChange={(e) => setDailyReportTime(e.target.value)}
+                className="w-full max-w-md px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Time to send the daily infrastructure report (in the timezone selected above). Requires restart to take effect.
+              </p>
+            </div>
+
             <Button onClick={handleSaveSettings} disabled={saving}>
               {saving ? 'Saving...' : 'Save Settings'}
             </Button>
@@ -374,6 +390,36 @@ export default function SettingsPage() {
               <a href="/settings/audit">
                 <Button>View Audit Log</Button>
               </a>
+            </div>
+          </CardHeader>
+        </Card>
+      )}
+
+      {/* Daily Report */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Daily Infrastructure Report</CardTitle>
+                <CardDescription>Scheduled daily report sent to Slack and Telegram at {dailyReportTime} {timezone}</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    setMessage({ type: 'success', text: 'Sending daily report...' });
+                    await settingsApi.triggerDailyReport();
+                    setMessage({ type: 'success', text: 'Daily report sent successfully' });
+                    setTimeout(() => setMessage(null), 5000);
+                  } catch {
+                    setMessage({ type: 'error', text: 'Failed to send report. Check server logs.' });
+                    setTimeout(() => setMessage(null), 3000);
+                  }
+                }}
+              >
+                Send Report Now
+              </Button>
             </div>
           </CardHeader>
         </Card>

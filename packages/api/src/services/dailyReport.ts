@@ -687,24 +687,64 @@ export async function generateAndSendReport(): Promise<void> {
 let reportTimeout: NodeJS.Timeout | null = null;
 let reportInterval: NodeJS.Timeout | null = null;
 
-export function startDailyReport(): void {
-  const reportTime = process.env.DAILY_REPORT_TIME || '08:00'; // HH:MM in UTC
-  const [hours, minutes] = reportTime.split(':').map(Number);
-
+/**
+ * Calculate ms until the next occurrence of HH:MM in the given IANA timezone.
+ */
+function msUntilNext(timeStr: string, timezone: string): number {
+  const [hours, minutes] = timeStr.split(':').map(Number);
   const now = new Date();
-  const next = new Date(now);
-  next.setUTCHours(hours, minutes, 0, 0);
 
-  if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+  // Get today's date components in the target timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(now);
+  const todayStr = `${parts.find(p => p.type === 'year')!.value}-${parts.find(p => p.type === 'month')!.value}-${parts.find(p => p.type === 'day')!.value}`;
+  const targetLocal = `${todayStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 
-  const msUntil = next.getTime() - now.getTime();
+  // Compute the timezone offset (tz time minus UTC time)
+  const tzStr = now.toLocaleString('en-US', { timeZone: timezone, hour12: false });
+  const tzDate = new Date(tzStr);
+  const offsetMs = tzDate.getTime() - now.getTime() + (now.getTimezoneOffset() * 60000);
 
-  logger.info(`Daily report scheduled for ${reportTime} UTC (next in ${(msUntil / 3600000).toFixed(1)}h)`);
+  // Build target time in UTC
+  const next = new Date(`${targetLocal}Z`);
+  next.setTime(next.getTime() - offsetMs);
+
+  if (next <= now) next.setTime(next.getTime() + 24 * 60 * 60 * 1000);
+
+  return next.getTime() - now.getTime();
+}
+
+export async function startDailyReport(): Promise<void> {
+  // Read timezone and report time from DB settings, fall back to env / defaults
+  let reportTime = process.env.DAILY_REPORT_TIME || '08:00';
+  let timezone = 'UTC';
+
+  try {
+    const settings = await prisma.systemSettings.findUnique({ where: { id: 'default' } });
+    if (settings) {
+      timezone = settings.timezone || timezone;
+      reportTime = settings.dailyReportTime || reportTime;
+    }
+  } catch (err) {
+    logger.warn('Could not read settings for daily report, using defaults');
+  }
+
+  const ms = msUntilNext(reportTime, timezone);
+
+  logger.info(`Daily report scheduled for ${reportTime} ${timezone} (next in ${(ms / 3600000).toFixed(1)}h)`);
 
   reportTimeout = setTimeout(() => {
     generateAndSendReport();
-    reportInterval = setInterval(generateAndSendReport, 24 * 60 * 60 * 1000);
-  }, msUntil);
+    // Re-schedule daily: re-read settings each day in case they changed
+    reportInterval = setInterval(async () => {
+      generateAndSendReport();
+    }, 24 * 60 * 60 * 1000);
+  }, ms);
 }
 
 export function stopDailyReport(): void {

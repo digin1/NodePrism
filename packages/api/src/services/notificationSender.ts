@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import axios from 'axios';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
+import { decryptConfig } from '../utils/encryption';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -93,6 +94,25 @@ function formatTimeAgo(date: Date): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+/**
+ * Transform alert message/description for recovery notifications.
+ * Replaces negative language ("down", "missing", "high", "low") with recovery language.
+ */
+function recoveryMessage(message: string): string {
+  return message
+    .replace(/\bdown\b/gi, 'recovered')
+    .replace(/\bmissing\b/gi, 'recovered')
+    .replace(/\bInstance (.+?) recovered$/i, 'Instance $1 is back up')
+    .replace(/target (.+?) is recovered/i, 'Target $1 is back online');
+}
+
+function recoveryDescription(description: string, duration: string | null): string {
+  if (duration) {
+    return `Resolved after ${duration}. Was: ${description}`;
+  }
+  return `Resolved. Was: ${description}`;
+}
+
 function getAppBaseUrl(): string {
   return process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 }
@@ -153,11 +173,13 @@ async function sendEmail(config: EmailConfig, alert: AlertPayload): Promise<void
 
   const isResolved = alert.status === 'RESOLVED';
   const server = getServerDisplay(alert);
-  const description = alert.annotations?.description;
+  const rawDescription = alert.annotations?.description;
   const duration = isResolved && alert.endsAt ? formatDuration(alert.startsAt, alert.endsAt) : null;
+  const displayMessage = isResolved ? recoveryMessage(alert.message) : alert.message;
+  const description = isResolved && rawDescription ? recoveryDescription(rawDescription, duration) : rawDescription;
 
   const statusLabel = isResolved ? 'Resolved' : alert.severity;
-  const subject = `${isResolved ? '✅' : severityEmoji(alert.severity)} [NodePrism ${statusLabel}] ${alert.message}`;
+  const subject = `${isResolved ? '✅' : severityEmoji(alert.severity)} [NodePrism ${statusLabel}] ${displayMessage}`;
   const bannerColor = isResolved ? '#22c55e' : alert.severity === 'CRITICAL' ? '#ef4444' : alert.severity === 'WARNING' ? '#f59e0b' : '#3b82f6';
 
   const html = `
@@ -168,7 +190,7 @@ async function sendEmail(config: EmailConfig, alert: AlertPayload): Promise<void
         </h2>
       </div>
       <div style="padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; background: #fff;">
-        <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #111827;">${alert.message}</h3>
+        <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #111827;">${displayMessage}</h3>
         ${description ? `<p style="margin: 0 0 16px 0; color: #6b7280; font-size: 14px;">${description}</p>` : ''}
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <tr>
@@ -211,7 +233,7 @@ async function sendEmail(config: EmailConfig, alert: AlertPayload): Promise<void
   `;
 
   const text = [
-    `${severityEmoji(alert.severity, isResolved)} [${isResolved ? 'RESOLVED' : alert.severity}] ${alert.message}`,
+    `${severityEmoji(alert.severity, isResolved)} [${isResolved ? 'RESOLVED' : alert.severity}] ${displayMessage}`,
     description ? `${description}` : null,
     `Server: ${server.name}${server.detail ? ` (${server.detail})` : ''}`,
     `Started: ${alert.startsAt.toISOString()}`,
@@ -232,9 +254,11 @@ async function sendEmail(config: EmailConfig, alert: AlertPayload): Promise<void
 async function sendSlack(config: SlackConfig, alert: AlertPayload): Promise<void> {
   const isResolved = alert.status === 'RESOLVED';
   const server = getServerDisplay(alert);
-  const description = alert.annotations?.description;
+  const rawDescription = alert.annotations?.description;
   const duration = isResolved && alert.endsAt ? formatDuration(alert.startsAt, alert.endsAt) : null;
   const color = isResolved ? '#22c55e' : alert.severity === 'CRITICAL' ? '#ef4444' : alert.severity === 'WARNING' ? '#f59e0b' : '#3b82f6';
+  const displayMessage = isResolved ? recoveryMessage(alert.message) : alert.message;
+  const description = isResolved && rawDescription ? recoveryDescription(rawDescription, duration) : rawDescription;
 
   const emoji = severityEmoji(alert.severity, isResolved);
   const statusText = isResolved ? 'Resolved' : alert.severity;
@@ -253,7 +277,7 @@ async function sendSlack(config: SlackConfig, alert: AlertPayload): Promise<void
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*${alert.message}*${description ? `\n${description}` : ''}${isResolved && currentValue ? `\n📊 *Current value:* \`${currentValue}\`` : ''}`,
+        text: `*${displayMessage}*${description ? `\n${description}` : ''}${isResolved && currentValue ? `\n📊 *Current value:* \`${currentValue}\`` : ''}`,
       },
     },
     {
@@ -276,7 +300,7 @@ async function sendSlack(config: SlackConfig, alert: AlertPayload): Promise<void
           text: `*Resolved*\n<!date^${Math.floor(alert.endsAt.getTime() / 1000)}^{date_short_pretty} at {time}|${formatTimeAgo(alert.endsAt)}>`,
         }] : [{
           type: 'mrkdwn',
-          text: `*Status*\n${isResolved ? ':white_check_mark: Resolved' : alert.severity === 'CRITICAL' ? ':rotating_light: Firing' : ':warning: Firing'}`,
+          text: `*Status*\n${alert.severity === 'CRITICAL' ? ':rotating_light: Firing' : ':warning: Firing'}`,
         }]),
       ],
     },
@@ -334,9 +358,11 @@ async function sendSlack(config: SlackConfig, alert: AlertPayload): Promise<void
 async function sendDiscord(config: DiscordConfig, alert: AlertPayload): Promise<void> {
   const isResolved = alert.status === 'RESOLVED';
   const server = getServerDisplay(alert);
-  const description = alert.annotations?.description;
+  const rawDescription = alert.annotations?.description;
   const duration = isResolved && alert.endsAt ? formatDuration(alert.startsAt, alert.endsAt) : null;
   const color = isResolved ? 0x22c55e : alert.severity === 'CRITICAL' ? 0xef4444 : alert.severity === 'WARNING' ? 0xf59e0b : 0x3b82f6;
+  const displayMessage = isResolved ? recoveryMessage(alert.message) : alert.message;
+  const description = isResolved && rawDescription ? recoveryDescription(rawDescription, duration) : rawDescription;
 
   const emoji = severityEmoji(alert.severity, isResolved);
   const statusText = isResolved ? 'Resolved' : `${alert.severity} Alert`;
@@ -365,7 +391,7 @@ async function sendDiscord(config: DiscordConfig, alert: AlertPayload): Promise<
     username: 'NodePrism',
     embeds: [{
       title: `${emoji} ${statusText}`,
-      description: `**${alert.message}**${description ? `\n${description}` : ''}`,
+      description: `**${displayMessage}**${description ? `\n${description}` : ''}`,
       color,
       fields,
       footer: { text: 'NodePrism Monitoring' },
@@ -412,8 +438,10 @@ async function sendWebhook(config: WebhookConfig, alert: AlertPayload): Promise<
 async function sendTelegram(config: TelegramConfig, alert: AlertPayload): Promise<void> {
   const isResolved = alert.status === 'RESOLVED';
   const server = getServerDisplay(alert);
-  const description = alert.annotations?.description;
+  const rawDescription = alert.annotations?.description;
   const duration = isResolved && alert.endsAt ? formatDuration(alert.startsAt, alert.endsAt) : null;
+  const displayMessage = isResolved ? recoveryMessage(alert.message) : alert.message;
+  const description = isResolved && rawDescription ? recoveryDescription(rawDescription, duration) : rawDescription;
 
   const emoji = severityEmoji(alert.severity, isResolved);
   const statusText = isResolved ? 'RESOLVED' : alert.severity;
@@ -422,7 +450,7 @@ async function sendTelegram(config: TelegramConfig, alert: AlertPayload): Promis
   const lines = [
     `${emoji} <b>${statusText}</b>${duration ? ` • resolved after ${duration}` : ''}`,
     '',
-    `<b>${escapeHtml(alert.message)}</b>`,
+    `<b>${escapeHtml(displayMessage)}</b>`,
     description ? `<i>${escapeHtml(description)}</i>` : null,
     isResolved && telegramCurrentValue ? `📊 <b>Current value:</b> <code>${escapeHtml(telegramCurrentValue)}</code>` : null,
     '',
@@ -504,7 +532,12 @@ async function getEnabledChannels() {
   if (channelCache && now - channelCacheAt < CHANNEL_CACHE_TTL) {
     return channelCache;
   }
-  channelCache = await prisma.notificationChannel.findMany({ where: { enabled: true } });
+  const raw = await prisma.notificationChannel.findMany({ where: { enabled: true } });
+  // Decrypt sensitive config fields before caching
+  channelCache = raw.map(ch => ({
+    ...ch,
+    config: decryptConfig(ch.config as Record<string, unknown>),
+  }));
   channelCacheAt = now;
   return channelCache;
 }

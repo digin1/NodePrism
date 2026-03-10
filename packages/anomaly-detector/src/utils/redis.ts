@@ -57,46 +57,89 @@ export class RedisClient {
 
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
     if (!this.client || !this._connected) return;
-
-    if (ttlSeconds) {
-      await this.client.setex(key, ttlSeconds, value);
-    } else {
-      await this.client.set(key, value);
+    try {
+      if (ttlSeconds) {
+        await this.client.setex(key, ttlSeconds, value);
+      } else {
+        await this.client.set(key, value);
+      }
+    } catch (error) {
+      this._connected = false;
+      logger.debug('Redis set failed', { error: (error as Error).message });
     }
   }
 
   async get(key: string): Promise<string | null> {
     if (!this.client || !this._connected) return null;
-    return this.client.get(key);
+    try {
+      return await this.client.get(key);
+    } catch (error) {
+      this._connected = false;
+      logger.debug('Redis get failed', { error: (error as Error).message });
+      return null;
+    }
   }
 
   async del(key: string): Promise<void> {
     if (!this.client || !this._connected) return;
-    await this.client.del(key);
+    try {
+      await this.client.del(key);
+    } catch (error) {
+      this._connected = false;
+      logger.debug('Redis del failed', { error: (error as Error).message });
+    }
   }
 
   async keys(pattern: string): Promise<string[]> {
     if (!this.client || !this._connected) return [];
-    return this.client.keys(pattern);
+    try {
+      return await this.client.keys(pattern);
+    } catch (error) {
+      this._connected = false;
+      logger.debug('Redis keys failed', { error: (error as Error).message });
+      return [];
+    }
   }
 
   async hset(key: string, field: string, value: string): Promise<void> {
     if (!this.client || !this._connected) return;
-    await this.client.hset(key, field, value);
+    try {
+      await this.client.hset(key, field, value);
+    } catch (error) {
+      this._connected = false;
+      logger.debug('Redis hset failed', { error: (error as Error).message });
+    }
   }
 
   async hget(key: string, field: string): Promise<string | null> {
     if (!this.client || !this._connected) return null;
-    return this.client.hget(key, field);
+    try {
+      return await this.client.hget(key, field);
+    } catch (error) {
+      this._connected = false;
+      logger.debug('Redis hget failed', { error: (error as Error).message });
+      return null;
+    }
   }
 
   async hgetall(key: string): Promise<Record<string, string>> {
     if (!this.client || !this._connected) return {};
-    return this.client.hgetall(key);
+    try {
+      return await this.client.hgetall(key);
+    } catch (error) {
+      this._connected = false;
+      logger.debug('Redis hgetall failed', { error: (error as Error).message });
+      return {};
+    }
   }
 
   async expire(key: string, seconds: number): Promise<void> {
     if (!this.client || !this._connected) return;
-    await this.client.expire(key, seconds);
+    try {
+      await this.client.expire(key, seconds);
+    } catch (error) {
+      this._connected = false;
+      logger.debug('Redis expire failed', { error: (error as Error).message });
+    }
   }
 }

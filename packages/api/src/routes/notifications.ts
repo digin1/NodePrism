@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { sendTestNotification, invalidateChannelCache } from '../services/notificationSender';
 import { generateAndSendReport } from '../services/dailyReport';
 import { audit } from '../services/auditLogger';
+import { encryptConfig, decryptConfig } from '../utils/encryption';
 
 const router: ExpressRouter = Router();
 
@@ -80,7 +81,7 @@ router.post('/channels', async (req: Request, res: Response, next: NextFunction)
       data: {
         name: data.name,
         type: data.type as any,
-        config: data.config,
+        config: encryptConfig(data.config) as any,
         enabled: data.enabled,
       },
     });
@@ -116,7 +117,7 @@ router.put('/channels/:id', async (req: Request, res: Response, next: NextFuncti
       data: {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.type !== undefined && { type: data.type as any }),
-        ...(data.config !== undefined && { config: data.config }),
+        ...(data.config !== undefined && { config: encryptConfig(data.config) as any }),
         ...(data.enabled !== undefined && { enabled: data.enabled }),
       },
     });

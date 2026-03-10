@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { anomalyApi } from '@/lib/api';
 import { useWebSocket } from '@/components/providers';
 import { useEffect, useState } from 'react';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 interface AnomalyScore {
   metricName: string;
@@ -29,6 +30,7 @@ interface NodeAnomalyRate {
 }
 
 export function AnomalyAdvisorPanel() {
+  const { formatTimeOnly } = useFormatDate();
   const {
     data: anomalies,
     isLoading: anomaliesLoading,
@@ -146,7 +148,7 @@ export function AnomalyAdvisorPanel() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground">
-                      {new Date(anomaly.timestamp).toLocaleTimeString()}
+                      {formatTimeOnly(anomaly.timestamp)}
                     </p>
                   </div>
                 </div>

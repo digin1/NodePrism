@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { logsApi } from '@/lib/api';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 interface LogEntry {
   timestamp: string;
@@ -47,6 +48,7 @@ function buildLogQLQuery(hostname: string, job: string, level: string): string {
 }
 
 export default function InfrastructureLogsPage() {
+  const { formatTimeOnly } = useFormatDate();
   const [query, setQuery] = useState('{job=~".+"}');
   const [submittedQuery, setSubmittedQuery] = useState('{job=~".+"}');
   const [timeRange, setTimeRange] = useState('1h');
@@ -388,12 +390,7 @@ export default function InfrastructureLogsPage() {
                         }`}
                       >
                         <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap align-top">
-                          {new Date(entry.timestamp).toLocaleTimeString('en-US', {
-                            hour12: false,
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                          })}
+                          {formatTimeOnly(entry.timestamp)}
                         </td>
                         <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap align-top">
                           <span className="px-1.5 py-0.5 rounded bg-muted text-[10px]">

@@ -316,7 +316,7 @@ router.get('/:id/checks', async (req: Request, res: Response, next: NextFunction
     const checks = await prisma.uptimeCheck.findMany({
       where,
       orderBy: { checkedAt: 'desc' },
-      take: limit ? parseInt(limit as string, 10) : 100,
+      take: Math.min(limit ? parseInt(limit as string, 10) : 100, 1000),
     });
 
     res.json({

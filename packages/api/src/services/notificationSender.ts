@@ -629,13 +629,13 @@ export async function sendTestNotification(channelId: string): Promise<{ success
     id: 'test-notification',
     status: 'FIRING',
     severity: 'WARNING',
-    message: 'High CPU usage on terminal4.veeblehosting.com',
-    labels: { alertname: 'HighCPUUsage', instance: '108.170.55.202:9100', job: 'node-exporter' },
-    annotations: { summary: 'High CPU usage on terminal4', description: 'CPU usage is above 80% (current value: 92.3%)' },
+    message: 'High CPU usage on example-server.local',
+    labels: { alertname: 'HighCPUUsage', instance: 'example-server:9100', job: 'node-exporter' },
+    annotations: { summary: 'High CPU usage on example-server', description: 'CPU usage is above 80% (current value: 92.3%)' },
     startsAt: new Date(Date.now() - 5 * 60 * 1000), // 5 min ago
     ruleId: sampleRule?.id || undefined,
-    serverHostname: 'terminal4.veeblehosting.com',
-    serverIp: '108.170.55.202',
+    serverHostname: 'example-server.local',
+    serverIp: '192.0.2.1',
   };
 
   try {

@@ -24,7 +24,7 @@ server (API + Web UI) and lightweight agents deployed on monitored servers.`,
   },
   {
     title: 'API Endpoints',
-    docsUrl: process.env.NEXT_PUBLIC_DOCS_URL || 'http://66.85.173.55:3080',
+    docsUrl: process.env.NEXT_PUBLIC_DOCS_URL || 'http://localhost:3080',
     items: [
       { label: 'GET /health', desc: 'Health check with dependency status' },
       { label: 'POST /api/auth/login', desc: 'Authenticate and receive JWT token' },

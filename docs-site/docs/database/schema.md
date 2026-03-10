@@ -287,6 +287,7 @@ AlertTemplate ──── NotificationChannel
 | managerIp | String | - | - |
 | timezone | String | ✓ | Default: "UTC" |
 | dateFormat | String | ✓ | Default: "YYYY-MM-DD" |
+| dailyReportTime | String | ✓ | Default: "08:00" |
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
 

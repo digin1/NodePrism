@@ -6,8 +6,10 @@ const config = {
   title: 'NodePrism',
   tagline: 'Server Monitoring & Management Platform',
   favicon: 'img/favicon.ico',
-  url: 'http://localhost',
-  baseUrl: '/',
+  url: 'https://digin1.github.io',
+  baseUrl: '/NodePrism/',
+  organizationName: 'digin1',
+  projectName: 'NodePrism',
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 

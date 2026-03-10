@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
+import { dispatchNotifications } from './notificationSender';
 import axios from 'axios';
 import net from 'net';
 import dns from 'dns';
@@ -8,6 +9,11 @@ import { UptimeCheckType, UptimeCheckStatus } from '@prisma/client';
 
 // Map of monitorId -> interval timer
 const monitorIntervals = new Map<string, NodeJS.Timeout>();
+
+// Track last known status per monitor for state-change notifications
+const lastKnownStatus = new Map<string, UptimeCheckStatus>();
+// Track when a monitor went down (for duration in resolved notifications)
+const downSince = new Map<string, Date>();
 
 // Master polling interval that syncs monitors from DB
 let masterInterval: NodeJS.Timeout | null = null;
@@ -270,6 +276,8 @@ async function executeCheck(monitorId: string): Promise<void> {
     if (!monitor || !monitor.enabled) {
       // Monitor was deleted or disabled, clear its interval
       clearMonitorInterval(monitorId);
+      lastKnownStatus.delete(monitorId);
+      downSince.delete(monitorId);
       return;
     }
 
@@ -286,6 +294,69 @@ async function executeCheck(monitorId: string): Promise<void> {
     });
 
     logger.debug(`Uptime check for "${monitor.name}": ${result.status} (${result.responseTime}ms)`);
+
+    // Detect state transitions and send notifications
+    const prevStatus = lastKnownStatus.get(monitorId);
+    const isDown = result.status === 'DOWN';
+    const wasDown = prevStatus === 'DOWN';
+
+    if (prevStatus !== undefined && isDown !== wasDown) {
+      if (isDown) {
+        // Service went DOWN
+        const now = new Date();
+        downSince.set(monitorId, now);
+        dispatchNotifications({
+          id: `uptime-${monitorId}-${now.getTime()}`,
+          status: 'FIRING',
+          severity: 'CRITICAL',
+          message: `${monitor.name} is down`,
+          labels: {
+            alertname: 'UptimeDown',
+            monitor_id: monitorId,
+            monitor_name: monitor.name,
+            target: monitor.target,
+            check_type: monitor.type,
+          },
+          annotations: {
+            summary: `Uptime monitor "${monitor.name}" is down`,
+            description: `${monitor.type} check to ${monitor.target} failed: ${result.message}`,
+          },
+          startsAt: now,
+        }).catch(err => logger.error('Failed to send uptime DOWN notification', { error: err.message }));
+
+        logger.warn(`Uptime monitor "${monitor.name}" is DOWN: ${result.message}`);
+      } else {
+        // Service came back UP
+        const wentDownAt = downSince.get(monitorId);
+        const now = new Date();
+        downSince.delete(monitorId);
+
+        dispatchNotifications({
+          id: `uptime-${monitorId}-${now.getTime()}`,
+          status: 'RESOLVED',
+          severity: 'CRITICAL',
+          message: `${monitor.name} is back up`,
+          labels: {
+            alertname: 'UptimeDown',
+            monitor_id: monitorId,
+            monitor_name: monitor.name,
+            target: monitor.target,
+            check_type: monitor.type,
+          },
+          annotations: {
+            summary: `Uptime monitor "${monitor.name}" has recovered`,
+            description: `${monitor.type} check to ${monitor.target} is healthy again: ${result.message}`,
+            current_value: `${result.responseTime}ms`,
+          },
+          startsAt: wentDownAt || now,
+          endsAt: now,
+        }).catch(err => logger.error('Failed to send uptime RESOLVED notification', { error: err.message }));
+
+        logger.info(`Uptime monitor "${monitor.name}" is back UP (${result.responseTime}ms)`);
+      }
+    }
+
+    lastKnownStatus.set(monitorId, result.status);
   } catch (error: any) {
     logger.error(`Error executing uptime check for monitor ${monitorId}`, { error: error.message });
   }
@@ -396,5 +467,7 @@ export function stopUptimeMonitoring(): void {
   }
 
   monitorIntervals.clear();
+  lastKnownStatus.clear();
+  downSince.clear();
   logger.info('Uptime monitoring stopped');
 }

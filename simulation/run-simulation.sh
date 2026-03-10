@@ -3,7 +3,7 @@
 # NodePrism - Simulation Script
 # ============================================
 # Demonstrates the full monitoring workflow with Docker containers
-# Updated for server: 66.85.173.55
+# Configure SERVER_IP in .env or pass as environment variable
 # ============================================
 
 set -e
@@ -17,7 +17,7 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
 fi
 
 # Configuration
-SERVER_IP="${SERVER_IP:-66.85.173.55}"
+SERVER_IP="${SERVER_IP:-localhost}"
 API_URL="${API_URL:-http://localhost:4000}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-http://localhost:9090}"
 TARGETS_DIR="$PROJECT_ROOT/infrastructure/docker/prometheus/targets"

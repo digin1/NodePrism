@@ -72,6 +72,13 @@ packages/api/backups/
 # Playwright MCP screenshots
 .playwright-mcp/
 
+# Prometheus targets & alerts (auto-generated at runtime by config-sync)
+infrastructure/docker/prometheus/targets/*/targets.json
+infrastructure/docker/prometheus/alerts.yml
+
+# Screenshots
+*.png
+
 # Claude Code
 .claude/projects/
 logs/

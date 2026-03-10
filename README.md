@@ -148,74 +148,22 @@ The agent auto-registers with the manager and begins shipping metrics, container
 
 ## Architecture
 
-```
-                          Browser
-                            │
-                            ▼
-┌───────────────────────────────────────────────────────────────────┐
-│                        Manager Node                               │
-│                                                                   │
-│  ┌─────────────────────────────────────────────────────────────┐  │
-│  │              Nginx Reverse Proxy :8443                       │  │
-│  │   rate limiting · security headers · SSL/TLS · gzip         │  │
-│  └──────────┬──────────────────┬───────────────────────────────┘  │
-│             │                  │                                   │
-│             ▼                  ▼                                   │
-│  ┌──────────────────┐  ┌──────────────┐                          │
-│  │   Next.js :3000  │  │ Express :4000│                          │
-│  │   Web UI         │  │ REST API     │◄── AlertManager webhook  │
-│  │                  │  │ Socket.IO    │◄── Slack interactions     │
-│  │  Proxies:        │  │ JWT auth     │                          │
-│  │  /grafana/    ──────►│ Prisma ORM   │                          │
-│  │  /prometheus/ ──────►│              │                          │
-│  │  /alertmanager/─────►└──────┬───────┘                          │
-│  └──────────────────┘         │                                   │
-│                                │ reads/writes                      │
-│  ┌─────────────┐  ┌──────────┐│  ┌─────────────────────────────┐ │
-│  │ Config Sync │  │ Anomaly  ││  │     Docker Containers       │ │
-│  │ :4002       │  │ Detector ││  │                             │ │
-│  │             │  │ :4003    ││  │  PostgreSQL ── Redis        │ │
-│  │ Writes      │  │          ││  │       │                     │ │
-│  │ Prometheus  │  │ K-means  │▼  │  Prometheus ◄── Exporters  │ │
-│  │ target      │  │ models   │──►│  (127.0.0.1)               │ │
-│  │ files       │  │ in Redis │   │       │                     │ │
-│  │      │      │  └──────────┘   │       ▼                     │ │
-│  │      ▼      │                 │  AlertManager ──webhook──►  │ │
-│  │ file_sd ──────────────────►   │  (127.0.0.1)    API :4000  │ │
-│  │             │                 │                             │ │
-│  └─────────────┘                 │  Grafana (127.0.0.1)       │ │
-│                                  │  Loki ◄── Promtail         │ │
-│                                  │  Pushgateway               │ │
-│                                  └─────────────────────────────┘ │
-└───────────────────────────────────────────────────────────────────┘
-                            │
-              Prometheus scrapes + Agent registration
-                            │
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-        ┌───────────┐ ┌───────────┐ ┌───────────┐
-        │  Server 1 │ │  Server 2 │ │  Server N │
-        │           │ │           │ │           │
-        │  Agent    │ │  Agent    │ │  Agent    │
-        │  :9101    │ │  :9101    │ │  :9101    │
-        │           │ │           │ │           │
-        │  Exporters│ │  Exporters│ │  Exporters│
-        │  :9100+   │ │  :9100+   │ │  :9100+   │
-        │           │ │           │ │           │
-        │  Promtail │ │  Promtail │ │  Promtail │
-        │  :9080    │ │  :9080    │ │  :9080    │
-        └───────────┘ └───────────┘ └───────────┘
-```
+<p align="center">
+  <img src="docs/images/architecture.png" alt="NodePrism Architecture" width="800">
+</p>
 
 ### Data Flow
 
-1. **Metrics collection** — Prometheus scrapes exporters on remote servers via file-based service discovery (target files generated by Config Sync)
-2. **Agent registration** — Agents on remote servers POST to API `/api/agents/register`, receive server/agent IDs, then send heartbeats every 30s
-3. **Alert pipeline** — Prometheus evaluates alert rules → fires to AlertManager → AlertManager webhooks back to API → API sends notifications (Slack/Telegram/Email/Discord/Webhook/PagerDuty) and emits Socket.IO events
-4. **Anomaly detection** — Anomaly Detector queries Prometheus for 4-hour metric windows, trains K-means models (cached in Redis), scores current values every 10s
-5. **Log aggregation** — Promtail on each server ships logs to Loki, queryable through Grafana
-6. **Real-time UI** — Socket.IO pushes events (metrics, alerts, anomalies) to connected browsers
-7. **Proxy layer** — Grafana, Prometheus, and AlertManager bind to 127.0.0.1 only; accessed through Next.js rewrites on port 3000 with session cookie auth
+<p align="center">
+  <img src="docs/images/data-flow.png" alt="NodePrism Data Flow" width="800">
+</p>
+
+- **Metrics** — Prometheus scrapes exporters on remote servers via file-based service discovery (target files generated by Config Sync)
+- **Agents** — Remote agents POST to `/api/agents/register`, then send heartbeats every 30s
+- **Alerts** — Prometheus fires rules → AlertManager → webhook to API → notifications (Slack/Telegram/Email/Discord/Webhook/PagerDuty) + Socket.IO events
+- **Anomaly Detection** — Queries Prometheus for 4-hour windows, trains K-means models (Redis), scores every 10s
+- **Logs** — Promtail ships logs to Loki, queryable through Grafana
+- **Proxy** — Grafana, Prometheus, AlertManager bind to 127.0.0.1 only, proxied through Next.js :3000 with session auth
 
 ### Services (PM2-managed)
 

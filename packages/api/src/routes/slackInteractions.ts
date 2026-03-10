@@ -7,6 +7,21 @@ import crypto from 'crypto';
 
 const router: ExpressRouter = Router();
 
+/** Allowed Slack response URL hostname */
+const SLACK_RESPONSE_HOST = 'hooks.slack.com';
+
+/**
+ * Validate that a response_url is a legitimate Slack URL to prevent SSRF.
+ */
+function isValidSlackUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname === SLACK_RESPONSE_HOST;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Verify Slack request signature (optional — enabled when SLACK_SIGNING_SECRET is set).
  */
@@ -77,7 +92,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (!alertId || alertId === 'test-notification') {
       // Test notification — just post a reply
-      if (responseUrl) {
+      if (responseUrl && isValidSlackUrl(responseUrl)) {
         await axios.post(responseUrl, {
           response_type: 'in_channel',
           replace_original: false,
@@ -92,7 +107,7 @@ router.post('/', async (req: Request, res: Response) => {
     // Look up the alert
     const alert = await prisma.alert.findUnique({ where: { id: alertId } });
     if (!alert) {
-      if (responseUrl) {
+      if (responseUrl && isValidSlackUrl(responseUrl)) {
         await axios.post(responseUrl, {
           response_type: 'in_channel',
           replace_original: false,
@@ -104,7 +119,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (actionId === 'acknowledge_alert') {
       if (alert.status !== 'FIRING') {
-        if (responseUrl) {
+        if (responseUrl && isValidSlackUrl(responseUrl)) {
           await axios.post(responseUrl, {
             replace_original: false,
             response_type: 'in_channel',
@@ -129,7 +144,7 @@ router.post('/', async (req: Request, res: Response) => {
       const io = req.app.get('io');
       if (io) io.emit('alert:acknowledged', { id: alertId, acknowledgedBy: slackUser });
 
-      if (responseUrl) {
+      if (responseUrl && isValidSlackUrl(responseUrl)) {
         await axios.post(responseUrl, {
           replace_original: false,
           response_type: 'in_channel',
@@ -138,7 +153,7 @@ router.post('/', async (req: Request, res: Response) => {
       }
     } else if (actionId === 'silence_alert') {
       if (alert.status !== 'FIRING' && alert.status !== 'ACKNOWLEDGED') {
-        if (responseUrl) {
+        if (responseUrl && isValidSlackUrl(responseUrl)) {
           await axios.post(responseUrl, {
             replace_original: false,
             response_type: 'in_channel',
@@ -164,7 +179,7 @@ router.post('/', async (req: Request, res: Response) => {
       const io = req.app.get('io');
       if (io) io.emit('alert:silenced', { id: alertId, silencedBy: slackUser, duration });
 
-      if (responseUrl) {
+      if (responseUrl && isValidSlackUrl(responseUrl)) {
         await axios.post(responseUrl, {
           replace_original: false,
           response_type: 'in_channel',

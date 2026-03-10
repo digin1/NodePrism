@@ -12,7 +12,6 @@
   <a href="#features">Features</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#screenshots">Screenshots</a> •
   <a href="#documentation">Docs</a> •
   <a href="#contributing">Contributing</a>
 </p>

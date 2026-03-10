@@ -16,7 +16,11 @@ const nextConfig = {
     NEXT_PUBLIC_GRAFANA_URL: process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3030',
     NEXT_PUBLIC_PROMETHEUS_URL: process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090',
     NEXT_PUBLIC_ALERTMANAGER_URL: process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093',
+    NEXT_PUBLIC_DOCS_URL: process.env.NEXT_PUBLIC_DOCS_URL || 'http://localhost:3080',
   },
+  // Disable automatic trailing slash redirects so proxied tools (AlertManager, Prometheus)
+  // can use trailing slashes for relative asset resolution without redirect loops
+  skipTrailingSlashRedirect: true,
   // Skip linting during build (handled separately)
   eslint: {
     ignoreDuringBuilds: true,
@@ -33,6 +37,21 @@ const nextConfig = {
         {
           source: '/agent-install.sh',
           destination: 'http://localhost:4000/agent-install.sh',
+        },
+        // Grafana - proxied through Next.js so session cookie is present for auth
+        {
+          source: '/grafana/:path*',
+          destination: `http://localhost:${process.env.GRAFANA_PORT || '3030'}/grafana/:path*`,
+        },
+        // Prometheus - proxied through Next.js (serves at root, external-url=/prometheus/)
+        {
+          source: '/prometheus/:path*',
+          destination: `http://localhost:${process.env.PROMETHEUS_PORT || '9090'}/:path*`,
+        },
+        // AlertManager - proxied through Next.js (serves at root, prefix stripped)
+        {
+          source: '/alertmanager/:path*',
+          destination: `http://localhost:${process.env.ALERTMANAGER_PORT || '9093'}/:path*`,
         },
       ],
       afterFiles: [],

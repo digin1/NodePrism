@@ -73,7 +73,6 @@ const corsOriginsEnv = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || ''
 const allowedOrigins: string[] = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'http://172.26.183.253:3000',
   ...corsOriginsEnv.split(',').map(o => o.trim()).filter(Boolean),
 ].filter((origin, index, self) => self.indexOf(origin) === index); // Remove duplicates
 

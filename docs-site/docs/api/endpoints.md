@@ -95,6 +95,7 @@ Base path: `/api/auth`
 | POST | `/auth/login` | - | Apply strict rate limiting to auth routes |
 | GET | `/auth/me` | - | Apply strict rate limiting to auth routes |
 | POST | `/auth/logout` | - | Apply strict rate limiting to auth routes |
+| GET | `/auth/verify-session` | - | Apply strict rate limiting to auth routes |
 | GET | `/auth/users` | - | Apply strict rate limiting to auth routes |
 | PUT | `/auth/users/:id` | - | Apply strict rate limiting to auth routes |
 | DELETE | `/auth/users/:id` | - | Apply strict rate limiting to auth routes |
@@ -262,6 +263,7 @@ Base path: `/api/settings`
 | DELETE | `/settings/logo` | ✓ | Uploads directory configuration |
 | GET | `/settings/system-info` | ✓ | Uploads directory configuration |
 | POST | `/settings/backup` | ✓ | Uploads directory configuration |
+| POST | `/settings/daily-report` | ✓ | Uploads directory configuration |
 | GET | `/settings/export` | ✓ | Uploads directory configuration |
 | POST | `/settings/import` | ✓ | Uploads directory configuration |
 

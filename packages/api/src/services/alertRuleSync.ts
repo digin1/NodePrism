@@ -56,34 +56,6 @@ function buildAnnotations(name: string, query: string): Record<string, string> {
 }
 
 /**
- * Check if a rule's annotations need regeneration:
- * - Unformatted {{ $value }} (no printf)
- * - Threshold text in description doesn't match actual query threshold
- */
-function annotationsNeedRefresh(query: string, annotations: Record<string, string>): boolean {
-  const desc = annotations?.description || '';
-
-  // Unformatted {{ $value }}
-  if (/\{\{\s*\$value\s*\}\}/.test(desc)) return true;
-
-  // Extract actual threshold from PromQL query
-  const thresholdMatch = query.match(/\s*(>=|<=|!=|>|<|==)\s*([\d.]+)\s*$/);
-  if (!thresholdMatch) return false;
-  const queryThreshold = thresholdMatch[2];
-
-  // Look for numeric thresholds in the description text (e.g. "above 80", "threshold: 1000")
-  const descThresholds = desc.match(/(?:above|below|at or above|at or below|equal to|not equal to|threshold:\s*)\s*([\d.]+)/gi);
-  if (!descThresholds) return false;
-
-  for (const match of descThresholds) {
-    const numMatch = match.match(/([\d.]+)/);
-    if (numMatch && numMatch[1] !== queryThreshold) return true;
-  }
-
-  return false;
-}
-
-/**
  * Parse alerts.yml and return flat list of rules
  */
 function parseAlertsYml(): PrometheusRule[] {
@@ -170,17 +142,19 @@ export async function syncRulesToYml(): Promise<void> {
     orderBy: { name: 'asc' },
   });
 
-  // Fix DB rules with stale/mismatched threshold text or unformatted $value
+  // Ensure all rules use standardized annotations from buildAnnotations().
+  // This keeps threshold text in sync with the PromQL query and ensures
+  // consistent formatting (printf "%.1f") across all notifications.
   for (const rule of rules) {
-    const annotations = (rule.annotations as Record<string, string>) || {};
-    if (annotationsNeedRefresh(rule.query, annotations)) {
-      const fixed = buildAnnotations(rule.name, rule.query);
+    const expected = buildAnnotations(rule.name, rule.query);
+    const current = (rule.annotations as Record<string, string>) || {};
+    if (current.description !== expected.description || current.summary !== expected.summary) {
       await prisma.alertRule.update({
         where: { id: rule.id },
-        data: { annotations: fixed },
+        data: { annotations: expected },
       });
-      (rule as any).annotations = fixed;
-      logger.info(`Regenerated annotations for rule: ${rule.name}`);
+      (rule as any).annotations = expected;
+      logger.info(`Normalized annotations for rule: ${rule.name}`);
     }
   }
 

@@ -1,0 +1,51 @@
+# NodePrism
+
+> Open-source infrastructure monitoring platform for servers, containers, and services.
+
+NodePrism is a self-hosted server monitoring platform built with TypeScript. It monitors KVM, OpenVZ, Virtuozzo, Docker, LXC containers, and hosting panels like cPanel/WHM. It uses Prometheus for metrics, Grafana for visualization, Loki for logs, and AlertManager for alerts. It includes ML-based anomaly detection and supports 13 exporter types.
+
+## Use Cases
+
+- Monitor dedicated servers, VPS, and cloud instances
+- Monitor KVM/libvirt virtual machines with per-VM metrics
+- Monitor OpenVZ and Virtuozzo containers with CPU, memory, and network tracking
+- Monitor cPanel/WHM hosting panels (accounts, bandwidth, disk)
+- Monitor LiteSpeed web servers and Exim mail servers
+- Monitor MySQL, PostgreSQL, MongoDB, Redis databases
+- Monitor Nginx and Apache web servers
+- Detect anomalies in server metrics using ML (K-means clustering)
+- Send alert notifications via Slack, Telegram, Email, Discord, Webhooks, PagerDuty
+- Track incidents with status workflows and resolution timelines
+- Monitor uptime via HTTP/HTTPS, TCP, ICMP, DNS checks
+- Generate daily infrastructure reports to Slack/Telegram
+- Forecast disk usage trends with linear regression
+
+## Quick Start
+
+One-line install on Ubuntu/Debian:
+```
+curl -sL https://raw.githubusercontent.com/digin1/NodePrism/main/deploy.sh | sudo bash
+```
+
+Add monitored servers:
+```
+curl -sL http://<nodeprism-ip>:3000/agent-install.sh | sudo bash
+```
+
+## Links
+
+- Source: https://github.com/digin1/NodePrism
+- Docs: https://digin1.github.io/NodePrism/
+- Release: https://github.com/digin1/NodePrism/releases/tag/v1.0.0
+- Issues: https://github.com/digin1/NodePrism/issues
+- License: MIT
+
+## Detailed Docs
+
+- [Full AI context](/NodePrism/llms-full.txt): Comprehensive documentation for AI agents
+- [Getting Started](https://digin1.github.io/NodePrism/getting-started): Installation guide
+- [Architecture](https://digin1.github.io/NodePrism/architecture/overview): System design
+- [Agent Scripts](https://digin1.github.io/NodePrism/agents/overview): All 13 agent types
+- [Monitoring](https://digin1.github.io/NodePrism/monitoring/overview): Prometheus stack and exporters
+- [API Reference](https://digin1.github.io/NodePrism/api/endpoints): REST API
+- [Deployment](https://digin1.github.io/NodePrism/deployment/guide): Production setup

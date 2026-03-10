@@ -22,7 +22,7 @@ import { prisma } from './lib/prisma';
 import { metricsMiddleware, metricsRegistry, setWebSocketConnections } from './services/apiMetrics';
 import { initAnomalyMetrics } from './services/anomalyMetrics';
 import { autoLabelAllServers } from './services/serverAutoLabel';
-import { importRulesFromYml } from './services/alertRuleSync';
+import { importRulesFromYml, syncRulesToYml } from './services/alertRuleSync';
 import { startDailyReport, stopDailyReport } from './services/dailyReport';
 import { startAlertReconciliation, stopAlertReconciliation } from './services/alertReconciliation';
 
@@ -295,8 +295,10 @@ server.listen(PORT, async () => {
   // Auto-label servers based on registered agents/metadata
   autoLabelAllServers();
 
-  // Import Prometheus alert rules into DB (one-time bootstrap)
-  importRulesFromYml().catch(err => logger.error('Failed to import alert rules', { error: err.message }));
+  // Import Prometheus alert rules into DB (one-time bootstrap), then sync to normalize formatting
+  importRulesFromYml()
+    .then(() => syncRulesToYml())
+    .catch(err => logger.error('Failed to import/sync alert rules', { error: err.message }));
 
   // Start alert reconciliation (auto-resolve stale alerts missed by AlertManager)
   startAlertReconciliation(io);

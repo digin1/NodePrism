@@ -56,7 +56,7 @@ if (SSL_ENABLED) {
     if (SSL_CA_PATH && fs.existsSync(SSL_CA_PATH)) {
       sslOptions.ca = fs.readFileSync(SSL_CA_PATH);
       sslOptions.requestCert = true;
-      sslOptions.rejectUnauthorized = false; // Set to true to require valid client certs
+      sslOptions.rejectUnauthorized = true;
     }
 
     server = createHttpsServer(sslOptions, app);

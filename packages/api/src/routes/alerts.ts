@@ -258,12 +258,14 @@ router.post('/templates/:id/test', async (req: Request, res: Response, next: Nex
       const matching = await templateService.findMatchingTemplates(server.id);
       if (!matching.some(t => t.id === id)) continue;
 
-      // Query Prometheus
+      // Query Prometheus — sanitize serverId to prevent PromQL injection
       let query = template.query;
-      if (query.includes('{')) {
-        query = query.replace('{', `{server_id="${server.id}", `);
+      const safeServerId = server.id.replace(/[^a-zA-Z0-9_:-]/g, '');
+      const braceIdx = query.indexOf('{');
+      if (braceIdx !== -1) {
+        query = query.slice(0, braceIdx + 1) + `server_id="${safeServerId}", ` + query.slice(braceIdx + 1);
       } else {
-        query = query.replace(/^(\w+)/, `$1{server_id="${server.id}"}`);
+        query = query.replace(/^(\w+)/, `$1{server_id="${safeServerId}"}`);
       }
 
       let value: number | null = null;

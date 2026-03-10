@@ -42,12 +42,15 @@ async function queryPrometheus(query: string): Promise<number | null> {
  * Otherwise wraps the metric name with {server_id="..."}.
  */
 function injectServerId(query: string, serverId: string): string {
-  if (query.includes('{')) {
-    // Insert server_id into existing label selector
-    return query.replace('{', `{server_id="${serverId}", `);
+  // Sanitize serverId to prevent PromQL injection
+  const safeId = serverId.replace(/[^a-zA-Z0-9_:-]/g, '');
+  const idx = query.indexOf('{');
+  if (idx !== -1) {
+    // Insert server_id into existing label selector (after first '{')
+    return query.slice(0, idx + 1) + `server_id="${safeId}", ` + query.slice(idx + 1);
   }
   // No label selector — add one
-  return query.replace(/^(\w+)/, `$1{server_id="${serverId}"}`);
+  return query.replace(/^(\w+)/, `$1{server_id="${safeId}"}`);
 }
 
 /**

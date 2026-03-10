@@ -126,7 +126,11 @@ router.get('/labels', async (req: Request, res: Response, next: NextFunction) =>
 router.get('/labels/:name/values', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name } = req.params;
-    const response = await fetch(`${config.loki.url}/loki/api/v1/label/${name}/values`);
+    // Sanitize label name to prevent path traversal / SSRF
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+      return res.status(400).json({ success: false, error: 'Invalid label name' });
+    }
+    const response = await fetch(`${config.loki.url}/loki/api/v1/label/${encodeURIComponent(name)}/values`);
 
     if (!response.ok) {
       return res.status(response.status).json({

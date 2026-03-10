@@ -79,6 +79,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     // Set httpOnly session cookie (used by nginx auth_request for Prometheus/Grafana)
     res.cookie('nodeprism_session', token, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: JWT_EXPIRES_IN * 1000,
       path: '/',
@@ -149,6 +150,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     // Set httpOnly session cookie (used by nginx auth_request for Prometheus/Grafana)
     res.cookie('nodeprism_session', token, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: JWT_EXPIRES_IN * 1000,
       path: '/',

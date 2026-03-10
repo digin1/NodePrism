@@ -478,7 +478,12 @@ async function sendTelegram(config: TelegramConfig, alert: AlertPayload): Promis
 }
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
 }
 
 async function sendPagerDuty(config: PagerDutyConfig, alert: AlertPayload): Promise<void> {

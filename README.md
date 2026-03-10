@@ -22,40 +22,59 @@
   <img src="https://img.shields.io/badge/pnpm-%3E%3D8.0.0-orange.svg" alt="pnpm">
   <img src="https://img.shields.io/badge/typescript-5.x-blue.svg" alt="TypeScript">
   <img src="https://img.shields.io/badge/tests-725%20passing-brightgreen.svg" alt="Tests">
-  <img src="https://img.shields.io/badge/docker-20%20containers-blue.svg" alt="Docker">
 </p>
 
 ---
 
 ## Features
 
-- **Real-time Monitoring** — System metrics, container stats, disk/LVM usage, and network bandwidth with live WebSocket updates
-- **Multi-platform Containers** — OpenVZ, KVM/libvirt, Virtuozzo, Docker, and LXC container management and monitoring
-- **Intelligent Alerting** — Multi-channel notifications (Slack, Telegram, Email, Webhooks) with acknowledge/silence actions directly from Slack
-- **Anomaly Detection** — ML-based anomaly scoring with configurable sensitivity per server
-- **Daily Infrastructure Reports** — Automated reports to Slack/Telegram with VM counts, stopped containers, disk usage, and exim stats
+### Monitoring & Metrics
+- **Real-time System Monitoring** — CPU, memory, disk, network, and load average with live WebSocket updates
+- **Multi-platform Containers** — OpenVZ, KVM/libvirt, Virtuozzo, Docker, and LXC container management with storage pool and network traffic tracking
+- **LVM/Disk Monitoring** — Volume group tracking, partition free space, and disk pressure handling
+- **Uptime Monitoring** — HTTP/HTTPS, TCP, ICMP (ping), and DNS checks with response time tracking and keyword matching
 - **Log Aggregation** — Centralized log storage and querying via Loki + Promtail
+
+### Alerting & Notifications
+- **Intelligent Alerting** — PromQL-based alert rules with dual thresholds (warning + critical), hysteresis, and multi-stage evaluation
+- **6 Notification Channels** — Slack (with interactive buttons), Telegram, Email (SMTP), Discord, Webhooks, and PagerDuty
+- **Slack Interactions** — Acknowledge, silence, or create incidents directly from Slack notification buttons
+- **Alert Reconciliation** — Auto-resolves stale alerts missed by AlertManager
+- **Maintenance Windows** — Suppress alerts during scheduled maintenance
+
+### Intelligence
+- **Anomaly Detection** — ML-based scoring using K-means clustering with automatic model retraining and configurable sensitivity per server
+- **Forecasting** — Linear regression-based disk and resource usage trend prediction with 30-day projections
+- **Daily Infrastructure Reports** — Automated Slack/Telegram summaries with VM counts, stopped containers, disk usage, and mail server stats
+
+### Operations
+- **Incident Management** — Create, track, and resolve incidents with status workflow (Investigating → Identified → Monitoring → Resolved) and timeline updates
 - **Custom Dashboards** — Build and share dashboards with PromQL-powered panels
-- **Uptime Monitoring** — HTTP/HTTPS/TCP/ICMP checks with response time tracking
-- **Incident Management** — Create, track, and resolve incidents with timeline updates
-- **Forecasting** — Disk and resource usage trend prediction
-- **100% Open Source** — All components use permissive open-source licenses
+- **14 Pre-built Grafana Dashboards** — System overview, API metrics, containers, server details, MySQL, PostgreSQL, MongoDB, Nginx, Apache, LiteSpeed, Exim, cPanel, network traffic, and anomaly detection
+- **Audit Logging** — Tracks all admin actions (server changes, alert rules, user roles, incident updates)
+- **Automated Housekeeping** — Configurable retention policies with disk pressure-aware cleanup and PostgreSQL VACUUM
+- **Database Backups** — Automated pg_dump with gzip compression, configurable schedule and retention
+
+### Security
+- **JWT Authentication** — Role-based access control (Admin/User) with configurable token expiry
+- **Reverse Proxy** — Nginx with rate limiting, security headers (X-Frame-Options, CSP, XSS protection), and gzip compression
+- **SSL/TLS Ready** — Let's Encrypt ACME support with certificate configuration
+- **Slack Signature Verification** — HMAC-SHA256 request validation for webhook security
 
 ## Quick Start
 
 ### Prerequisites
 
-- Docker Engine + Docker Compose
-- Node.js 20+ and pnpm 8+
-- PostgreSQL 15+ (runs in Docker)
+- Ubuntu/Debian Linux (tested on Ubuntu 22.04/24.04, Debian 12)
+- 2+ CPU cores, 4GB+ RAM recommended
 
-### One-Line Deploy (Ubuntu/Debian)
+### One-Line Deploy
 
 ```bash
 curl -sL https://raw.githubusercontent.com/digin1/NodePrism/main/deploy.sh | sudo bash
 ```
 
-This installs all dependencies (Docker, Node.js 20, pnpm, PM2), clones the repo, starts infrastructure containers, builds and launches the app.
+This installs Docker, Node.js 20, pnpm, PM2, clones the repo, configures `.env` (auto-detects server IP, generates JWT secret), starts all infrastructure containers, builds and launches the app with PM2.
 
 ### Manual Installation
 
@@ -95,7 +114,9 @@ pnpm run build && pnpm run start:pm2
 | API | `http://<server-ip>:4000` | — |
 | Documentation | [Online docs](https://digin1.github.io/NodePrism/) | — |
 
-### Adding Remote Servers (Agent)
+Grafana, Prometheus, and AlertManager are proxied through the Web UI on port 3000 — session-authenticated and accessible from a single origin.
+
+### Adding Remote Servers
 
 Install the NodePrism agent on any server you want to monitor:
 
@@ -103,7 +124,25 @@ Install the NodePrism agent on any server you want to monitor:
 curl -sL http://<nodeprism-ip>:3000/agent-install.sh | sudo bash
 ```
 
-The agent collects system metrics, container stats, and log data, and ships them to the manager node.
+The agent auto-registers with the manager and begins shipping metrics, container stats, and logs.
+
+**Supported agent/exporter types:**
+
+| Agent | Port | What it monitors |
+|-------|------|------------------|
+| Node Exporter | 9100 | CPU, memory, disk, network, load |
+| App Agent | 9101 | Custom application metrics |
+| MySQL Exporter | 9104 | MySQL/MariaDB databases |
+| Nginx Exporter | 9113 | Nginx web server |
+| Apache Exporter | 9117 | Apache web server |
+| PostgreSQL Exporter | 9187 | PostgreSQL databases |
+| MongoDB Exporter | 9216 | MongoDB databases |
+| Redis Exporter | — | Redis instances |
+| Libvirt Exporter | — | KVM/libvirt virtual machines |
+| LiteSpeed Exporter | — | LiteSpeed web server |
+| Exim Exporter | — | Exim mail server |
+| cPanel Exporter | — | cPanel/WHM hosting panels |
+| Promtail | 9080 | Log shipping to Loki |
 
 ## Architecture
 
@@ -139,42 +178,65 @@ The agent collects system metrics, container stats, and log data, and ships them
         └──────────┘ └──────────┘ └──────────┘
 ```
 
+### Services
+
+| Service | Role |
+|---------|------|
+| **Web UI** (Next.js :3000) | Dashboard, management interface, reverse proxy for tools |
+| **API** (Express :4000) | REST API, Socket.IO gateway, webhook handlers |
+| **Config Sync** (:4002) | Syncs server/agent config to Prometheus targets |
+| **Anomaly Detector** (:4003) | ML pipeline — trains models and scores metrics |
+| **Agent** (:9101) | Runs on remote servers, collects and ships metrics |
+
 ## Project Structure
 
 ```
 NodePrism/
 ├── packages/
-│   ├── web/                  # Next.js 14 Management UI
-│   ├── api/                  # Express API + Socket.IO Gateway
-│   ├── config-sync/          # Prometheus target sync worker
-│   ├── anomaly-detector/     # ML anomaly detection service
-│   ├── agent-app/            # Remote server agent
-│   └── shared/               # Shared TypeScript types
+│   ├── web/                  # Next.js 14 — Management UI
+│   ├── api/                  # Express — REST API + Socket.IO + Prisma
+│   ├── config-sync/          # Prometheus target & status sync worker
+│   ├── anomaly-detector/     # K-means clustering anomaly detection
+│   ├── agent-app/            # Remote server monitoring agent
+│   └── shared/               # Shared TypeScript types & Zod schemas
 │
 ├── infrastructure/
-│   └── docker/               # Docker Compose + configs
-│       ├── prometheus/       # Prometheus rules, targets, config
-│       ├── grafana/          # Dashboards & datasources
+│   └── docker/               # Docker Compose + service configs
+│       ├── prometheus/       # Prometheus config, alert rules, targets
+│       ├── grafana/          # Datasources + 14 pre-built dashboards
 │       ├── alertmanager/     # Alert routing config
-│       └── loki/             # Log aggregation config
+│       ├── loki/             # Log aggregation config
+│       └── nginx/            # Reverse proxy with rate limiting & security
 │
 ├── docs-site/                # Docusaurus documentation site
-├── docs/                     # Doc generation scripts
-└── scripts/                  # Utility & testing scripts
+├── scripts/                  # Setup, cert generation, agent download scripts
+├── deploy.sh                 # One-line deployment script
+└── ecosystem.config.js       # PM2 production process config
 ```
 
 ## Tech Stack
 
 | Layer | Technologies |
 |-------|-------------|
-| **Frontend** | Next.js 14, React 18, TanStack Query, Tailwind CSS, Recharts |
-| **Backend** | Node.js, Express, Socket.IO, Prisma ORM |
-| **Database** | PostgreSQL, Redis |
-| **Monitoring** | Prometheus, Grafana, Loki, AlertManager |
-| **Infrastructure** | Docker Compose, Turborepo, pnpm workspaces |
+| **Frontend** | Next.js 14, React 18, TanStack Query, Tailwind CSS, Recharts, Socket.IO Client |
+| **Backend** | Node.js, Express, Socket.IO, Prisma ORM, Zod |
+| **Database** | PostgreSQL 15, Redis 7 |
+| **Monitoring** | Prometheus, Grafana, Loki, AlertManager, Pushgateway |
+| **ML** | simple-statistics, ml-kmeans (anomaly detection & forecasting) |
+| **Infrastructure** | Docker Compose, PM2, Nginx, Turborepo, pnpm workspaces |
 | **Language** | TypeScript (strict mode) |
 
 ## Production (PM2)
+
+NodePrism runs 5 services managed by PM2 with auto-restart, memory limits, and systemd boot persistence:
+
+| Service | Memory Limit | Purpose |
+|---------|-------------|---------|
+| nodeprism-api | 500 MB | REST API + WebSocket gateway |
+| nodeprism-web | 500 MB | Next.js frontend |
+| nodeprism-config-sync | 300 MB | Prometheus target sync |
+| nodeprism-anomaly-detector | 768 MB | ML anomaly pipeline |
+| nodeprism-agent | 200 MB | Local agent (manager node) |
 
 ```bash
 pnpm run build && pnpm run start:pm2   # Build and start all services
@@ -183,6 +245,22 @@ pnpm run logs:pm2                       # Tail all logs
 pnpm run stop:pm2                       # Stop all services
 pnpm run restart:pm2                    # Restart all services
 ```
+
+## Configuration
+
+Copy `.env.example` to `.env` and configure. Key settings:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SERVER_IP` | — | Your server's public IP (required) |
+| `JWT_SECRET` | — | Random string for token signing (required) |
+| `DB_PASSWORD` | `nodeprism123` | PostgreSQL password |
+| `GRAFANA_PASSWORD` | `admin123` | Grafana admin password |
+| `DAILY_REPORT_TIME` | `08:00` | When to send daily reports |
+| `BACKUP_SCHEDULE_HOURS` | `24` | Database backup interval |
+| `BACKUP_RETENTION_COUNT` | `7` | Number of backups to keep |
+
+See [`.env.example`](.env.example) for all 60+ configuration options.
 
 ## Development
 
@@ -218,14 +296,7 @@ Full documentation is available online and locally:
 - **Online**: [https://digin1.github.io/NodePrism/](https://digin1.github.io/NodePrism/)
 - **Local**: `http://localhost:3080` when running the docs container
 
-Topics covered:
-
-- Architecture overview
-- API reference & endpoints
-- Database schema
-- Deployment guide
-- Monitoring & alerting setup
-- Agent configuration
+Topics covered: architecture, API reference, database schema, deployment, monitoring & alerting setup, and agent configuration.
 
 ## Contributing
 

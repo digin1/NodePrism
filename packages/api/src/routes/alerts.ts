@@ -652,6 +652,9 @@ router.post('/webhook', webhookLimiter, async (req: Request, res: Response, next
         },
         update: {
           status: effectiveStatus,
+          annotations: alert.annotations,
+          message:
+            alert.annotations?.summary || alert.annotations?.description || undefined,
           endsAt: alert.endsAt ? new Date(alert.endsAt) : null,
           ...(serverId && { serverId }),
           ...(ruleId && { ruleId }),

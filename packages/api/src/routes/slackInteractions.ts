@@ -11,15 +11,30 @@ const router: ExpressRouter = Router();
 const SLACK_RESPONSE_HOST = 'hooks.slack.com';
 
 /**
- * Validate that a response_url is a legitimate Slack URL to prevent SSRF.
+ * Validate and sanitize a Slack response_url to prevent SSRF.
+ * Returns the validated URL string or null if invalid.
  */
-function isValidSlackUrl(url: string): boolean {
+function sanitizeSlackUrl(url: string): string | null {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'https:' && parsed.hostname === SLACK_RESPONSE_HOST;
+    if (parsed.protocol !== 'https:' || parsed.hostname !== SLACK_RESPONSE_HOST) {
+      return null;
+    }
+    // Reconstruct URL from parsed components to prevent any injection
+    return parsed.toString();
   } catch {
-    return false;
+    return null;
   }
+}
+
+/**
+ * Post a message to a validated Slack response URL.
+ */
+async function postSlackResponse(responseUrl: string, body: Record<string, unknown>): Promise<void> {
+  const validUrl = sanitizeSlackUrl(responseUrl);
+  if (!validUrl) return;
+  await axios.post(validUrl, body, { timeout: 5000 })
+    .catch(err => logger.warn('Slack response failed', { error: err.message }));
 }
 
 /**
@@ -92,14 +107,14 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (!alertId || alertId === 'test-notification') {
       // Test notification — just post a reply
-      if (responseUrl && isValidSlackUrl(responseUrl)) {
-        await axios.post(responseUrl, {
+      if (responseUrl) {
+        await postSlackResponse(responseUrl, {
           response_type: 'in_channel',
           replace_original: false,
           text: actionId === 'acknowledge_alert'
             ? `✅ This was a test notification — no alert to acknowledge.`
             : `🔇 This was a test notification — no alert to silence.`,
-        }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
+        });
       }
       return;
     }
@@ -107,24 +122,24 @@ router.post('/', async (req: Request, res: Response) => {
     // Look up the alert
     const alert = await prisma.alert.findUnique({ where: { id: alertId } });
     if (!alert) {
-      if (responseUrl && isValidSlackUrl(responseUrl)) {
-        await axios.post(responseUrl, {
+      if (responseUrl) {
+        await postSlackResponse(responseUrl, {
           response_type: 'in_channel',
           replace_original: false,
           text: `⚠️ Alert not found (may have been resolved or deleted).`,
-        }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
+        });
       }
       return;
     }
 
     if (actionId === 'acknowledge_alert') {
       if (alert.status !== 'FIRING') {
-        if (responseUrl && isValidSlackUrl(responseUrl)) {
-          await axios.post(responseUrl, {
+        if (responseUrl) {
+          await postSlackResponse(responseUrl, {
             replace_original: false,
             response_type: 'in_channel',
             text: `ℹ️ Alert is already *${alert.status.toLowerCase()}* — no action taken.`,
-          }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
+          });
         }
         return;
       }
@@ -144,21 +159,21 @@ router.post('/', async (req: Request, res: Response) => {
       const io = req.app.get('io');
       if (io) io.emit('alert:acknowledged', { id: alertId, acknowledgedBy: slackUser });
 
-      if (responseUrl && isValidSlackUrl(responseUrl)) {
-        await axios.post(responseUrl, {
+      if (responseUrl) {
+        await postSlackResponse(responseUrl, {
           replace_original: false,
           response_type: 'in_channel',
           text: `✅ Alert *acknowledged* by *${slackUser}*`,
-        }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
+        });
       }
     } else if (actionId === 'silence_alert') {
       if (alert.status !== 'FIRING' && alert.status !== 'ACKNOWLEDGED') {
-        if (responseUrl && isValidSlackUrl(responseUrl)) {
-          await axios.post(responseUrl, {
+        if (responseUrl) {
+          await postSlackResponse(responseUrl, {
             replace_original: false,
             response_type: 'in_channel',
             text: `ℹ️ Alert is already *${alert.status.toLowerCase()}* — no action taken.`,
-          }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
+          });
         }
         return;
       }
@@ -179,12 +194,12 @@ router.post('/', async (req: Request, res: Response) => {
       const io = req.app.get('io');
       if (io) io.emit('alert:silenced', { id: alertId, silencedBy: slackUser, duration });
 
-      if (responseUrl && isValidSlackUrl(responseUrl)) {
-        await axios.post(responseUrl, {
+      if (responseUrl) {
+        await postSlackResponse(responseUrl, {
           replace_original: false,
           response_type: 'in_channel',
           text: `🔇 Alert *silenced* for *${duration}m* by *${slackUser}*`,
-        }, { timeout: 5000 }).catch(err => logger.warn('Slack response failed', { error: err.message }));
+        });
       }
     }
     // Unknown action_id — already acknowledged with 200

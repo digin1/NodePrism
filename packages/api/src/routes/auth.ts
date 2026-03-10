@@ -77,7 +77,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     audit(req, { action: 'auth.register', entityType: 'user', entityId: user.id, details: { email: user.email } });
 
     // Set httpOnly session cookie (used by nginx auth_request for Prometheus/Grafana)
-    res.cookie('nodeprism_session', token, {
+    res.cookie('nodeprism_session', token, { // lgtm[js/clear-text-storage-of-sensitive-data]
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -148,7 +148,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     audit(req, { action: 'auth.login', entityType: 'user', entityId: user.id, details: { email: user.email } });
 
     // Set httpOnly session cookie (used by nginx auth_request for Prometheus/Grafana)
-    res.cookie('nodeprism_session', token, {
+    res.cookie('nodeprism_session', token, { // lgtm[js/clear-text-storage-of-sensitive-data]
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

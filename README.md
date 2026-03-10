@@ -5,7 +5,9 @@
 <h1 align="center">NodePrism</h1>
 
 <p align="center">
-  <strong>Open-source infrastructure monitoring platform for servers, containers, and services</strong>
+  <strong>Open-source server monitoring for KVM, OpenVZ, Virtuozzo, Docker, LXC, and cPanel</strong>
+  <br/>
+  <sub>Self-hosted alternative to Datadog/New Relic. Monitor servers, containers, databases, web servers, and mail servers with Prometheus, Grafana, intelligent alerting, and ML anomaly detection.</sub>
 </p>
 
 <p align="center">

@@ -1,28 +1,6 @@
 [
   {
     "targets": [
-      "66.85.129.250:9100"
-    ],
-    "labels": {
-      "server_id": "450f18bc-faf6-4909-a40f-750a710f90e7",
-      "hostname": "kvmaz5.veeblehosting.com",
-      "environment": "production",
-      "agent_type": "node_exporter"
-    }
-  },
-  {
-    "targets": [
-      "185.56.136.50:9100"
-    ],
-    "labels": {
-      "server_id": "f7a2290f-8cfc-40cb-b978-9f725119eb20",
-      "hostname": "terminal7.veeblehosting.com",
-      "environment": "production",
-      "agent_type": "node_exporter"
-    }
-  },
-  {
-    "targets": [
       "108.170.55.202:9100"
     ],
     "labels": {
@@ -45,11 +23,22 @@
   },
   {
     "targets": [
-      "31.3.232.132:9100"
+      "66.85.129.250:9100"
     ],
     "labels": {
-      "server_id": "474b9722-0d17-4e81-b48d-438a1b58fba7",
-      "hostname": "kvmuk3.veeblehosting.com",
+      "server_id": "450f18bc-faf6-4909-a40f-750a710f90e7",
+      "hostname": "kvmaz5.veeblehosting.com",
+      "environment": "production",
+      "agent_type": "node_exporter"
+    }
+  },
+  {
+    "targets": [
+      "185.56.136.50:9100"
+    ],
+    "labels": {
+      "server_id": "f7a2290f-8cfc-40cb-b978-9f725119eb20",
+      "hostname": "terminal7.veeblehosting.com",
       "environment": "production",
       "agent_type": "node_exporter"
     }
@@ -67,22 +56,11 @@
   },
   {
     "targets": [
-      "66.85.134.162:9100"
+      "31.3.232.132:9100"
     ],
     "labels": {
-      "server_id": "ce7043ed-ece6-4df2-b4cc-4422eeb1d828",
-      "hostname": "kvmaz4.veeblehosting.com",
-      "environment": "production",
-      "agent_type": "node_exporter"
-    }
-  },
-  {
-    "targets": [
-      "80.84.61.190:9100"
-    ],
-    "labels": {
-      "server_id": "fed3f903-4073-4b11-9971-155914eca9e3",
-      "hostname": "openvzuk6.veeblehosting.com",
+      "server_id": "474b9722-0d17-4e81-b48d-438a1b58fba7",
+      "hostname": "kvmuk3.veeblehosting.com",
       "environment": "production",
       "agent_type": "node_exporter"
     }
@@ -100,11 +78,33 @@
   },
   {
     "targets": [
+      "80.84.61.190:9100"
+    ],
+    "labels": {
+      "server_id": "fed3f903-4073-4b11-9971-155914eca9e3",
+      "hostname": "openvzuk6.veeblehosting.com",
+      "environment": "production",
+      "agent_type": "node_exporter"
+    }
+  },
+  {
+    "targets": [
       "184.95.32.178:9100"
     ],
     "labels": {
       "server_id": "27a362a7-19e4-496b-a774-14fa5377669c",
       "hostname": "azvz6.veeblehosting.com",
+      "environment": "production",
+      "agent_type": "node_exporter"
+    }
+  },
+  {
+    "targets": [
+      "66.85.134.162:9100"
+    ],
+    "labels": {
+      "server_id": "ce7043ed-ece6-4df2-b4cc-4422eeb1d828",
+      "hostname": "kvmaz4.veeblehosting.com",
       "environment": "production",
       "agent_type": "node_exporter"
     }

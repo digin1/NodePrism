@@ -136,6 +136,9 @@ AlertTemplate ──── NotificationChannel
 | updatedAt | DateTime | ✓ | - |
 | alerts | Alert[] | ✓ | - |
 
+**Indexes:**
+- `@@index([enabled])`
+
 ---
 
 ### Alert
@@ -164,6 +167,10 @@ AlertTemplate ──── NotificationChannel
 **Indexes:**
 - `@@index([status])`
 - `@@index([status, severity])`
+- `@@index([serverId])`
+- `@@index([serverId, status])`
+- `@@index([startsAt])`
+- `@@index([createdAt])`
 
 ---
 
@@ -212,6 +219,7 @@ AlertTemplate ──── NotificationChannel
 
 **Indexes:**
 - `@@index([channelId])`
+- `@@index([alertId])`
 - `@@index([createdAt])`
 
 ---

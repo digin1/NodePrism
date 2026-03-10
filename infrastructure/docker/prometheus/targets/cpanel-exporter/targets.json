@@ -1,22 +1,22 @@
 [
   {
     "targets": [
-      "185.56.136.50:9124"
+      "108.170.55.202:9124"
     ],
     "labels": {
-      "server_id": "f7a2290f-8cfc-40cb-b978-9f725119eb20",
-      "hostname": "terminal7.veeblehosting.com",
+      "server_id": "59222b1a-9711-46c4-acda-ddda21e2ecb0",
+      "hostname": "terminal4.veeblehosting.com",
       "environment": "production",
       "agent_type": "cpanel_exporter"
     }
   },
   {
     "targets": [
-      "108.170.55.202:9124"
+      "185.56.136.50:9124"
     ],
     "labels": {
-      "server_id": "59222b1a-9711-46c4-acda-ddda21e2ecb0",
-      "hostname": "terminal4.veeblehosting.com",
+      "server_id": "f7a2290f-8cfc-40cb-b978-9f725119eb20",
+      "hostname": "terminal7.veeblehosting.com",
       "environment": "production",
       "agent_type": "cpanel_exporter"
     }

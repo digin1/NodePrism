@@ -76,6 +76,14 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     logger.info(`User registered: ${user.email}`);
     audit(req, { action: 'auth.register', entityType: 'user', entityId: user.id, details: { email: user.email } });
 
+    // Set httpOnly session cookie (used by nginx auth_request for Prometheus/Grafana)
+    res.cookie('nodeprism_session', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: JWT_EXPIRES_IN * 1000,
+      path: '/',
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -137,6 +145,14 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
 
     logger.info(`User logged in: ${user.email}`);
     audit(req, { action: 'auth.login', entityType: 'user', entityId: user.id, details: { email: user.email } });
+
+    // Set httpOnly session cookie (used by nginx auth_request for Prometheus/Grafana)
+    res.cookie('nodeprism_session', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: JWT_EXPIRES_IN * 1000,
+      path: '/',
+    });
 
     res.json({
       success: true,
@@ -213,16 +229,39 @@ router.get('/me', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// POST /api/auth/logout - Logout (client-side token removal)
+// POST /api/auth/logout - Logout (client-side token removal + clear session cookie)
 router.post('/logout', (req: Request, res: Response) => {
-  // JWT tokens are stateless, so logout is handled client-side
-  // This endpoint exists for consistency and audit logging
   logger.info('User logout requested');
+
+  // Clear the httpOnly session cookie
+  res.clearCookie('nodeprism_session', { path: '/' });
 
   res.json({
     success: true,
     message: 'Logged out successfully',
   });
+});
+
+// GET /api/auth/verify-session - Verify session cookie (used by nginx auth_request)
+router.get('/verify-session', (req: Request, res: Response) => {
+  const token = req.cookies?.nodeprism_session;
+
+  if (!token) {
+    return res.status(401).end();
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+
+    // Only ADMIN and OPERATOR roles can access protected services
+    if (decoded.role !== 'ADMIN' && decoded.role !== 'OPERATOR') {
+      return res.status(403).end();
+    }
+
+    res.status(200).end();
+  } catch {
+    res.status(401).end();
+  }
 });
 
 // GET /api/auth/users - List all users (admin only)

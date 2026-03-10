@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { notificationApi, NotificationChannel } from '@/lib/api';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 const CHANNEL_TYPES = ['EMAIL', 'SLACK', 'DISCORD', 'WEBHOOK', 'TELEGRAM', 'PAGERDUTY'] as const;
 
@@ -55,6 +56,7 @@ const CONFIG_FIELDS: Record<string, { key: string; label: string; type?: string;
 };
 
 export default function NotificationsPage() {
+  const { formatDateTime } = useFormatDate();
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -371,7 +373,7 @@ export default function NotificationsPage() {
                   {(logs as any[]).map((log: any) => (
                     <tr key={log.id} className="border-b border-border">
                       <td className="py-2 text-muted-foreground">
-                        {new Date(log.createdAt).toLocaleString()}
+                        {formatDateTime(log.createdAt)}
                       </td>
                       <td className="py-2">
                         {log.channel?.name || 'Unknown'} ({log.channel?.type})

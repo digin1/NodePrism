@@ -8,7 +8,9 @@ import os from 'os';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { getDiskUsage, getBackupStatus, runDatabaseBackup } from '../services/housekeeping';
+import { generateAndSendReport } from '../services/dailyReport';
 import { audit } from '../services/auditLogger';
+import { encryptConfig, decryptConfig } from '../utils/encryption';
 
 const router: ExpressRouter = Router();
 const prisma = new PrismaClient();
@@ -111,6 +113,7 @@ router.get('/', async (req: Request, res: Response) => {
         managerIp: settings.managerIp,
         timezone: settings.timezone,
         dateFormat: settings.dateFormat,
+        dailyReportTime: settings.dailyReportTime,
       },
     });
   } catch (error) {
@@ -156,6 +159,7 @@ router.put('/', requireAuth, requireRole('ADMIN'), async (req: Request, res: Res
       managerIp,
       timezone,
       dateFormat,
+      dailyReportTime,
     } = req.body;
 
     const settings = await prisma.systemSettings.upsert({
@@ -168,6 +172,7 @@ router.put('/', requireAuth, requireRole('ADMIN'), async (req: Request, res: Res
         ...(managerIp !== undefined && { managerIp }),
         ...(timezone !== undefined && { timezone }),
         ...(dateFormat !== undefined && { dateFormat }),
+        ...(dailyReportTime !== undefined && { dailyReportTime }),
       },
       create: {
         id: 'default',
@@ -178,6 +183,7 @@ router.put('/', requireAuth, requireRole('ADMIN'), async (req: Request, res: Res
         managerIp,
         timezone: timezone || 'UTC',
         dateFormat: dateFormat || 'YYYY-MM-DD',
+        dailyReportTime: dailyReportTime || '08:00',
       },
     });
 
@@ -367,6 +373,21 @@ router.post('/backup', requireAuth, requireRole('ADMIN'), async (req: Request, r
 });
 
 /**
+ * POST /api/settings/daily-report
+ * Manually trigger the daily infrastructure report (admin only)
+ */
+router.post('/daily-report', requireAuth, requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    await generateAndSendReport();
+    audit(req, { action: 'settings.update', entityType: 'daily-report', details: { trigger: 'manual' } });
+    res.json({ success: true, message: 'Daily report sent successfully' });
+  } catch (error: any) {
+    logger.error('Manual daily report failed', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to send daily report' });
+  }
+});
+
+/**
  * GET /api/settings/export
  * Export system configuration as JSON (admin only)
  */
@@ -417,7 +438,7 @@ router.get('/export', requireAuth, requireRole('ADMIN'), async (req: Request, re
       notificationChannels: notificationChannels.map(c => ({
         name: c.name,
         type: c.type,
-        config: c.config,
+        config: decryptConfig(c.config as Record<string, unknown>),
         enabled: c.enabled,
       })),
       settings: {
@@ -425,6 +446,7 @@ router.get('/export', requireAuth, requireRole('ADMIN'), async (req: Request, re
         primaryColor: settings.primaryColor,
         timezone: settings.timezone,
         dateFormat: settings.dateFormat,
+        dailyReportTime: settings.dailyReportTime,
       },
     };
 
@@ -507,19 +529,20 @@ router.post('/import', requireAuth, requireRole('ADMIN'), async (req: Request, r
       }
     }
 
-    // Import notification channels
+    // Import notification channels (encrypt secrets on import)
     if (data.notificationChannels?.length) {
       for (const channel of data.notificationChannels) {
+        const encChannel = { ...channel, config: encryptConfig(channel.config as Record<string, unknown>) };
         const existing = await prisma.notificationChannel.findFirst({ where: { name: channel.name } });
         if (existing) {
           if (mode === 'overwrite') {
-            await prisma.notificationChannel.update({ where: { id: existing.id }, data: channel });
+            await prisma.notificationChannel.update({ where: { id: existing.id }, data: encChannel });
             results.notificationChannels++;
           } else {
             results.skipped++;
           }
         } else {
-          await prisma.notificationChannel.create({ data: channel });
+          await prisma.notificationChannel.create({ data: encChannel });
           results.notificationChannels++;
         }
       }

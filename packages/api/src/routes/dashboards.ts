@@ -18,8 +18,8 @@ const panelSchema = z.object({
 });
 
 const dashboardSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
+  name: z.string().min(1).max(200),
+  description: z.string().max(1000).optional(),
   config: z.object({
     panels: z.array(panelSchema),
     refreshInterval: z.number().optional(), // seconds

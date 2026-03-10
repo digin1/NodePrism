@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { alertApi } from '@/lib/api';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 const severityColors: Record<string, 'danger' | 'warning' | 'secondary' | 'default'> = {
   CRITICAL: 'danger',
@@ -62,6 +63,7 @@ interface AlertStats {
 export default function AlertsPage() {
   const queryClient = useQueryClient();
   const { subscribe } = useWebSocket();
+  const { formatDateTime, formatTimeOnly } = useFormatDate();
   const [statusFilter, setStatusFilter] = useState('FIRING');
   const [severityFilter, setSeverityFilter] = useState('');
   const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
@@ -365,12 +367,12 @@ export default function AlertsPage() {
                       {alert.acknowledgedBy && (alert.status === 'ACKNOWLEDGED' || alert.status === 'SILENCED') && (
                         <p className="text-xs text-muted-foreground mt-1">
                           by {alert.acknowledgedBy}
-                          {alert.acknowledgedAt && <> at {new Date(alert.acknowledgedAt).toLocaleTimeString()}</>}
+                          {alert.acknowledgedAt && <> at {formatTimeOnly(alert.acknowledgedAt)}</>}
                         </p>
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {new Date(alert.startsAt).toLocaleString()}
+                      {formatDateTime(alert.startsAt)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">

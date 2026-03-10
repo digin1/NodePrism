@@ -360,6 +360,7 @@ model SystemSettings {
   managerIp     String?  @map("manager_ip")
   timezone      String   @default("UTC")
   dateFormat    String   @default("YYYY-MM-DD") @map("date_format")
+  dailyReportTime String @default("08:00") @map("daily_report_time")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

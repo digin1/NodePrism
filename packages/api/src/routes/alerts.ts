@@ -13,10 +13,10 @@ const router: ExpressRouter = Router();
 
 // Validation schemas
 const createAlertRuleSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  query: z.string().min(1), // PromQL query
-  duration: z.string().default('5m'),
+  name: z.string().min(1).max(200),
+  description: z.string().max(1000).optional(),
+  query: z.string().min(1).max(2000), // PromQL query
+  duration: z.string().max(20).default('5m'),
   severity: z.enum(['CRITICAL', 'WARNING', 'INFO', 'DEBUG']),
   labels: z.record(z.string(), z.string()).optional(),
   annotations: z.record(z.string(), z.string()).optional(),
@@ -422,7 +422,7 @@ router.delete('/rules/:id', async (req: Request, res: Response, next: NextFuncti
 router.post('/bulk/acknowledge', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schema = z.object({
-      alertIds: z.array(z.string().uuid()).min(1),
+      alertIds: z.array(z.string().uuid()).min(1).max(200),
       acknowledgedBy: z.string().default('Admin'),
     });
     const data = schema.parse(req.body);
@@ -448,7 +448,7 @@ router.post('/bulk/acknowledge', async (req: Request, res: Response, next: NextF
 router.post('/bulk/silence', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schema = z.object({
-      alertIds: z.array(z.string().uuid()).min(1),
+      alertIds: z.array(z.string().uuid()).min(1).max(200),
       silencedBy: z.string().default('Admin'),
       duration: z.number().min(1).default(60), // minutes
     });

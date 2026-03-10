@@ -19,7 +19,7 @@ import { forecastingRoutes } from './forecasting';
 import { uptimeRoutes } from './uptime';
 import { slackInteractionRoutes } from './slackInteractions';
 import { requireAuth, optionalAuth } from '../middleware/auth';
-import { webhookLimiter } from '../middleware/rateLimit';
+import { webhookLimiter, metricsLimiter } from '../middleware/rateLimit';
 
 const router: ExpressRouter = Router();
 
@@ -46,7 +46,7 @@ router.use('/servers', optionalAuth, serverRoutes);
 router.use('/containers', optionalAuth, containerRoutes);
 router.use('/server-groups', optionalAuth, serverGroupRoutes);
 router.use('/alerts', optionalAuth, alertRoutes);
-router.use('/metrics', optionalAuth, metricRoutes);
+router.use('/metrics', optionalAuth, metricsLimiter, metricRoutes);
 router.use('/anomalies', optionalAuth, anomalyRoutes);
 router.use('/logs', optionalAuth, logRoutes);
 router.use('/events', optionalAuth, eventRoutes);

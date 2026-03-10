@@ -54,17 +54,17 @@ groups:
           severity: warning
           rule_id: 3f8ecab4-8f9d-4512-b831-7cd192a85fce
         annotations:
-          summary: High CPU usage on {{ $labels.instance }}
-          description: "CPU usage is above 95% (current value: {{ $value | printf \"%.1f\" }}%)"
+          summary: HighCPUUsage on {{ $labels.instance }}
+          description: "HighCPUUsage is above 95 (current value: {{ $value | printf \"%.1f\" }})"
       - alert: HighLoadAverage
-        expr: node_load1 > 20
+        expr: node_load1 > 30
         for: 5m
         labels:
           severity: warning
           rule_id: f51e4b86-ac5b-4630-b8d4-499f1072bdaf
         annotations:
-          summary: High load average on {{ $labels.instance }}
-          description: "1-minute load average is above 20 (current value: {{ $value | printf \"%.1f\" }})"
+          summary: HighLoadAverage on {{ $labels.instance }}
+          description: "HighLoadAverage is above 30 (current value: {{ $value | printf \"%.1f\" }})"
       - alert: HighMemoryUsage
         expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
         for: 2m

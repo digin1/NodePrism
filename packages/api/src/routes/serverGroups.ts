@@ -16,7 +16,7 @@ const createGroupSchema = z.object({
 const updateGroupSchema = createGroupSchema.partial();
 
 const moveServersSchema = z.object({
-  serverIds: z.array(z.string().uuid()).min(1),
+  serverIds: z.array(z.string().uuid()).min(1).max(200),
   groupId: z.string().uuid().nullable(),
 });
 

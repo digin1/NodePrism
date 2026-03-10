@@ -7,6 +7,13 @@ import { getBandwidthSummary, getAggregatedMetrics } from '../services/metricCol
 const router: ExpressRouter = Router();
 
 const PROMETHEUS_URL = process.env.PROMETHEUS_URL || 'http://localhost:9090';
+const PROMETHEUS_TIMEOUT = parseInt(process.env.PROMETHEUS_TIMEOUT || '10000', 10); // 10s default
+
+// Create axios instance with default timeout for Prometheus calls
+const promClient = axios.create({
+  baseURL: PROMETHEUS_URL,
+  timeout: PROMETHEUS_TIMEOUT,
+});
 
 // Proxy to Prometheus API
 router.get('/query', async (req: Request, res: Response, next: NextFunction) => {
@@ -20,7 +27,7 @@ router.get('/query', async (req: Request, res: Response, next: NextFunction) => 
       });
     }
 
-    const response = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+    const response = await promClient.get(`/api/v1/query`, {
       params: { query, time },
     });
 
@@ -50,7 +57,7 @@ router.get('/query_range', async (req: Request, res: Response, next: NextFunctio
       });
     }
 
-    const response = await axios.get(`${PROMETHEUS_URL}/api/v1/query_range`, {
+    const response = await promClient.get(`/api/v1/query_range`, {
       params: {
         query,
         start: start || Math.floor(Date.now() / 1000) - 3600,
@@ -162,7 +169,7 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
     await Promise.all(
       Object.entries(queries).map(async ([key, query]) => {
         try {
-          const response = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+          const response = await promClient.get(`/api/v1/query`, {
             params: { query },
           });
           const data = response.data?.data?.result?.[0]?.value;
@@ -189,7 +196,7 @@ router.get('/server/:serverId', async (req: Request, res: Response, next: NextFu
 // Get targets status
 router.get('/targets', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await axios.get(`${PROMETHEUS_URL}/api/v1/targets`);
+    const response = await promClient.get(`/api/v1/targets`);
 
     const targets = response.data?.data?.activeTargets || [];
     const summary = {
@@ -218,7 +225,7 @@ router.get('/targets', async (req: Request, res: Response, next: NextFunction) =
 // Get Prometheus rules (alerts)
 router.get('/rules', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const response = await axios.get(`${PROMETHEUS_URL}/api/v1/rules`);
+    const response = await promClient.get(`/api/v1/rules`);
 
     res.json({
       success: true,
@@ -270,7 +277,7 @@ router.get('/server/:serverId/history', async (req: Request, res: Response, next
     const metrics = await prisma.metricHistory.findMany({
       where: whereClause,
       orderBy: { timestamp: 'asc' },
-      take: parseInt(limit, 10),
+      take: Math.min(parseInt(limit, 10) || 1000, 5000),
       select: {
         metricName: true,
         value: true,
@@ -471,10 +478,10 @@ router.get('/server/:serverId/cpanel-accounts', async (req: Request, res: Respon
 
     // Query per-account disk usage and addon domains from Prometheus
     const [diskRes, domainsRes] = await Promise.all([
-      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+      promClient.get(`/api/v1/query`, {
         params: { query: `cpanel_account_disk_usage_bytes{server_id="${serverId}"}` },
       }),
-      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+      promClient.get(`/api/v1/query`, {
         params: { query: `cpanel_account_addon_domains{server_id="${serverId}"}` },
       }),
     ]);
@@ -521,7 +528,7 @@ router.get('/server/:serverId/exim-domains', async (req: Request, res: Response,
   try {
     const { serverId } = req.params;
 
-    const sentRes = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+    const sentRes = await promClient.get(`/api/v1/query`, {
       params: { query: `exim_domain_sent_today{server_id="${serverId}"}` },
     });
 
@@ -599,11 +606,11 @@ router.get('/server/:serverId/disk-usage', async (req: Request, res: Response, n
 
     // Query filesystem size and available bytes, excluding noise mounts
     const [sizeResp, availResp] = await Promise.all([
-      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+      promClient.get(`/api/v1/query`, {
         params: { query: `node_filesystem_size_bytes{server_id="${serverId}",fstype!~"tmpfs|fuse.*",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"}` },
         timeout: 5000,
       }),
-      axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+      promClient.get(`/api/v1/query`, {
         params: { query: `node_filesystem_avail_bytes{server_id="${serverId}",fstype!~"tmpfs|fuse.*",mountpoint!~".*/cagefs-skeleton/.*|/boot.*"}` },
         timeout: 5000,
       }),
@@ -646,11 +653,11 @@ router.get('/server/:serverId/disk-usage', async (req: Request, res: Response, n
     });
     if (hasLibvirtAgent) try {
       const [vgSizeResp, vgFreeResp] = await Promise.all([
-        axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        promClient.get(`/api/v1/query`, {
           params: { query: `nodeprism_lvm_vg_size_bytes{server_id="${serverId}"}` },
           timeout: 5000,
         }),
-        axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+        promClient.get(`/api/v1/query`, {
           params: { query: `nodeprism_lvm_vg_free_bytes{server_id="${serverId}"}` },
           timeout: 5000,
         }),

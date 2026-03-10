@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { MetricsCharts, BandwidthSummary } from '@/components/dashboard/MetricsCharts';
 import { ServerForecasting } from './forecasting';
 import { ServerTypeBadge, isServerTypeTag } from '@/components/icons/ServerTypeIcons';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 const statusColors: Record<string, 'success' | 'warning' | 'danger' | 'secondary'> = {
   ONLINE: 'success',
@@ -166,6 +167,7 @@ function formatBytesRate(bytesPerSec: number | null): string {
 
 function ContainerRow({ container: c, metrics }: { container: VirtualContainer; metrics?: ContainerMetrics }) {
   const [expanded, setExpanded] = useState(false);
+  const { formatDateTime } = useFormatDate();
   const meta = c.metadata as Record<string, unknown> | null;
 
   return (
@@ -277,7 +279,7 @@ function ContainerRow({ container: c, metrics }: { container: VirtualContainer; 
             {c.lastSeen && (
               <div className="mt-3 pt-3 border-t border-border">
                 <p className="text-xs text-muted-foreground">
-                  Last seen: {new Date(c.lastSeen).toLocaleString()}.
+                  Last seen: {formatDateTime(c.lastSeen)}.
                   {c.status === 'running' ? ' Currently active.' : ` Currently ${c.status}.`}
                 </p>
               </div>
@@ -420,6 +422,7 @@ export default function ServerDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const serverId = params?.id as string;
+  const { formatDateTime, formatDateOnly } = useFormatDate();
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
@@ -1061,7 +1064,7 @@ export default function ServerDetailPage() {
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Created</dt>
-                    <dd>{new Date(serverData.createdAt).toLocaleDateString()}</dd>
+                    <dd>{formatDateOnly(serverData.createdAt)}</dd>
                   </div>
                   {serverData.metadata?.lastBootUptime != null && (
                     <div className="flex justify-between">
@@ -1466,7 +1469,7 @@ export default function ServerDetailPage() {
                       <div>
                         <p className="font-medium text-red-800">{alert.message}</p>
                         <p className="text-sm text-red-600">
-                          Started: {new Date(alert.startsAt).toLocaleString()}
+                          Started: {formatDateTime(alert.startsAt)}
                         </p>
                       </div>
                       <Badge variant="danger">{alert.severity}</Badge>

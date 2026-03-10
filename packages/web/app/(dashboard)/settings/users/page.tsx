@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { userApi, UserInfo } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 const ROLE_COLORS: Record<string, 'danger' | 'warning' | 'secondary'> = {
   ADMIN: 'danger',
@@ -19,6 +20,7 @@ const ROLE_COLORS: Record<string, 'danger' | 'warning' | 'secondary'> = {
 };
 
 export default function UsersPage() {
+  const { formatDateTime, formatDateOnly } = useFormatDate();
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -259,8 +261,8 @@ export default function UsersPage() {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right text-xs text-muted-foreground">
-                          <p>Last login: {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}</p>
-                          <p>Created: {new Date(user.createdAt).toLocaleDateString()}</p>
+                          <p>Last login: {user.lastLogin ? formatDateTime(user.lastLogin) : 'Never'}</p>
+                          <p>Created: {formatDateOnly(user.createdAt)}</p>
                         </div>
                         <div className="flex gap-1">
                           <Button size="sm" variant="outline" onClick={() => startEdit(user)}>

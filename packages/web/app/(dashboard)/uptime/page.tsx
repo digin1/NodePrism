@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { uptimeApi } from '@/lib/api';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 interface UptimeMonitor {
   id: string;
@@ -49,6 +50,7 @@ const statusColors: Record<string, string> = {
 
 export default function UptimePage() {
   const queryClient = useQueryClient();
+  const { formatDateTime } = useFormatDate();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -221,7 +223,7 @@ export default function UptimePage() {
                             check.status === 'DOWN' ? 'bg-red-500/70' :
                             'bg-yellow-500/70'
                           }`}
-                          title={`${check.status} - ${new Date(check.checkedAt).toLocaleString()}`}
+                          title={`${check.status} - ${formatDateTime(check.checkedAt)}`}
                         />
                       ))}
                     </div>
@@ -266,7 +268,7 @@ export default function UptimePage() {
                 {/* Last check info */}
                 {monitor.lastCheck && (
                   <div className="mt-2 ml-7 text-xs text-muted-foreground">
-                    Last checked: {new Date(monitor.lastCheck.checkedAt).toLocaleString()}
+                    Last checked: {formatDateTime(monitor.lastCheck.checkedAt)}
                     {monitor.lastCheck.message && (
                       <span className={`ml-2 ${
                         monitor.lastCheck.status === 'UP' ? 'text-green-500' :

@@ -1,5 +1,11 @@
 # Dependencies
 node_modules/
+
+# Docusaurus build cache
+.docusaurus/
+
+# Credentials
+.htpasswd
 .pnp
 .pnp.js
 

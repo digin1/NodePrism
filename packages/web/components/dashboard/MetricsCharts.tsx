@@ -18,6 +18,7 @@ import {
   Legend,
 } from 'recharts';
 import { io, Socket } from 'socket.io-client';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 // Use relative URLs for API calls (goes through Next.js proxy)
 // Socket.IO needs the full URL for direct connection
@@ -88,12 +89,8 @@ function formatValue(value: number, metricType: string): string {
   return `${value.toFixed(1)}%`;
 }
 
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-}
-
 export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeedExporter = false, hasEximExporter = false }: MetricsChartsProps) {
+  const { formatDateTime, formatTimeOnly } = useFormatDate();
   const [period, setPeriod] = useState<TimePeriod>('1h');
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -232,7 +229,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
                 dataKey="timestamp"
-                tickFormatter={formatTime}
+                tickFormatter={(ts) => formatTimeOnly(ts)}
                 stroke="#9ca3af"
                 fontSize={12}
               />
@@ -243,7 +240,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                 fontSize={12}
               />
               <Tooltip
-                labelFormatter={(label) => new Date(label).toLocaleString()}
+                labelFormatter={(label) => formatDateTime(label)}
                 formatter={(value: number, name: string) => [formatValue(value, name), name]}
               />
               <Legend />
@@ -279,7 +276,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
                 dataKey="timestamp"
-                tickFormatter={formatTime}
+                tickFormatter={(ts) => formatTimeOnly(ts)}
                 stroke="#9ca3af"
                 fontSize={12}
               />
@@ -289,7 +286,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                 tickFormatter={(v) => v.toFixed(1)}
               />
               <Tooltip
-                labelFormatter={(label) => new Date(label).toLocaleString()}
+                labelFormatter={(label) => formatDateTime(label)}
                 formatter={(value: number, name: string) => [value.toFixed(2), name]}
               />
               <Legend />
@@ -343,7 +340,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
                 dataKey="timestamp"
-                tickFormatter={formatTime}
+                tickFormatter={(ts) => formatTimeOnly(ts)}
                 stroke="#9ca3af"
                 fontSize={12}
               />
@@ -357,7 +354,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                 }}
               />
               <Tooltip
-                labelFormatter={(label) => new Date(label).toLocaleString()}
+                labelFormatter={(label) => formatDateTime(label)}
                 formatter={(value: number, name: string) => [formatValue(value, 'network'), name]}
               />
               <Legend />
@@ -399,7 +396,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
                 dataKey="timestamp"
-                tickFormatter={formatTime}
+                tickFormatter={(ts) => formatTimeOnly(ts)}
                 stroke="#9ca3af"
                 fontSize={12}
               />
@@ -410,7 +407,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                 fontSize={12}
               />
               <Tooltip
-                labelFormatter={(label) => new Date(label).toLocaleString()}
+                labelFormatter={(label) => formatDateTime(label)}
                 formatter={(value: number) => [`${value.toFixed(1)}%`, 'Disk']}
               />
               <Area
@@ -445,7 +442,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis
                     dataKey="timestamp"
-                    tickFormatter={formatTime}
+                    tickFormatter={(ts) => formatTimeOnly(ts)}
                     stroke="#9ca3af"
                     fontSize={12}
                   />
@@ -463,7 +460,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                     tickFormatter={(v) => `${v}/s`}
                   />
                   <Tooltip
-                    labelFormatter={(label) => new Date(label).toLocaleString()}
+                    labelFormatter={(label) => formatDateTime(label)}
                     formatter={(value: number, name: string) => {
                       if (name === 'Queries/sec') return [`${value.toFixed(1)}/s`, name];
                       return [value.toFixed(0), name];
@@ -514,7 +511,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis
                     dataKey="timestamp"
-                    tickFormatter={formatTime}
+                    tickFormatter={(ts) => formatTimeOnly(ts)}
                     stroke="#9ca3af"
                     fontSize={12}
                   />
@@ -532,7 +529,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                     tickFormatter={(v) => v.toString()}
                   />
                   <Tooltip
-                    labelFormatter={(label) => new Date(label).toLocaleString()}
+                    labelFormatter={(label) => formatDateTime(label)}
                     formatter={(value: number, name: string) => {
                       if (name === 'Req/sec') return [`${value.toFixed(1)}/s`, name];
                       return [value.toFixed(0), name];
@@ -598,7 +595,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis
                     dataKey="timestamp"
-                    tickFormatter={formatTime}
+                    tickFormatter={(ts) => formatTimeOnly(ts)}
                     stroke="#9ca3af"
                     fontSize={12}
                   />
@@ -620,7 +617,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                     tickFormatter={(v) => `${v}/s`}
                   />
                   <Tooltip
-                    labelFormatter={(label) => new Date(label).toLocaleString()}
+                    labelFormatter={(label) => formatDateTime(label)}
                     formatter={(value: number, name: string) => {
                       if (name.includes('Bandwidth')) {
                         if (value < 1024) return [`${value.toFixed(0)} B/s`, name];
@@ -695,7 +692,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   dataKey="timestamp"
-                  tickFormatter={formatTime}
+                  tickFormatter={(ts) => formatTimeOnly(ts)}
                   stroke="#9ca3af"
                   fontSize={12}
                 />
@@ -715,7 +712,7 @@ export function MetricsCharts({ serverId, hasMySQLExporter = false, hasLiteSpeed
                   fontSize={12}
                 />
                 <Tooltip
-                  labelFormatter={(label) => new Date(label).toLocaleString()}
+                  labelFormatter={(label) => formatDateTime(label)}
                   formatter={(value: number, name: string) => {
                     if (value >= 1000) return [`${(value / 1000).toFixed(1)}K`, name];
                     return [value.toFixed(0), name];

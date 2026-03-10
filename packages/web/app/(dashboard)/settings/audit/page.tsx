@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { auditApi, AuditLogEntry } from '@/lib/api';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 const ENTITY_TYPES = [
   { value: '', label: 'All Types' },
@@ -55,6 +56,7 @@ function formatDetails(details: Record<string, unknown> | null): string {
 }
 
 export default function AuditPage() {
+  const { formatDateTime } = useFormatDate();
   const [entityType, setEntityType] = useState('');
   const [page, setPage] = useState(0);
   const pageSize = 50;
@@ -165,7 +167,7 @@ export default function AuditPage() {
                     {logList.map((log) => (
                       <tr key={log.id} className="border-b border-border hover:bg-muted/50">
                         <td className="py-2.5 pr-4 text-muted-foreground whitespace-nowrap">
-                          {new Date(log.createdAt).toLocaleString()}
+                          {formatDateTime(log.createdAt)}
                         </td>
                         <td className="py-2.5 pr-4 whitespace-nowrap">
                           {log.user?.name || log.user?.email || 'System'}

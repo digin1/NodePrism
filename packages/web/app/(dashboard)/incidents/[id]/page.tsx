@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { incidentApi } from '@/lib/api';
+import { useFormatDate } from '@/hooks/useFormatDate';
 
 const statusColors: Record<string, 'danger' | 'warning' | 'secondary' | 'success' | 'default'> = {
   INVESTIGATING: 'danger',
@@ -78,6 +79,7 @@ export default function IncidentDetailPage() {
   const router = useRouter();
   const id = params?.id as string;
   const queryClient = useQueryClient();
+  const { formatDateTime } = useFormatDate();
 
   const [updateMessage, setUpdateMessage] = useState('');
   const [updateStatus, setUpdateStatus] = useState('');
@@ -210,7 +212,7 @@ export default function IncidentDetailPage() {
                       <p className="text-xs text-muted-foreground">by {incident.createdBy}</p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      {new Date(incident.createdAt).toLocaleString()}
+                      {formatDateTime(incident.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -240,7 +242,7 @@ export default function IncidentDetailPage() {
                       <p className="text-sm text-foreground">{update.message}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {update.createdBy && `${update.createdBy} \u00b7 `}
-                        {new Date(update.createdAt).toLocaleString()}
+                        {formatDateTime(update.createdAt)}
                       </p>
                     </div>
                   </div>
@@ -255,7 +257,7 @@ export default function IncidentDetailPage() {
                         Incident resolved
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(incident.resolvedAt).toLocaleString()} &middot;
+                        {formatDateTime(incident.resolvedAt)} &middot;
                         Duration: {formatDuration(duration)}
                       </p>
                     </div>
@@ -363,12 +365,12 @@ export default function IncidentDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Started</dt>
-                  <dd>{new Date(incident.startedAt).toLocaleString()}</dd>
+                  <dd>{formatDateTime(incident.startedAt)}</dd>
                 </div>
                 {incident.resolvedAt && (
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Resolved</dt>
-                    <dd>{new Date(incident.resolvedAt).toLocaleString()}</dd>
+                    <dd>{formatDateTime(incident.resolvedAt)}</dd>
                   </div>
                 )}
                 <div className="flex justify-between items-center">

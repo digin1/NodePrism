@@ -6,13 +6,19 @@ import { logger } from '../utils/logger';
 import { agentLimiter } from '../middleware/rateLimit';
 
 const PROMETHEUS_URL = process.env.PROMETHEUS_URL || 'http://localhost:9090';
+const PROMETHEUS_TIMEOUT = parseInt(process.env.PROMETHEUS_TIMEOUT || '10000', 10);
+
+const promClient = axios.create({
+  baseURL: PROMETHEUS_URL,
+  timeout: PROMETHEUS_TIMEOUT,
+});
 
 const router: ExpressRouter = Router();
 
 // Validation schemas
 const containerSchema = z.object({
-  containerId: z.string().min(1),
-  name: z.string().min(1),
+  containerId: z.string().min(1).max(255),
+  name: z.string().min(1).max(255),
   type: z.enum(['openvz', 'kvm', 'virtuozzo', 'docker', 'lxc']),
   status: z.string().default('unknown'),
   ipAddress: z.string().nullable().optional(),
@@ -220,7 +226,7 @@ router.get('/server/:serverId/metrics', async (req: Request, res: Response, next
       const results = await Promise.all(
         Object.entries(queries).map(async ([metric, query]) => {
           try {
-            const resp = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+            const resp = await promClient.get(`/api/v1/query`, {
               params: { query },
               timeout: 5000,
             });
@@ -256,11 +262,11 @@ router.get('/server/:serverId/metrics', async (req: Request, res: Response, next
       let storagePool: { name: string; sizeBytes: number; freeBytes: number } | null = null;
       try {
         const [vgSizeResp, vgFreeResp] = await Promise.all([
-          axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+          promClient.get(`/api/v1/query`, {
             params: { query: `nodeprism_lvm_vg_size_bytes{server_id="${serverId}"}` },
             timeout: 5000,
           }),
-          axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+          promClient.get(`/api/v1/query`, {
             params: { query: `nodeprism_lvm_vg_free_bytes{server_id="${serverId}"}` },
             timeout: 5000,
           }),
@@ -325,11 +331,11 @@ router.get('/server/:serverId/metrics', async (req: Request, res: Response, next
       // Query Prometheus for /vz filesystem metrics (Node Exporter)
       try {
         const [vzSizeResp, vzAvailResp] = await Promise.all([
-          axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+          promClient.get(`/api/v1/query`, {
             params: { query: `node_filesystem_size_bytes{server_id="${serverId}",mountpoint="/vz"}` },
             timeout: 5000,
           }),
-          axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+          promClient.get(`/api/v1/query`, {
             params: { query: `node_filesystem_avail_bytes{server_id="${serverId}",mountpoint="/vz"}` },
             timeout: 5000,
           }),

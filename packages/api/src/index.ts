@@ -3,6 +3,7 @@ import { createServer as createHttpServer, Server as HttpServer } from 'http';
 import { createServer as createHttpsServer, ServerOptions } from 'https';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import fs from 'fs';
@@ -27,6 +28,12 @@ import { startAlertReconciliation, stopAlertReconciliation } from './services/al
 
 // Load environment variables from root .env
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+// Fail fast if JWT_SECRET is not set in production
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  logger.error('FATAL: JWT_SECRET environment variable is required in production. Exiting.');
+  process.exit(1);
+}
 
 const app = express();
 
@@ -95,6 +102,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Apply rate limiting to API routes
 app.use('/api', generalLimiter);
@@ -165,6 +173,17 @@ app.get('/health', async (req, res) => {
     dependencies.prometheus = { status: 'ok', responseTime: Date.now() - promStart };
   } catch (err: any) {
     dependencies.prometheus = { status: 'down', responseTime: Date.now() - promStart, error: err.message };
+  }
+
+  // Check AlertManager
+  const amStart = Date.now();
+  const alertmanagerUrl = process.env.ALERTMANAGER_URL || 'http://localhost:9093';
+  try {
+    const axios = require('axios');
+    await axios.get(`${alertmanagerUrl}/-/ready`, { timeout: 3000 });
+    dependencies.alertmanager = { status: 'ok', responseTime: Date.now() - amStart };
+  } catch (err: any) {
+    dependencies.alertmanager = { status: 'down', responseTime: Date.now() - amStart, error: err.message };
   }
 
   const allOk = Object.values(dependencies).every(d => d.status === 'ok');
@@ -284,7 +303,7 @@ server.listen(PORT, async () => {
   startAlertReconciliation(io);
 
   // Start daily infrastructure report scheduler
-  startDailyReport();
+  await startDailyReport();
 
   // Log system startup event
   logSystemStartup();

@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface AlertStats {
   firing?: number;
+  critical?: number;
 }
 
 interface Health {
@@ -52,6 +53,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
   const stats = alertStats as AlertStats | undefined;
   const healthData = health as Health | undefined;
   const firingCount = stats?.firing ?? 0;
+  const criticalCount = stats?.critical ?? 0;
   const systemName = settings?.systemName || 'NodePrism';
   const isHealthy = healthData?.status === 'ok';
 
@@ -117,14 +119,14 @@ export function Header({ onMenuToggle }: HeaderProps) {
           <div className="rounded-full border border-border/70 bg-card/70 px-3 py-2">
             <div className="flex items-center gap-2">
               <span
-                className={`h-2.5 w-2.5 rounded-full ${firingCount > 0 ? 'animate-status-glow bg-red-500' : 'animate-pulse-dot bg-primary'}`}
+                className={`h-2.5 w-2.5 rounded-full ${criticalCount > 0 ? 'animate-status-glow bg-red-500' : firingCount > 0 ? 'bg-amber-500' : 'animate-pulse-dot bg-primary'}`}
               />
               <span className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
                 Active Alerts
               </span>
               <a
                 href="/alerts"
-                className={`metric-text text-sm ${firingCount > 0 ? 'text-red-400' : 'text-foreground'}`}
+                className={`metric-text text-sm ${criticalCount > 0 ? 'text-red-400' : firingCount > 0 ? 'text-amber-400' : 'text-foreground'}`}
               >
                 {firingCount}
               </a>

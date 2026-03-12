@@ -173,6 +173,11 @@ export const healthApi = {
   check: () => getRaw(api.get('/health')),
 };
 
+// System Status API
+export const systemStatusApi = {
+  get: () => getRaw(api.get('/api/system-status')),
+};
+
 // User Management API
 export interface UserInfo {
   id: string;

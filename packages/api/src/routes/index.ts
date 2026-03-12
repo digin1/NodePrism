@@ -17,6 +17,7 @@ import { maintenanceWindowRoutes } from './maintenanceWindows';
 import { incidentRoutes } from './incidents';
 import { forecastingRoutes } from './forecasting';
 import { uptimeRoutes } from './uptime';
+import { systemStatusRoutes } from './systemStatus';
 import { slackInteractionRoutes } from './slackInteractions';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 import { webhookLimiter, metricsLimiter } from '../middleware/rateLimit';
@@ -57,5 +58,6 @@ router.use('/maintenance-windows', optionalAuth, maintenanceWindowRoutes);
 router.use('/incidents', optionalAuth, incidentRoutes);
 router.use('/forecasting', optionalAuth, forecastingRoutes);
 router.use('/uptime', optionalAuth, uptimeRoutes);
+router.use('/system-status', optionalAuth, systemStatusRoutes);
 
 export { router as routes };

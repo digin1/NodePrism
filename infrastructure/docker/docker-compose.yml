@@ -271,6 +271,8 @@ services:
     container_name: nodeprism-alertmanager
     restart: unless-stopped
     logging: *default-logging
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - '127.0.0.1:9093:9093'
     command:

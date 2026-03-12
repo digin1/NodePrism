@@ -1714,20 +1714,29 @@ export default function ServerDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {serverData.alerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className="flex items-center justify-between p-3 bg-red-500/10 dark:bg-red-500/20 rounded-lg border border-red-500/20"
-                    >
-                      <div>
-                        <p className="font-medium text-red-800">{alert.message}</p>
-                        <p className="text-sm text-red-600">
-                          Started: {formatDateTime(alert.startsAt)}
-                        </p>
+                  {serverData.alerts.map((alert) => {
+                    const isWarning = alert.severity === 'WARNING';
+                    return (
+                      <div
+                        key={alert.id}
+                        className={`flex items-center justify-between p-3 rounded-lg border ${
+                          isWarning
+                            ? 'bg-amber-500/10 dark:bg-amber-500/20 border-amber-500/20'
+                            : 'bg-red-500/10 dark:bg-red-500/20 border-red-500/20'
+                        }`}
+                      >
+                        <div>
+                          <p className={`font-medium ${isWarning ? 'text-amber-700 dark:text-amber-300' : 'text-red-800 dark:text-red-300'}`}>
+                            {alert.message}
+                          </p>
+                          <p className={`text-sm ${isWarning ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                            Started: {formatDateTime(alert.startsAt)}
+                          </p>
+                        </div>
+                        <Badge variant={isWarning ? 'warning' : 'danger'}>{alert.severity}</Badge>
                       </div>
-                      <Badge variant="danger">{alert.severity}</Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

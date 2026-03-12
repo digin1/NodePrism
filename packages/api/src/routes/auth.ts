@@ -77,9 +77,11 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     audit(req, { action: 'auth.register', entityType: 'user', entityId: user.id, details: { email: user.email } });
 
     // Set httpOnly session cookie (used by nginx auth_request for Prometheus/Grafana)
+    // Use actual protocol to set secure flag (not NODE_ENV) so cookie works over HTTP deployments
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
     res.cookie('nodeprism_session', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
       maxAge: JWT_EXPIRES_IN * 1000,
       path: '/',
@@ -148,9 +150,11 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     audit(req, { action: 'auth.login', entityType: 'user', entityId: user.id, details: { email: user.email } });
 
     // Set httpOnly session cookie (used by nginx auth_request for Prometheus/Grafana)
+    // Use actual protocol to set secure flag (not NODE_ENV) so cookie works over HTTP deployments
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
     res.cookie('nodeprism_session', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
       maxAge: JWT_EXPIRES_IN * 1000,
       path: '/',

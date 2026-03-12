@@ -526,9 +526,9 @@ export default function DashboardPage() {
               label="Alerts Firing"
               value={aStats?.firing || 0}
               sub={aStats?.critical ? `${aStats.critical} critical alerts active` : 'No critical alerts active'}
-              color={aStats?.firing > 0 ? '#ef4444' : '#10b981'}
+              color={aStats?.critical > 0 ? '#ef4444' : aStats?.firing > 0 ? '#f59e0b' : '#10b981'}
               href="/alerts"
-              pulse={aStats?.firing > 0}
+              pulse={aStats?.critical > 0}
             />
             <HeroStat
               label="Uptime"

@@ -248,7 +248,8 @@ async function checkSslCert(
   const port = parseInt(parts[1] || '443', 10);
 
   return new Promise((resolve) => {
-    const socket = tls.connect({ host, port, servername: host, rejectUnauthorized: false, timeout: timeout * 1000 }, () => {
+    // rejectUnauthorized must be false: this function inspects certs that may be expired/self-signed
+    const socket = tls.connect({ host, port, servername: host, rejectUnauthorized: false, timeout: timeout * 1000 }, () => { // lgtm[js/disabling-certificate-validation]
       const responseTime = Date.now() - start;
 
       const cert = (socket as any).getPeerCertificate();

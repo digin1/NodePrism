@@ -193,8 +193,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ success: false, error: 'name is required' });
     }
-    if (!type || !['HTTP', 'HTTPS', 'TCP', 'PING', 'DNS'].includes(type)) {
-      return res.status(400).json({ success: false, error: 'type is required and must be one of: HTTP, HTTPS, TCP, PING, DNS' });
+    if (!type || !['HTTP', 'HTTPS', 'TCP', 'PING', 'DNS', 'SSL_CERT', 'DOMAIN'].includes(type)) {
+      return res.status(400).json({ success: false, error: 'type is required and must be one of: HTTP, HTTPS, TCP, PING, DNS, SSL_CERT, DOMAIN' });
     }
     if (!target || typeof target !== 'string' || target.trim().length === 0) {
       return res.status(400).json({ success: false, error: 'target is required' });

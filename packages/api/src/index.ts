@@ -18,6 +18,7 @@ import { startHousekeeping, stopHousekeeping, startBackupScheduler, stopBackupSc
 import { startAutoDiscovery, stopAutoDiscovery } from './services/autoDiscoveryService';
 import { setEventLoggerSocket, logSystemStartup } from './services/eventLogger';
 import { startUptimeMonitoring, stopUptimeMonitoring } from './services/uptimeService';
+import { startMultiStepMonitoring, stopMultiStepMonitoring } from './services/multiStepService';
 import { prisma } from './lib/prisma';
 import { metricsMiddleware, metricsRegistry, setWebSocketConnections } from './services/apiMetrics';
 import { initAnomalyMetrics } from './services/anomalyMetrics';
@@ -292,6 +293,9 @@ server.listen(PORT, async () => {
   // Start uptime monitoring service
   startUptimeMonitoring();
 
+  // Start multi-step monitoring service
+  startMultiStepMonitoring();
+
   // Auto-label servers based on registered agents/metadata
   autoLabelAllServers();
 
@@ -319,6 +323,7 @@ function gracefulShutdown(signal: string) {
   stopBackupScheduler();
   stopAutoDiscovery();
   stopUptimeMonitoring();
+  stopMultiStepMonitoring();
   stopDailyReport();
   stopAlertReconciliation();
   server.close(() => {

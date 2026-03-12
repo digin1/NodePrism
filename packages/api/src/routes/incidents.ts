@@ -305,6 +305,203 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
   }
 });
 
+// POST /api/incidents/:id/analyze - AI root cause analysis
+router.post('/:id/analyze', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const incident = await prisma.incident.findUnique({
+      where: { id },
+      include: {
+        server: {
+          select: { id: true, hostname: true, ipAddress: true, status: true, environment: true, region: true },
+        },
+        updates: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!incident) {
+      return res.status(404).json({
+        success: false,
+        error: 'Incident not found',
+      });
+    }
+
+    // Gather correlated alerts (same server or within incident timeframe)
+    const alertWhere: any = {};
+    const incidentStart = new Date(incident.startedAt);
+    const incidentEnd = incident.resolvedAt ? new Date(incident.resolvedAt) : new Date();
+
+    if (incident.serverId) {
+      alertWhere.serverId = incident.serverId;
+    }
+    alertWhere.createdAt = {
+      gte: new Date(incidentStart.getTime() - 60 * 60 * 1000), // 1 hour before
+      lte: incidentEnd,
+    };
+
+    const correlatedAlerts = await prisma.alert.findMany({
+      where: alertWhere,
+      orderBy: { createdAt: 'asc' },
+      take: 20,
+      select: {
+        id: true,
+        message: true,
+        severity: true,
+        status: true,
+        createdAt: true,
+        server: { select: { hostname: true } },
+      },
+    });
+
+    // Gather recent events on affected server
+    let recentEvents: any[] = [];
+    if (incident.serverId) {
+      recentEvents = await prisma.eventLog.findMany({
+        where: {
+          serverId: incident.serverId,
+          createdAt: {
+            gte: new Date(incidentStart.getTime() - 24 * 60 * 60 * 1000),
+            lte: incidentEnd,
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { type: true, message: true, createdAt: true },
+      });
+    }
+
+    // Build structured analysis
+    const lines: string[] = [];
+    lines.push(`# Root Cause Analysis: ${incident.title}`);
+    lines.push('');
+    lines.push(`**Severity:** ${incident.severity}`);
+    lines.push(`**Status:** ${incident.status}`);
+    lines.push(`**Started:** ${incidentStart.toISOString()}`);
+    if (incident.resolvedAt) {
+      const durationMs = incidentEnd.getTime() - incidentStart.getTime();
+      const durationMin = Math.round(durationMs / 60000);
+      lines.push(`**Resolved:** ${incident.resolvedAt} (Duration: ${durationMin} minutes)`);
+    }
+    lines.push('');
+
+    // Correlated alerts section
+    lines.push('## Correlated Alerts');
+    lines.push('');
+    if (correlatedAlerts.length === 0) {
+      lines.push('No correlated alerts found in the incident timeframe.');
+    } else {
+      for (const alert of correlatedAlerts) {
+        const time = new Date(alert.createdAt).toISOString();
+        const host = alert.server?.hostname || 'N/A';
+        lines.push(`- **[${alert.severity}]** ${alert.message} (${host}, ${time})`);
+      }
+    }
+    lines.push('');
+
+    // Affected servers section
+    lines.push('## Affected Server');
+    lines.push('');
+    if (incident.server) {
+      const s = incident.server;
+      lines.push(`- **Hostname:** ${s.hostname}`);
+      lines.push(`- **IP:** ${s.ipAddress}`);
+      lines.push(`- **Status:** ${s.status}`);
+      if (s.environment) lines.push(`- **Environment:** ${s.environment}`);
+      if (s.region) lines.push(`- **Region:** ${s.region}`);
+    } else {
+      lines.push('No specific server associated with this incident.');
+    }
+    lines.push('');
+
+    // Recent infrastructure changes
+    lines.push('## Recent Infrastructure Changes');
+    lines.push('');
+    if (recentEvents.length === 0) {
+      lines.push('No recent infrastructure changes detected on the affected server.');
+    } else {
+      for (const event of recentEvents) {
+        const time = new Date(event.createdAt).toISOString();
+        lines.push(`- **[${event.type}]** ${event.message} (${time})`);
+      }
+    }
+    lines.push('');
+
+    // Root cause suggestions based on alert patterns
+    lines.push('## Likely Root Causes');
+    lines.push('');
+
+    const alertMessages = correlatedAlerts.map((a) => a.message.toLowerCase());
+    const suggestions: string[] = [];
+
+    if (alertMessages.some((m) => m.includes('cpu') || m.includes('load'))) {
+      suggestions.push('High CPU utilization or process runaway detected. Check for resource-intensive processes or CPU throttling.');
+    }
+    if (alertMessages.some((m) => m.includes('memory') || m.includes('oom') || m.includes('swap'))) {
+      suggestions.push('Memory pressure detected. Investigate memory leaks, OOM killer events, or insufficient memory allocation.');
+    }
+    if (alertMessages.some((m) => m.includes('disk') || m.includes('storage') || m.includes('filesystem'))) {
+      suggestions.push('Disk space or I/O issues detected. Check for full partitions, high IOPS, or failing storage hardware.');
+    }
+    if (alertMessages.some((m) => m.includes('network') || m.includes('connection') || m.includes('timeout') || m.includes('dns'))) {
+      suggestions.push('Network connectivity issues detected. Investigate DNS resolution, firewall rules, or network saturation.');
+    }
+    if (alertMessages.some((m) => m.includes('service') || m.includes('process') || m.includes('down'))) {
+      suggestions.push('Service availability issues detected. Check service logs, restart policies, and dependency health.');
+    }
+
+    if (suggestions.length === 0) {
+      suggestions.push('Insufficient alert pattern data for automated root cause determination. Manual investigation recommended.');
+      suggestions.push('Review incident timeline and server logs for anomalies around the incident start time.');
+    }
+
+    for (const suggestion of suggestions) {
+      lines.push(`- ${suggestion}`);
+    }
+    lines.push('');
+
+    // Incident timeline summary
+    lines.push('## Incident Timeline');
+    lines.push('');
+    lines.push(`1. Incident reported at ${incidentStart.toISOString()}`);
+    if (incident.updates && incident.updates.length > 0) {
+      for (const update of incident.updates) {
+        const time = new Date(update.createdAt).toISOString();
+        const statusChange = update.status ? ` [Status: ${update.status}]` : '';
+        lines.push(`2. ${update.message}${statusChange} (${time})`);
+      }
+    }
+    if (incident.resolvedAt) {
+      lines.push(`3. Incident resolved at ${incident.resolvedAt}`);
+    }
+
+    const analysis = lines.join('\n');
+
+    // Store analysis
+    const updated = await prisma.incident.update({
+      where: { id },
+      data: {
+        aiAnalysis: analysis,
+        aiAnalyzedAt: new Date(),
+      },
+    });
+
+    logger.info(`AI analysis generated for incident ${id}`);
+
+    res.json({
+      success: true,
+      data: {
+        aiAnalysis: updated.aiAnalysis,
+        aiAnalyzedAt: updated.aiAnalyzedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/incidents/from-alert - Create incident from an existing alert
 router.post('/from-alert', async (req: Request, res: Response, next: NextFunction) => {
   try {

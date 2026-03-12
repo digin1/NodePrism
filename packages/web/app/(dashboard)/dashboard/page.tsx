@@ -10,8 +10,12 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 import { serverApi, alertApi, metricsApi, uptimeApi, incidentApi } from '@/lib/api';
 import { Sparkline } from '@/components/dashboard/Sparkline';
+import { useAlertStats } from '@/hooks/useAlertStats';
 
 const REFRESH_INTERVAL = 15000;
+const REFETCH_OPTS = { refetchInterval: REFRESH_INTERVAL } as const;
+const SLOW_REFETCH_OPTS = { refetchInterval: 30000 } as const;
+const SLOW_REFETCH_60 = { refetchInterval: 60000 } as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,7 +48,7 @@ function timeAgo(dateStr: string): string {
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
 
-function HeroStat({
+const HeroStat = React.memo(function HeroStat({
   label,
   value,
   sub,
@@ -87,9 +91,9 @@ function HeroStat({
     );
   }
   return inner;
-}
+});
 
-function ServerFleetCard({ server }: { server: any }) {
+const ServerFleetCard = React.memo(function ServerFleetCard({ server }: { server: any }) {
   const cpu = server._metrics?.cpu;
   const mem = server._metrics?.memory;
   const disk = server._metrics?.disk;
@@ -140,9 +144,9 @@ function ServerFleetCard({ server }: { server: any }) {
       )}
     </a>
   );
-}
+});
 
-function MiniBar({ value, label, color }: { value: number; label: string; color: string }) {
+const MiniBar = React.memo(function MiniBar({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <div className="flex flex-col items-center gap-0.5" title={`${label}: ${value.toFixed(1)}%`}>
       <span className="text-[9px] text-muted-foreground font-medium">{label}</span>
@@ -155,9 +159,9 @@ function MiniBar({ value, label, color }: { value: number; label: string; color:
       <span className="text-[9px] font-mono text-muted-foreground">{Math.round(value)}</span>
     </div>
   );
-}
+});
 
-function AlertRow({ alert, onAck }: { alert: any; onAck: (id: string) => void }) {
+const AlertRow = React.memo(function AlertRow({ alert, onAck }: { alert: any; onAck: (id: string) => void }) {
   return (
     <div className="flex items-start gap-3 p-2.5 rounded-md hover:bg-muted/50 transition-colors group">
       <div
@@ -205,9 +209,9 @@ function AlertRow({ alert, onAck }: { alert: any; onAck: (id: string) => void })
       </div>
     </div>
   );
-}
+});
 
-function UptimeRow({ monitor }: { monitor: any }) {
+const UptimeRow = React.memo(function UptimeRow({ monitor }: { monitor: any }) {
   const pct = monitor.uptimePercentage;
   const responseMs = monitor.avgResponseTime || monitor.lastCheck?.responseTime;
   const isUp = monitor.lastCheck?.status === 'UP' || monitor.status === 'UP';
@@ -239,15 +243,16 @@ function UptimeRow({ monitor }: { monitor: any }) {
       </div>
     </div>
   );
-}
+});
 
-function IncidentRow({ incident }: { incident: any }) {
-  const statusColors: Record<string, string> = {
-    INVESTIGATING: 'text-red-500',
-    IDENTIFIED: 'text-orange-500',
-    MONITORING: 'text-blue-500',
-    RESOLVED: 'text-green-500',
-  };
+const INCIDENT_STATUS_COLORS: Record<string, string> = {
+  INVESTIGATING: 'text-red-500',
+  IDENTIFIED: 'text-orange-500',
+  MONITORING: 'text-blue-500',
+  RESOLVED: 'text-green-500',
+};
+
+const IncidentRow = React.memo(function IncidentRow({ incident }: { incident: any }) {
 
   return (
     <a
@@ -256,7 +261,7 @@ function IncidentRow({ incident }: { incident: any }) {
     >
       <div className="mt-0.5 flex-shrink-0">
         <svg
-          className={`w-4 h-4 ${statusColors[incident.status] || 'text-muted-foreground'}`}
+          className={`w-4 h-4 ${INCIDENT_STATUS_COLORS[incident.status] || 'text-muted-foreground'}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -272,7 +277,7 @@ function IncidentRow({ incident }: { incident: any }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{incident.title}</p>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className={`text-[11px] font-medium ${statusColors[incident.status] || ''}`}>
+          <span className={`text-[11px] font-medium ${INCIDENT_STATUS_COLORS[incident.status] || ''}`}>
             {incident.status}
           </span>
           <span className="text-[11px] text-muted-foreground">{timeAgo(incident.createdAt)}</span>
@@ -292,7 +297,16 @@ function IncidentRow({ incident }: { incident: any }) {
       </Badge>
     </a>
   );
-}
+});
+
+// Skeleton placeholder array (avoid recreating on every render)
+const SKELETON_ROWS = Array.from({ length: 5 }, (_, i) => i);
+const BW_PERIODS = [
+  { key: 'hour', label: '1h' },
+  { key: 'day', label: '24h' },
+  { key: 'week', label: '7d' },
+  { key: 'month', label: '30d' },
+] as const;
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
@@ -300,84 +314,77 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [bwPeriod, setBwPeriod] = useState<string>('day');
 
-  const refetchOpts = { refetchInterval: REFRESH_INTERVAL };
-
   // --- Data queries ---
   const { data: serverStats, isLoading: statsLoading } = useQuery({
     queryKey: ['serverStats'],
     queryFn: () => serverApi.stats(),
-    ...refetchOpts,
+    ...REFETCH_OPTS,
   });
 
-  const { data: alertStats } = useQuery({
-    queryKey: ['alertStats'],
-    queryFn: () => alertApi.stats(),
-    ...refetchOpts,
-  });
+  const { data: alertStats } = useAlertStats();
 
   const { data: targets } = useQuery({
     queryKey: ['targets'],
     queryFn: () => metricsApi.targets(),
-    ...refetchOpts,
+    ...REFETCH_OPTS,
   });
 
   const { data: servers } = useQuery({
     queryKey: ['servers'],
     queryFn: () => serverApi.list(),
-    ...refetchOpts,
+    ...REFETCH_OPTS,
   });
 
   const { data: firingAlerts } = useQuery({
     queryKey: ['alerts', { status: 'FIRING' }],
     queryFn: () => alertApi.list({ status: 'FIRING' }),
-    ...refetchOpts,
+    ...REFETCH_OPTS,
   });
 
   const { data: uptimeStats } = useQuery({
     queryKey: ['uptimeStats'],
     queryFn: () => uptimeApi.stats(),
-    refetchInterval: 30000,
+    ...SLOW_REFETCH_OPTS,
   });
 
   const { data: uptimeMonitors } = useQuery({
     queryKey: ['uptimeMonitors'],
     queryFn: () => uptimeApi.list(),
-    refetchInterval: 30000,
+    ...SLOW_REFETCH_OPTS,
   });
 
   const { data: incidentStats } = useQuery({
     queryKey: ['incidentStats'],
     queryFn: () => incidentApi.stats(),
-    refetchInterval: 30000,
+    ...SLOW_REFETCH_OPTS,
   });
 
   const { data: openIncidents } = useQuery({
     queryKey: ['incidents', { status: 'open' }],
     queryFn: () => incidentApi.list({ limit: 5 }),
-    refetchInterval: 30000,
+    ...SLOW_REFETCH_OPTS,
   });
 
   const { data: topBandwidth, isLoading: bwLoading } = useQuery({
     queryKey: ['bandwidthTop', bwPeriod],
     queryFn: () => metricsApi.bandwidthTop({ period: bwPeriod, limit: 8 }),
-    refetchInterval: 60000,
+    ...SLOW_REFETCH_60,
   });
 
   // Sparkline data (1h, 12 points)
   const end = Math.floor(Date.now() / 1000);
   const start = end - 3600;
 
+  const sparklineOpts = { ...SLOW_REFETCH_60, staleTime: 30000 } as const;
+
   const { data: cpuSparkline } = useQuery({
     queryKey: ['sparkline-cpu'],
     queryFn: () =>
       metricsApi.queryRange(
         '100 - avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100',
-        start,
-        end,
-        '300'
+        start, end, '300'
       ),
-    refetchInterval: 60000,
-    staleTime: 30000,
+    ...sparklineOpts,
   });
 
   const { data: memSparkline } = useQuery({
@@ -385,20 +392,16 @@ export default function DashboardPage() {
     queryFn: () =>
       metricsApi.queryRange(
         'avg((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)',
-        start,
-        end,
-        '300'
+        start, end, '300'
       ),
-    refetchInterval: 60000,
-    staleTime: 30000,
+    ...sparklineOpts,
   });
 
   const { data: netSparkline } = useQuery({
     queryKey: ['sparkline-net'],
     queryFn: () =>
       metricsApi.queryRange('sum(irate(node_network_receive_bytes_total[5m]))', start, end, '300'),
-    refetchInterval: 60000,
-    staleTime: 30000,
+    ...sparklineOpts,
   });
 
   // Per-server metrics for fleet grid
@@ -431,6 +434,8 @@ export default function DashboardPage() {
     },
   });
 
+  const handleAck = useCallback((id: string) => ackMutation.mutate(id), [ackMutation]);
+
   // --- Computed ---
   const stats = serverStats as any;
   const aStats = alertStats as any;
@@ -440,8 +445,11 @@ export default function DashboardPage() {
   const serverList = servers as any[];
   const alertList = (firingAlerts as any[]) || [];
   const monitorList = (uptimeMonitors as any[]) || [];
-  const incidentList = ((openIncidents as any[]) || []).filter(
-    (i: any) => i.status !== 'RESOLVED' && i.status !== 'POSTMORTEM'
+  const incidentList = useMemo(
+    () => ((openIncidents as any[]) || []).filter(
+      (i: any) => i.status !== 'RESOLVED' && i.status !== 'POSTMORTEM'
+    ),
+    [openIncidents]
   );
 
   const cpuData = extractSparklineValues(cpuSparkline);
@@ -689,7 +697,7 @@ export default function DashboardPage() {
             {alertList.length > 0 ? (
               <div className="space-y-0.5 max-h-[320px] overflow-y-auto">
                 {alertList.slice(0, 10).map((alert: any) => (
-                  <AlertRow key={alert.id} alert={alert} onAck={(id) => ackMutation.mutate(id)} />
+                  <AlertRow key={alert.id} alert={alert} onAck={handleAck} />
                 ))}
                 {alertList.length > 10 && (
                   <a
@@ -794,17 +802,17 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold">Top Bandwidth</CardTitle>
               <div className="flex gap-0.5 bg-muted rounded-lg p-0.5">
-                {['hour', 'day', 'week', 'month'].map((p) => (
+                {BW_PERIODS.map(({ key, label }) => (
                   <button
-                    key={p}
+                    key={key}
                     className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                      bwPeriod === p
+                      bwPeriod === key
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
-                    onClick={() => setBwPeriod(p)}
+                    onClick={() => setBwPeriod(key)}
                   >
-                    {p === 'hour' ? '1h' : p === 'day' ? '24h' : p === 'week' ? '7d' : '30d'}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -813,7 +821,7 @@ export default function DashboardPage() {
           <CardContent>
             {bwLoading ? (
               <div className="space-y-2">
-                {[...Array(5)].map((_, i) => (
+                {SKELETON_ROWS.map((i) => (
                   <Skeleton key={i} className="h-11 w-full" />
                 ))}
               </div>

@@ -48,6 +48,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#3B82F6" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} font-sans`}>
         {children}

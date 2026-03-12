@@ -8,17 +8,23 @@ import { audit } from '../services/auditLogger';
 
 const router: ExpressRouter = Router();
 
+const VALID_SCOPES = ['SERVER', 'MONITOR', 'GLOBAL'] as const;
+
 /**
  * GET /api/maintenance-windows
- * List maintenance windows (optionally filter by server or active status)
+ * List maintenance windows (optionally filter by server, scope, or active status)
  */
 router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { serverId, active } = req.query;
+    const { serverId, active, scope } = req.query;
     const where: any = {};
 
     if (serverId) {
       where.serverId = serverId as string;
+    }
+
+    if (scope) {
+      where.scope = scope as string;
     }
 
     if (active === 'true') {
@@ -29,7 +35,10 @@ router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunct
 
     const windows = await prisma.maintenanceWindow.findMany({
       where,
-      include: { server: { select: { id: true, hostname: true, ipAddress: true } } },
+      include: {
+        server: { select: { id: true, hostname: true, ipAddress: true } },
+        uptimeMonitor: { select: { id: true, name: true, target: true } },
+      },
       orderBy: { startTime: 'desc' },
     });
 
@@ -47,7 +56,10 @@ router.get('/:id', requireAuth, async (req: Request, res: Response, next: NextFu
   try {
     const window = await prisma.maintenanceWindow.findUnique({
       where: { id: req.params.id },
-      include: { server: { select: { id: true, hostname: true, ipAddress: true } } },
+      include: {
+        server: { select: { id: true, hostname: true, ipAddress: true } },
+        uptimeMonitor: { select: { id: true, name: true, target: true } },
+      },
     });
 
     if (!window) {
@@ -67,41 +79,69 @@ router.get('/:id', requireAuth, async (req: Request, res: Response, next: NextFu
 router.post('/', requireAuth, requireRole('ADMIN', 'OPERATOR'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schema = z.object({
-      serverId: z.string().uuid(),
+      serverId: z.string().uuid().optional().nullable(),
+      uptimeMonitorId: z.string().uuid().optional().nullable(),
+      scope: z.enum(VALID_SCOPES).default('SERVER'),
       reason: z.string().min(1).max(500),
       startTime: z.string().datetime(),
       endTime: z.string().datetime(),
+      recurring: z.boolean().default(false),
+      rrule: z.string().max(500).optional().nullable(),
     }).refine(data => new Date(data.endTime) > new Date(data.startTime), {
       message: 'End time must be after start time',
-    });
+    }).refine(data => {
+      if (data.scope === 'SERVER') return !!data.serverId;
+      return true;
+    }, { message: 'serverId is required for SERVER scope' })
+    .refine(data => {
+      if (data.scope === 'MONITOR') return !!data.uptimeMonitorId;
+      return true;
+    }, { message: 'uptimeMonitorId is required for MONITOR scope' });
 
     const data = schema.parse(req.body);
 
-    // Verify server exists
-    const server = await prisma.server.findUnique({ where: { id: data.serverId } });
-    if (!server) {
-      return res.status(404).json({ success: false, error: 'Server not found' });
+    // Verify server exists for SERVER scope
+    if (data.scope === 'SERVER' && data.serverId) {
+      const server = await prisma.server.findUnique({ where: { id: data.serverId } });
+      if (!server) {
+        return res.status(404).json({ success: false, error: 'Server not found' });
+      }
+    }
+
+    // Verify uptime monitor exists for MONITOR scope
+    if (data.scope === 'MONITOR' && data.uptimeMonitorId) {
+      const monitor = await prisma.uptimeMonitor.findUnique({ where: { id: data.uptimeMonitorId } });
+      if (!monitor) {
+        return res.status(404).json({ success: false, error: 'Uptime monitor not found' });
+      }
     }
 
     const window = await prisma.maintenanceWindow.create({
       data: {
-        serverId: data.serverId,
+        serverId: data.scope === 'SERVER' ? data.serverId : null,
+        uptimeMonitorId: data.scope === 'MONITOR' ? data.uptimeMonitorId : null,
+        scope: data.scope,
         reason: data.reason,
         startTime: new Date(data.startTime),
         endTime: new Date(data.endTime),
+        recurring: data.recurring,
+        rrule: data.recurring ? data.rrule : null,
         createdBy: req.user?.userId,
       },
-      include: { server: { select: { id: true, hostname: true, ipAddress: true } } },
+      include: {
+        server: { select: { id: true, hostname: true, ipAddress: true } },
+        uptimeMonitor: { select: { id: true, name: true, target: true } },
+      },
     });
 
     audit(req, {
       action: 'maintenance_window.create',
       entityType: 'maintenance_window',
       entityId: window.id,
-      details: { serverId: data.serverId, reason: data.reason },
+      details: { scope: data.scope, serverId: data.serverId, uptimeMonitorId: data.uptimeMonitorId, reason: data.reason },
     });
 
-    logger.info('Maintenance window created', { id: window.id, serverId: data.serverId });
+    logger.info('Maintenance window created', { id: window.id, scope: data.scope });
     res.status(201).json({ success: true, data: window });
   } catch (error) {
     next(error);
@@ -120,9 +160,14 @@ router.put('/:id', requireAuth, requireRole('ADMIN', 'OPERATOR'), async (req: Re
     }
 
     const schema = z.object({
+      serverId: z.string().uuid().optional().nullable(),
+      uptimeMonitorId: z.string().uuid().optional().nullable(),
+      scope: z.enum(VALID_SCOPES).optional(),
       reason: z.string().min(1).max(500).optional(),
       startTime: z.string().datetime().optional(),
       endTime: z.string().datetime().optional(),
+      recurring: z.boolean().optional(),
+      rrule: z.string().max(500).optional().nullable(),
     });
 
     const data = schema.parse(req.body);
@@ -134,14 +179,40 @@ router.put('/:id', requireAuth, requireRole('ADMIN', 'OPERATOR'), async (req: Re
       return res.status(400).json({ success: false, error: 'End time must be after start time' });
     }
 
+    const effectiveScope = data.scope || existing.scope;
+
+    // Verify server exists if changing to SERVER scope
+    if (effectiveScope === 'SERVER' && data.serverId) {
+      const server = await prisma.server.findUnique({ where: { id: data.serverId } });
+      if (!server) {
+        return res.status(404).json({ success: false, error: 'Server not found' });
+      }
+    }
+
+    // Verify uptime monitor exists if changing to MONITOR scope
+    if (effectiveScope === 'MONITOR' && data.uptimeMonitorId) {
+      const monitor = await prisma.uptimeMonitor.findUnique({ where: { id: data.uptimeMonitorId } });
+      if (!monitor) {
+        return res.status(404).json({ success: false, error: 'Uptime monitor not found' });
+      }
+    }
+
     const window = await prisma.maintenanceWindow.update({
       where: { id: req.params.id },
       data: {
+        ...(data.scope !== undefined && { scope: data.scope }),
+        ...(data.serverId !== undefined && { serverId: data.serverId }),
+        ...(data.uptimeMonitorId !== undefined && { uptimeMonitorId: data.uptimeMonitorId }),
         ...(data.reason !== undefined && { reason: data.reason }),
         ...(data.startTime && { startTime }),
         ...(data.endTime && { endTime }),
+        ...(data.recurring !== undefined && { recurring: data.recurring }),
+        ...(data.rrule !== undefined && { rrule: data.rrule }),
       },
-      include: { server: { select: { id: true, hostname: true, ipAddress: true } } },
+      include: {
+        server: { select: { id: true, hostname: true, ipAddress: true } },
+        uptimeMonitor: { select: { id: true, name: true, target: true } },
+      },
     });
 
     audit(req, {

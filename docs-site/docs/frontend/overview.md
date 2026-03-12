@@ -38,6 +38,7 @@ title: Frontend
 | `/settings/notifications` | `(dashboard)/settings/notifications/page.tsx` | - |
 | `/settings` | `(dashboard)/settings/page.tsx` | System settings |
 | `/settings/users` | `(dashboard)/settings/users/page.tsx` | - |
+| `/system-status` | `(dashboard)/system-status/page.tsx` | - |
 | `/uptime` | `(dashboard)/uptime/page.tsx` | - |
 | `/` | `page.tsx` | Home page / redirect |
 

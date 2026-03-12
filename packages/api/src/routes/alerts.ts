@@ -636,6 +636,9 @@ router.post('/webhook', webhookLimiter, async (req: Request, res: Response, next
         (existingAlert.status === 'ACKNOWLEDGED' || existingAlert.status === 'SILENCED'))
         ? existingAlert.status : status;
 
+      // When an alert re-fires after being resolved, reset startsAt so duration is accurate
+      const isRefire = status === 'FIRING' && existingAlert?.status === 'RESOLVED';
+
       // Upsert the alert
       const upsertedAlert = await prisma.alert.upsert({
         where: { fingerprint },
@@ -657,7 +660,9 @@ router.post('/webhook', webhookLimiter, async (req: Request, res: Response, next
           annotations: alert.annotations,
           message:
             alert.annotations?.summary || alert.annotations?.description || undefined,
-          endsAt: alert.endsAt ? new Date(alert.endsAt) : null,
+          // Reset startsAt on re-fire so "resolved after" duration is correct
+          ...(isRefire && { startsAt: new Date(alert.startsAt), endsAt: null }),
+          ...(!isRefire && { endsAt: alert.endsAt ? new Date(alert.endsAt) : null }),
           ...(serverId && { serverId }),
           ...(ruleId && { ruleId }),
         },

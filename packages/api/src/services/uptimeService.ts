@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { dispatchNotifications } from './notificationSender';
 import axios from 'axios';
 import net from 'net';
+import tls from 'tls';
 import dns from 'dns';
 import { exec } from 'child_process';
 import { UptimeCheckType, UptimeCheckStatus } from '@prisma/client';
@@ -233,6 +234,199 @@ async function checkDns(
 }
 
 /**
+ * Perform an SSL certificate expiry check using the tls module
+ */
+async function checkSslCert(
+  target: string,
+  timeout: number
+): Promise<{ status: UptimeCheckStatus; responseTime: number; statusCode: number | null; message: string; certExpiry?: Date; certIssuer?: string }> {
+  const start = Date.now();
+
+  // Parse host and optional port from target (e.g. "example.com" or "example.com:8443")
+  const parts = target.split(':');
+  const host = parts[0];
+  const port = parseInt(parts[1] || '443', 10);
+
+  return new Promise((resolve) => {
+    const socket = tls.connect({ host, port, servername: host, rejectUnauthorized: false, timeout: timeout * 1000 }, () => {
+      const responseTime = Date.now() - start;
+
+      const cert = (socket as any).getPeerCertificate();
+      socket.destroy();
+
+      if (!cert || !cert.valid_to) {
+        resolve({
+          status: 'DOWN',
+          responseTime,
+          statusCode: null,
+          message: 'No certificate found on host',
+        });
+        return;
+      }
+
+      const expiryDate = new Date(cert.valid_to);
+      const now = new Date();
+      const daysUntilExpiry = Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Build issuer string from certificate issuer object
+      const issuerParts: string[] = [];
+      if (cert.issuer) {
+        if (cert.issuer.O) issuerParts.push(cert.issuer.O);
+        if (cert.issuer.CN) issuerParts.push(cert.issuer.CN);
+      }
+      const issuerStr = issuerParts.join(' - ') || 'Unknown';
+
+      let status: UptimeCheckStatus;
+      let message: string;
+
+      if (daysUntilExpiry < 0) {
+        status = 'DOWN';
+        message = `Certificate expired ${Math.abs(daysUntilExpiry)} days ago (${expiryDate.toISOString()})`;
+      } else if (daysUntilExpiry <= 7) {
+        status = 'DOWN';
+        message = `Certificate expires in ${daysUntilExpiry} days (${expiryDate.toISOString()})`;
+      } else if (daysUntilExpiry <= 30) {
+        status = 'DEGRADED';
+        message = `Certificate expires in ${daysUntilExpiry} days (${expiryDate.toISOString()})`;
+      } else {
+        status = 'UP';
+        message = `Certificate valid for ${daysUntilExpiry} days (expires ${expiryDate.toISOString()})`;
+      }
+
+      resolve({
+        status,
+        responseTime,
+        statusCode: null,
+        message,
+        certExpiry: expiryDate,
+        certIssuer: issuerStr,
+      });
+    });
+
+    socket.on('timeout', () => {
+      const responseTime = Date.now() - start;
+      socket.destroy();
+      resolve({
+        status: 'DOWN',
+        responseTime,
+        statusCode: null,
+        message: `TLS connection timeout after ${timeout}s`,
+      });
+    });
+
+    socket.on('error', (err: any) => {
+      const responseTime = Date.now() - start;
+      socket.destroy();
+      resolve({
+        status: 'DOWN',
+        responseTime,
+        statusCode: null,
+        message: `TLS connection failed: ${err.code || err.message}`,
+      });
+    });
+  });
+}
+
+/**
+ * Perform a domain expiry check using the whois command
+ */
+async function checkDomainExpiry(
+  target: string,
+  timeout: number
+): Promise<{ status: UptimeCheckStatus; responseTime: number; statusCode: number | null; message: string; domainExpiry?: Date }> {
+  const start = Date.now();
+
+  // Sanitize domain input: only allow valid hostname characters
+  const domain = target.replace(/[^a-zA-Z0-9.\-]/g, '');
+
+  return new Promise((resolve) => {
+    exec(`whois ${domain}`, { timeout: timeout * 1000 }, (error, stdout) => {
+      const responseTime = Date.now() - start;
+
+      if (error) {
+        resolve({
+          status: 'DOWN',
+          responseTime,
+          statusCode: null,
+          message: `WHOIS lookup failed: ${error.message}`,
+        });
+        return;
+      }
+
+      // Try multiple common expiry date patterns from whois output
+      const expiryPatterns = [
+        /Registry Expiry Date:\s*(.+)/i,
+        /Registrar Registration Expiration Date:\s*(.+)/i,
+        /Expiration Date:\s*(.+)/i,
+        /Expiry Date:\s*(.+)/i,
+        /paid-till:\s*(.+)/i,
+        /Expiry date:\s*(.+)/i,
+        /expires:\s*(.+)/i,
+        /expire:\s*(.+)/i,
+      ];
+
+      let expiryDateStr: string | null = null;
+      for (const pattern of expiryPatterns) {
+        const match = stdout.match(pattern);
+        if (match) {
+          expiryDateStr = match[1].trim();
+          break;
+        }
+      }
+
+      if (!expiryDateStr) {
+        resolve({
+          status: 'DOWN',
+          responseTime,
+          statusCode: null,
+          message: 'Could not parse expiry date from WHOIS response',
+        });
+        return;
+      }
+
+      const expiryDate = new Date(expiryDateStr);
+      if (isNaN(expiryDate.getTime())) {
+        resolve({
+          status: 'DOWN',
+          responseTime,
+          statusCode: null,
+          message: `Invalid expiry date format: ${expiryDateStr}`,
+        });
+        return;
+      }
+
+      const now = new Date();
+      const daysUntilExpiry = Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      let status: UptimeCheckStatus;
+      let message: string;
+
+      if (daysUntilExpiry < 0) {
+        status = 'DOWN';
+        message = `Domain expired ${Math.abs(daysUntilExpiry)} days ago (${expiryDate.toISOString()})`;
+      } else if (daysUntilExpiry <= 14) {
+        status = 'DOWN';
+        message = `Domain expires in ${daysUntilExpiry} days (${expiryDate.toISOString()})`;
+      } else if (daysUntilExpiry <= 30) {
+        status = 'DEGRADED';
+        message = `Domain expires in ${daysUntilExpiry} days (${expiryDate.toISOString()})`;
+      } else {
+        status = 'UP';
+        message = `Domain valid for ${daysUntilExpiry} days (expires ${expiryDate.toISOString()})`;
+      }
+
+      resolve({
+        status,
+        responseTime,
+        statusCode: null,
+        message,
+        domainExpiry: expiryDate,
+      });
+    });
+  });
+}
+
+/**
  * Run a single check for a monitor and return the result (without storing)
  */
 export async function runCheck(monitor: {
@@ -244,7 +438,7 @@ export async function runCheck(monitor: {
   expectedStatus: number | null;
   keyword: string | null;
   headers: any;
-}): Promise<{ status: UptimeCheckStatus; responseTime: number; statusCode: number | null; message: string }> {
+}): Promise<{ status: UptimeCheckStatus; responseTime: number; statusCode: number | null; message: string; certExpiry?: Date; certIssuer?: string; domainExpiry?: Date }> {
   const headers = monitor.headers as Record<string, string> | null;
 
   switch (monitor.type) {
@@ -257,6 +451,10 @@ export async function runCheck(monitor: {
       return checkPing(monitor.target, monitor.timeout);
     case 'DNS':
       return checkDns(monitor.target, monitor.timeout);
+    case 'SSL_CERT':
+      return checkSslCert(monitor.target, monitor.timeout);
+    case 'DOMAIN':
+      return checkDomainExpiry(monitor.target, monitor.timeout);
     default:
       return {
         status: 'DOWN',
@@ -290,6 +488,9 @@ async function executeCheck(monitorId: string): Promise<void> {
         responseTime: result.responseTime,
         statusCode: result.statusCode,
         message: result.message,
+        certExpiry: result.certExpiry ?? null,
+        certIssuer: result.certIssuer ?? null,
+        domainExpiry: result.domainExpiry ?? null,
       },
     });
 

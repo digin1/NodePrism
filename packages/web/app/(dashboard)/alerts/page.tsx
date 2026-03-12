@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useWebSocket } from '@/components/providers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,7 @@ import { EmptyState, LoadingState } from '@/components/ui/state-panel';
 import { PageHeader, SummaryStat } from '@/components/ui/page-header';
 import { alertApi } from '@/lib/api';
 import { useFormatDate } from '@/hooks/useFormatDate';
+import { useAlertStats } from '@/hooks/useAlertStats';
 
 const severityColors: Record<string, 'danger' | 'warning' | 'secondary' | 'default'> = {
   CRITICAL: 'danger',
@@ -103,11 +104,7 @@ export default function AlertsPage() {
     refetchInterval: 60000, // Fallback polling at 60s (Socket.io handles real-time)
   });
 
-  const { data: stats } = useQuery({
-    queryKey: ['alertStats'],
-    queryFn: () => alertApi.stats(),
-    refetchInterval: 60000, // Fallback polling at 60s
-  });
+  const { data: stats } = useAlertStats();
 
   const invalidateAlerts = () => {
     queryClient.invalidateQueries({ queryKey: ['alerts'] });
@@ -143,33 +140,37 @@ export default function AlertsPage() {
   const alertList = alerts as Alert[] | undefined;
   const alertStats = stats as AlertStats | undefined;
 
-  const toggleAlertSelection = (alertId: string) => {
+  const toggleAlertSelection = useCallback((alertId: string) => {
     setSelectedAlerts((prev) => {
       const next = new Set(prev);
       if (next.has(alertId)) next.delete(alertId);
       else next.add(alertId);
       return next;
     });
-  };
+  }, []);
 
-  const toggleSelectAll = () => {
+  const toggleSelectAll = useCallback(() => {
     if (!alertList) return;
     if (selectedAlerts.size === alertList.length) {
       setSelectedAlerts(new Set());
     } else {
       setSelectedAlerts(new Set(alertList.map((a) => a.id)));
     }
-  };
+  }, [alertList, selectedAlerts.size]);
 
-  const selectedFiringIds =
-    alertList
+  const selectedFiringIds = useMemo(
+    () => alertList
       ?.filter(
         (a) => selectedAlerts.has(a.id) && (a.status === 'FIRING' || a.status === 'ACKNOWLEDGED')
       )
-      .map((a) => a.id) || [];
+      .map((a) => a.id) || [],
+    [alertList, selectedAlerts]
+  );
 
-  const silenceLabel =
-    SILENCE_DURATIONS.find((d) => d.value === silenceDuration)?.label || `${silenceDuration}m`;
+  const silenceLabel = useMemo(
+    () => SILENCE_DURATIONS.find((d) => d.value === silenceDuration)?.label || `${silenceDuration}m`,
+    [silenceDuration]
+  );
 
   return (
     <div className="space-y-6">

@@ -275,6 +275,14 @@ Base path: `/api/slackInteractions`
 |--------|----------|------|-------------|
 | POST | `/slackInteractions` | - | Rebuild URL from validated components — breaks CodeQL taint chain |
 
+## SystemStatus
+
+Base path: `/api/systemStatus`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/systemStatus` | - | localhost:9090'; |
+
 ## Uptime
 
 Base path: `/api/uptime`

@@ -1,9 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { alertApi, healthApi, settingsApi } from '@/lib/api';
+import { healthApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlertStats } from '@/hooks/useAlertStats';
+import { useSettings } from '@/hooks/useSettings';
 
 interface AlertStats {
   firing?: number;
@@ -33,10 +35,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
     localStorage.setItem('nodeprism_theme', next ? 'dark' : 'light');
   }, [isDark]);
 
-  const { data: alertStats } = useQuery({
-    queryKey: ['alertStats'],
-    queryFn: () => alertApi.stats(),
-  });
+  const { data: alertStats } = useAlertStats();
 
   const { data: health } = useQuery({
     queryKey: ['health'],
@@ -44,11 +43,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
     refetchInterval: 10000,
   });
 
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => settingsApi.get(),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: settings } = useSettings();
 
   const stats = alertStats as AlertStats | undefined;
   const healthData = health as Health | undefined;

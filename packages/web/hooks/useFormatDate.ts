@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { settingsApi } from '@/lib/api';
+import { useSettings } from '@/hooks/useSettings';
 
 /**
  * Formats a Date using the configured dateFormat pattern and timezone.
@@ -82,11 +81,7 @@ function formatTimePart(date: Date, timezone: string): string {
  * using the system timezone and dateFormat from Settings.
  */
 export function useFormatDate() {
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => settingsApi.get(),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: settings } = useSettings();
 
   const timezone = settings?.timezone || 'UTC';
   const dateFormat = settings?.dateFormat || 'YYYY-MM-DD HH:mm:ss';

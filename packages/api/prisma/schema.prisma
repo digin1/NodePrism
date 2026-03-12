@@ -59,6 +59,7 @@ model Server {
   maintenanceWindows MaintenanceWindow[]
   uptimeMonitors     UptimeMonitor[]
   incidents          Incident[]
+  infraChanges       InfraChange[]
 
   @@map("servers")
 }
@@ -185,12 +186,15 @@ model Alert {
   endsAt      DateTime?     @map("ends_at")
   acknowledgedAt DateTime?  @map("acknowledged_at")
   acknowledgedBy String?    @map("acknowledged_by")
+  isFlapping  Boolean       @default(false) @map("is_flapping")
+  groupId     String?       @map("group_id")
   createdAt   DateTime      @default(now()) @map("created_at")
 
   // Relations
   rule     AlertRule?     @relation(fields: [ruleId], references: [id], onDelete: SetNull)
   template AlertTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   server   Server?        @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  group    AlertGroup?    @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([status, severity])
@@ -198,6 +202,7 @@ model Alert {
   @@index([serverId, status])
   @@index([startsAt])
   @@index([createdAt])
+  @@index([groupId])
   @@map("alerts")
 }
 
@@ -221,11 +226,13 @@ model AlertTemplate {
   // Actions
   actions         Json? // AlertAction[]
   enabled         Boolean  @default(true)
+  runbookId       String?  @map("runbook_id")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   // Relations
-  alerts Alert[]
+  alerts  Alert[]
+  runbook Runbook? @relation(fields: [runbookId], references: [id], onDelete: SetNull)
 
   @@map("alert_templates")
 }
@@ -260,7 +267,8 @@ model NotificationChannel {
   createdAt DateTime                @default(now()) @map("created_at")
   updatedAt DateTime                @updatedAt @map("updated_at")
 
-  logs NotificationLog[]
+  logs            NotificationLog[]
+  escalationSteps EscalationStep[]
 
   @@map("notification_channels")
 }
@@ -304,6 +312,7 @@ model User {
 
   // Relations
   auditLogs AuditLog[]
+  apiTokens ApiToken[]
 
   @@map("users")
 }
@@ -370,19 +379,25 @@ model SystemSettings {
 // ==================== MAINTENANCE WINDOWS ====================
 
 model MaintenanceWindow {
-  id        String   @id @default(uuid())
-  serverId  String   @map("server_id")
-  reason    String
-  startTime DateTime @map("start_time")
-  endTime   DateTime @map("end_time")
-  createdBy String?  @map("created_by")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  serverId        String?  @map("server_id")
+  uptimeMonitorId String?  @map("uptime_monitor_id")
+  scope           String   @default("SERVER") // SERVER, MONITOR, GLOBAL
+  reason          String
+  startTime       DateTime @map("start_time")
+  endTime         DateTime @map("end_time")
+  recurring       Boolean  @default(false)
+  rrule           String?  // iCalendar RRULE for recurrence
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   // Relations
-  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  server        Server?        @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  uptimeMonitor UptimeMonitor? @relation(fields: [uptimeMonitorId], references: [id], onDelete: Cascade)
 
   @@index([serverId])
+  @@index([uptimeMonitorId])
   @@index([startTime, endTime])
   @@map("maintenance_windows")
 }
@@ -494,20 +509,26 @@ model UptimeMonitor {
   updatedAt   DateTime          @updatedAt @map("updated_at")
 
   // Relations
-  server Server? @relation(fields: [serverId], references: [id], onDelete: SetNull)
-  checks UptimeCheck[]
+  server             Server?             @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  checks             UptimeCheck[]
+  slaPolicies        SlaPolicy[]
+  maintenanceWindows MaintenanceWindow[]
 
   @@map("uptime_monitors")
 }
 
 model UptimeCheck {
-  id          String    @id @default(uuid())
-  monitorId   String    @map("monitor_id")
-  status      UptimeCheckStatus
-  responseTime Int?     @map("response_time") // Response time in ms
-  statusCode  Int?      @map("status_code")
-  message     String?
-  checkedAt   DateTime  @default(now()) @map("checked_at")
+  id           String    @id @default(uuid())
+  monitorId    String    @map("monitor_id")
+  status       UptimeCheckStatus
+  responseTime Int?      @map("response_time") // Response time in ms
+  statusCode   Int?      @map("status_code")
+  message      String?
+  certExpiry   DateTime? @map("cert_expiry")
+  certIssuer   String?   @map("cert_issuer")
+  domainExpiry DateTime? @map("domain_expiry")
+  probeLabel   String?   @map("probe_label")
+  checkedAt    DateTime  @default(now()) @map("checked_at")
 
   // Relations
   monitor UptimeMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
@@ -523,6 +544,8 @@ enum UptimeCheckType {
   TCP
   PING
   DNS
+  SSL_CERT
+  DOMAIN
 }
 
 enum UptimeCheckStatus {
@@ -541,16 +564,19 @@ model Incident {
   severity    AlertSeverity
   alertId     String?         @map("alert_id")
   serverId    String?         @map("server_id")
-  assignee    String?
-  startedAt   DateTime        @default(now()) @map("started_at")
-  resolvedAt  DateTime?       @map("resolved_at")
-  createdBy   String?         @map("created_by")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  assignee      String?
+  startedAt     DateTime        @default(now()) @map("started_at")
+  resolvedAt    DateTime?       @map("resolved_at")
+  createdBy     String?         @map("created_by")
+  aiAnalysis    String?         @map("ai_analysis")
+  aiAnalyzedAt  DateTime?       @map("ai_analyzed_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
 
   // Relations
-  server  Server?          @relation(fields: [serverId], references: [id], onDelete: SetNull)
-  updates IncidentUpdate[]
+  server     Server?          @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  updates    IncidentUpdate[]
+  postMortem PostMortem?
 
   @@index([status])
   @@index([startedAt])
@@ -618,4 +644,563 @@ model AnomalyModel {
   @@unique([serverId, metricName])
   @@index([serverId, metricName])
   @@map("anomaly_models")
+}
+
+// ==================== ESCALATION POLICIES ====================
+
+model EscalationPolicy {
+  id        String   @id @default(uuid())
+  name      String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  steps EscalationStep[]
+
+  @@map("escalation_policies")
+}
+
+model EscalationStep {
+  id           String   @id @default(uuid())
+  policyId     String   @map("policy_id")
+  stepOrder    Int      @map("step_order")
+  delayMinutes Int      @map("delay_minutes")
+  channelId    String   @map("channel_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  policy  EscalationPolicy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  channel NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([policyId, stepOrder])
+  @@index([channelId])
+  @@map("escalation_steps")
+}
+
+// ==================== API TOKENS ====================
+
+model ApiToken {
+  id          String    @id @default(uuid())
+  name        String
+  tokenHash   String    @unique @map("token_hash")
+  userId      String    @map("user_id")
+  permissions Json      @default("[]")
+  expiresAt   DateTime? @map("expires_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  revoked     Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([revoked])
+  @@map("api_tokens")
+}
+
+// ==================== POST-MORTEMS ====================
+
+model PostMortem {
+  id          String    @id @default(uuid())
+  incidentId  String    @unique @map("incident_id")
+  summary     String
+  rootCause   String    @map("root_cause")
+  impact      String
+  timeline    String
+  actionItems Json      @default("[]") @map("action_items")
+  createdBy   String?   @map("created_by")
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@map("post_mortems")
+}
+
+// ==================== ALERT ROUTING RULES ====================
+
+model AlertRoutingRule {
+  id         String   @id @default(uuid())
+  name       String
+  enabled    Boolean  @default(true)
+  priority   Int      @default(0)
+  conditions Json     @default("{}")
+  channelIds String[] @map("channel_ids")
+  muteOthers Boolean  @default(false) @map("mute_others")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([enabled, priority])
+  @@map("alert_routing_rules")
+}
+
+// ==================== SLA POLICIES ====================
+
+model SlaPolicy {
+  id              String   @id @default(uuid())
+  name            String
+  uptimeMonitorId String   @map("uptime_monitor_id")
+  targetPercent   Float    @map("target_percent")
+  windowDays      Int      @map("window_days")
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  uptimeMonitor UptimeMonitor @relation(fields: [uptimeMonitorId], references: [id], onDelete: Cascade)
+
+  @@index([uptimeMonitorId])
+  @@index([enabled])
+  @@map("sla_policies")
+}
+
+// ==================== ALERT INHIBITION RULES ====================
+
+model AlertInhibitionRule {
+  id             String   @id @default(uuid())
+  name           String
+  sourceMatch    Json     @map("source_match")
+  targetMatch    Json     @map("target_match")
+  sourceSeverity String   @map("source_severity")
+  targetSeverity String   @map("target_severity")
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("alert_inhibition_rules")
+}
+
+// ==================== ALERT GROUPS ====================
+
+model AlertGroup {
+  id          String    @id @default(uuid())
+  name        String
+  fingerprint String    @unique
+  status      String    @default("active")
+  alertCount  Int       @default(1) @map("alert_count")
+  firstSeenAt DateTime  @map("first_seen_at")
+  lastSeenAt  DateTime  @map("last_seen_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  groupLabels Json      @map("group_labels")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  alerts Alert[]
+
+  @@index([status])
+  @@map("alert_groups")
+}
+
+// ==================== STATUS PAGES ====================
+
+model StatusPage {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String   @default("Service Status")
+  description String?
+  logoUrl     String?  @map("logo_url")
+  customCss   String?  @map("custom_css")
+  isPublic    Boolean  @default(true) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  components  StatusPageComponent[]
+  subscribers StatusPageSubscriber[]
+
+  @@map("status_pages")
+}
+
+model StatusPageComponent {
+  id              String   @id @default(uuid())
+  statusPageId    String   @map("status_page_id")
+  name            String
+  description     String?
+  uptimeMonitorId String?  @map("uptime_monitor_id")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  statusPage StatusPage @relation(fields: [statusPageId], references: [id], onDelete: Cascade)
+
+  @@index([statusPageId])
+  @@map("status_page_components")
+}
+
+model StatusPageSubscriber {
+  id           String   @id @default(uuid())
+  statusPageId String   @map("status_page_id")
+  type         String   // EMAIL, WEBHOOK
+  endpoint     String
+  confirmed    Boolean  @default(false)
+  confirmToken String?  @unique @map("confirm_token")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  statusPage StatusPage @relation(fields: [statusPageId], references: [id], onDelete: Cascade)
+
+  @@index([statusPageId])
+  @@map("status_page_subscribers")
+}
+
+// ==================== ANNOTATIONS ====================
+
+model Annotation {
+  id        String    @id @default(uuid())
+  title     String
+  message   String?
+  tags      String[]  @default([])
+  startTime DateTime  @map("start_time")
+  endTime   DateTime? @map("end_time")
+  color     String    @default("#3B82F6")
+  createdBy String?   @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([startTime])
+  @@map("annotations")
+}
+
+// ==================== COMPOSITE MONITORS ====================
+
+model CompositeMonitor {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  expression  String
+  monitorIds  String[] @map("monitor_ids")
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("composite_monitors")
+}
+
+// ==================== MULTI-STEP MONITORS ====================
+
+model MultiStepMonitor {
+  id        String   @id @default(uuid())
+  name      String
+  interval  Int      @default(300)
+  timeout   Int      @default(30)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  steps   MultiStepMonitorStep[]
+  results MultiStepMonitorResult[]
+
+  @@map("multi_step_monitors")
+}
+
+model MultiStepMonitorStep {
+  id             String  @id @default(uuid())
+  monitorId      String  @map("monitor_id")
+  stepOrder      Int     @map("step_order")
+  name           String
+  method         String  @default("GET")
+  url            String
+  headers        Json?
+  body           String?
+  expectedStatus Int?    @map("expected_status")
+  extractVars    Json?   @map("extract_vars")
+  assertions     Json?
+
+  monitor MultiStepMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId, stepOrder])
+  @@map("multi_step_monitor_steps")
+}
+
+model MultiStepMonitorResult {
+  id          String   @id @default(uuid())
+  monitorId   String   @map("monitor_id")
+  status      String   // PASS, FAIL
+  duration    Int      // total ms
+  stepResults Json     @map("step_results")
+  checkedAt   DateTime @default(now()) @map("checked_at")
+
+  monitor MultiStepMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId, checkedAt])
+  @@map("multi_step_monitor_results")
+}
+
+// ==================== SCHEDULED REPORTS ====================
+
+model ScheduledReport {
+  id         String    @id @default(uuid())
+  name       String
+  type       String    // DAILY_SUMMARY, WEEKLY_SLA, MONTHLY_UPTIME
+  schedule   String    // cron-like: "daily:08:00", "weekly:mon:09:00"
+  recipients Json      // { emails: string[], channelIds: string[] }
+  enabled    Boolean   @default(true)
+  lastSentAt DateTime? @map("last_sent_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@map("scheduled_reports")
+}
+
+// ==================== SNMP DEVICES ====================
+
+model SnmpDevice {
+  id         String   @id @default(uuid())
+  name       String
+  host       String
+  port       Int      @default(161)
+  version    String   @default("2c")
+  community  String?
+  authConfig Json?    @map("auth_config")
+  oids       Json     // Array of { oid, name, type }
+  interval   Int      @default(60)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  results SnmpPollResult[]
+
+  @@map("snmp_devices")
+}
+
+model SnmpPollResult {
+  id       String   @id @default(uuid())
+  deviceId String   @map("device_id")
+  values   Json
+  polledAt DateTime @default(now()) @map("polled_at")
+
+  device SnmpDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, polledAt])
+  @@map("snmp_poll_results")
+}
+
+// ==================== RETENTION POLICIES ====================
+
+model RetentionPolicy {
+  id            String   @id @default(uuid())
+  metricType    String   @unique @map("metric_type")
+  retentionDays Int      @map("retention_days")
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("retention_policies")
+}
+
+// ==================== SERVICE DEPENDENCIES ====================
+
+model ServiceDependency {
+  id         String   @id @default(uuid())
+  sourceId   String   @map("source_id")
+  sourceType String   @map("source_type") // SERVER, MONITOR
+  targetId   String   @map("target_id")
+  targetType String   @map("target_type")
+  label      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([sourceId, targetId])
+  @@map("service_dependencies")
+}
+
+// ==================== INFRASTRUCTURE CHANGES ====================
+
+model InfraChange {
+  id         String   @id @default(uuid())
+  serverId   String?  @map("server_id")
+  changeType String   @map("change_type") // PACKAGE_UPDATE, CONFIG_CHANGE, SERVICE_RESTART, DEPLOY
+  source     String   // agent, webhook, manual
+  title      String
+  details    Json?
+  detectedAt DateTime @map("detected_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  server Server? @relation(fields: [serverId], references: [id], onDelete: SetNull)
+
+  @@index([serverId, detectedAt])
+  @@index([detectedAt])
+  @@map("infra_changes")
+}
+
+// ==================== ON-CALL SCHEDULES ====================
+
+model OnCallSchedule {
+  id        String   @id @default(uuid())
+  name      String
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  rotations OnCallRotation[]
+
+  @@map("on_call_schedules")
+}
+
+model OnCallRotation {
+  id         String   @id @default(uuid())
+  scheduleId String   @map("schedule_id")
+  userId     String   @map("user_id")
+  startTime  DateTime @map("start_time")
+  endTime    DateTime @map("end_time")
+
+  schedule OnCallSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId, startTime])
+  @@map("on_call_rotations")
+}
+
+// ==================== SLO TRACKING ====================
+
+model Slo {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  targetPercent   Float    @map("target_percent")
+  windowDays      Int      @map("window_days")
+  uptimeMonitorId String?  @map("uptime_monitor_id")
+  metricQuery     String?  @map("metric_query")
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("slos")
+}
+
+// ==================== OPENTELEMETRY TRACES ====================
+
+model OtlpSpan {
+  id            String   @id @default(uuid())
+  traceId       String   @map("trace_id")
+  spanId        String   @map("span_id")
+  parentSpanId  String?  @map("parent_span_id")
+  operationName String   @map("operation_name")
+  serviceName   String   @map("service_name")
+  startTime     DateTime @map("start_time")
+  duration      BigInt
+  status        String   @default("OK")
+  attributes    Json?
+  events        Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([traceId])
+  @@index([serviceName, startTime])
+  @@index([startTime])
+  @@map("otlp_spans")
+}
+
+// ==================== RUNBOOKS ====================
+
+model Runbook {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  script      String
+  language    String   @default("bash")
+  timeout     Int      @default(300)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  executions     RunbookExecution[]
+  alertTemplates AlertTemplate[]
+
+  @@map("runbooks")
+}
+
+model RunbookExecution {
+  id          String    @id @default(uuid())
+  runbookId   String    @map("runbook_id")
+  alertId     String?   @map("alert_id")
+  serverId    String?   @map("server_id")
+  status      String    // PENDING, RUNNING, SUCCESS, FAILED, TIMEOUT
+  output      String?
+  exitCode    Int?      @map("exit_code")
+  startedAt   DateTime  @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  triggeredBy String?   @map("triggered_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  runbook Runbook @relation(fields: [runbookId], references: [id], onDelete: Cascade)
+
+  @@index([runbookId, startedAt])
+  @@map("runbook_executions")
+}
+
+// ==================== REAL USER MONITORING ====================
+
+model RumSession {
+  id        String   @id @default(uuid())
+  sessionId String   @unique @map("session_id")
+  userAgent String?  @map("user_agent")
+  country   String?
+  startedAt DateTime @map("started_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  pageViews RumPageView[]
+
+  @@index([startedAt])
+  @@map("rum_sessions")
+}
+
+model RumPageView {
+  id               String   @id @default(uuid())
+  sessionId        String   @map("session_id")
+  url              String
+  loadTime         Int?     @map("load_time")
+  domContentLoaded Int?     @map("dom_content_loaded")
+  firstPaint       Int?     @map("first_paint")
+  lcp              Int?
+  fid              Int?
+  cls              Float?
+  errorCount       Int      @default(0) @map("error_count")
+  viewedAt         DateTime @map("viewed_at")
+
+  session RumSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([viewedAt])
+  @@map("rum_page_views")
+}
+
+// ==================== KUBERNETES ====================
+
+model KubernetesCluster {
+  id          String    @id @default(uuid())
+  name        String
+  apiEndpoint String    @map("api_endpoint")
+  authConfig  Json      @map("auth_config")
+  enabled     Boolean   @default(true)
+  lastSyncAt  DateTime? @map("last_sync_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("kubernetes_clusters")
+}
+
+// ==================== SYNTHETIC CHECKS ====================
+
+model SyntheticCheck {
+  id        String   @id @default(uuid())
+  name      String
+  script    String
+  interval  Int      @default(300)
+  timeout   Int      @default(60)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  results SyntheticCheckResult[]
+
+  @@map("synthetic_checks")
+}
+
+model SyntheticCheckResult {
+  id           String    @id @default(uuid())
+  checkId      String    @map("check_id")
+  status       String    // PASS, FAIL, TIMEOUT
+  duration     Int
+  screenshot   String?
+  errorMessage String?   @map("error_message")
+  stepResults  Json?     @map("step_results")
+  checkedAt    DateTime  @default(now()) @map("checked_at")
+
+  check SyntheticCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+
+  @@index([checkId, checkedAt])
+  @@map("synthetic_check_results")
 }

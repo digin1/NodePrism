@@ -3,6 +3,7 @@ import axios from 'axios';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { decryptConfig } from '../utils/encryption';
+import { recordTransition, isFlapping } from './flapDetector';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ interface AlertPayload {
   templateId?: string;
   serverHostname?: string;
   serverIp?: string;
+  fingerprint?: string;
 }
 
 interface EmailConfig {
@@ -552,6 +554,32 @@ const lastSendByType = new Map<string, number>();
 const RATE_LIMIT_MS: Record<string, number> = { TELEGRAM: 1100 }; // Telegram: ~1 msg/sec to be safe
 
 export async function dispatchNotifications(alert: AlertPayload): Promise<void> {
+  // ─── Flapping Detection ───────────────────────────────────────────
+  if (alert.fingerprint) {
+    const flapping = recordTransition(alert.fingerprint);
+    if (flapping) {
+      // Mark alert as flapping in the database (non-blocking)
+      prisma.alert.update({
+        where: { fingerprint: alert.fingerprint },
+        data: { isFlapping: true },
+      }).catch(() => {}); // Ignore errors (alert may not exist yet)
+
+      logger.warn('Alert is flapping, suppressing notification', {
+        fingerprint: alert.fingerprint,
+        alertId: alert.id,
+      });
+      return;
+    }
+
+    // If it was previously flapping but now stable, clear the flag
+    if (!isFlapping(alert.fingerprint)) {
+      prisma.alert.update({
+        where: { fingerprint: alert.fingerprint },
+        data: { isFlapping: false },
+      }).catch(() => {});
+    }
+  }
+
   const channels = await getEnabledChannels();
 
   if (channels.length === 0) return;

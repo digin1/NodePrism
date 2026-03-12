@@ -1,0 +1,12 @@
+{
+  "name": "NodePrism Monitoring",
+  "short_name": "NodePrism",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#3B82F6",
+  "icons": [
+    { "src": "/icon-nodeprism.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-nodeprism.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

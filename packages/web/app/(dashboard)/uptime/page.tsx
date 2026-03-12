@@ -29,6 +29,9 @@ interface UptimeMonitor {
     responseTime: number | null;
     checkedAt: string;
     message: string | null;
+    certExpiry: string | null;
+    certIssuer: string | null;
+    domainExpiry: string | null;
   } | null;
   recentChecks?: Array<{
     status: string;
@@ -336,6 +339,21 @@ export default function UptimePage() {
                         {monitor.lastCheck.message}
                       </span>
                     )}
+                    {monitor.type === 'SSL_CERT' && monitor.lastCheck.certExpiry && (
+                      <span className="ml-2">
+                        Cert expires: {formatDateTime(monitor.lastCheck.certExpiry)}
+                        {monitor.lastCheck.certIssuer && (
+                          <span className="ml-1 text-muted-foreground">
+                            (Issuer: {monitor.lastCheck.certIssuer})
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {monitor.type === 'DOMAIN' && monitor.lastCheck.domainExpiry && (
+                      <span className="ml-2">
+                        Domain expires: {formatDateTime(monitor.lastCheck.domainExpiry)}
+                      </span>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -372,11 +390,13 @@ export default function UptimePage() {
                     <option value="TCP">TCP</option>
                     <option value="PING">Ping</option>
                     <option value="DNS">DNS</option>
+                    <option value="SSL_CERT">SSL Certificate</option>
+                    <option value="DOMAIN">Domain Expiry</option>
                   </Select>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground block mb-1">
-                    {formData.type === 'HTTP' || formData.type === 'HTTPS' ? 'Method' : 'Protocol'}
+                    {formData.type === 'HTTP' || formData.type === 'HTTPS' ? 'Method' : 'Check Type'}
                   </label>
                   {formData.type === 'HTTP' || formData.type === 'HTTPS' ? (
                     <Select
@@ -404,7 +424,11 @@ export default function UptimePage() {
                       ? 'https://example.com'
                       : formData.type === 'TCP'
                         ? 'hostname:port'
-                        : 'hostname or IP'
+                        : formData.type === 'SSL_CERT'
+                          ? 'example.com or example.com:8443'
+                          : formData.type === 'DOMAIN'
+                            ? 'example.com'
+                            : 'hostname or IP'
                   }
                 />
               </div>

@@ -68,6 +68,8 @@ interface Incident {
   startedAt: string;
   resolvedAt: string | null;
   createdBy: string | null;
+  aiAnalysis: string | null;
+  aiAnalyzedAt: string | null;
   createdAt: string;
   updatedAt: string;
   updates?: IncidentUpdate[];
@@ -122,6 +124,13 @@ export default function IncidentDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['incidentStats'] });
       router.push('/incidents');
+    },
+  });
+
+  const analyzeMutation = useMutation({
+    mutationFn: () => incidentApi.analyze(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['incident', id] });
     },
   });
 
@@ -506,6 +515,48 @@ export default function IncidentDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* AI Analysis */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold">Root Cause Analysis</CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => analyzeMutation.mutate()}
+                  disabled={analyzeMutation.isPending}
+                >
+                  {analyzeMutation.isPending
+                    ? 'Analyzing...'
+                    : incident.aiAnalysis
+                      ? 'Re-analyze'
+                      : 'Analyze'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {incident.aiAnalysis ? (
+                <div className="space-y-2">
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+                    <pre className="whitespace-pre-wrap bg-muted/50 rounded-lg p-3 text-xs font-mono overflow-x-auto max-h-96 overflow-y-auto">
+                      {incident.aiAnalysis}
+                    </pre>
+                  </div>
+                  {incident.aiAnalyzedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Analyzed {formatDateTime(incident.aiAnalyzedAt)}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Click &quot;Analyze&quot; to generate a root cause analysis based on correlated
+                  alerts, server metrics, and incident timeline.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Delete */}
           <Card className="border-red-500/20">

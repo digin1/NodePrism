@@ -20,8 +20,48 @@ const downSince = new Map<string, Date>();
 let masterInterval: NodeJS.Timeout | null = null;
 const MASTER_POLL_SECONDS = 30;
 
+// Cloudflare-specific error codes that are transient and worth retrying
+const CLOUDFLARE_RETRY_CODES = new Set([520, 521, 522, 523, 524]);
+
+// Default headers that mimic a legitimate monitoring agent, avoiding Cloudflare blocks
+const DEFAULT_MONITOR_HEADERS: Record<string, string> = {
+  'User-Agent': 'NodePrism-Monitor/1.0 (Uptime Check)',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.5',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Connection': 'keep-alive',
+};
+
 /**
- * Perform an HTTP/HTTPS check against a target URL
+ * Perform a single HTTP/HTTPS request and return the result
+ */
+async function doHttpRequest(
+  target: string,
+  method: string,
+  timeout: number,
+  headers: Record<string, string> | null,
+  startTime: number
+): Promise<{ response?: any; responseTime: number; error?: any }> {
+  try {
+    const mergedHeaders = { ...DEFAULT_MONITOR_HEADERS, ...headers };
+    const response = await axios({
+      method: method as any,
+      url: target,
+      timeout: timeout * 1000,
+      headers: mergedHeaders,
+      validateStatus: () => true, // Accept any status code
+      maxRedirects: 5,
+    });
+    return { response, responseTime: Date.now() - startTime };
+  } catch (error: any) {
+    return { responseTime: Date.now() - startTime, error };
+  }
+}
+
+/**
+ * Perform an HTTP/HTTPS check against a target URL.
+ * Includes Cloudflare-friendly defaults: proper User-Agent/Accept headers,
+ * and automatic retry on Cloudflare transient errors (520-524).
  */
 async function checkHttp(
   target: string,
@@ -32,63 +72,18 @@ async function checkHttp(
   headers: Record<string, string> | null
 ): Promise<{ status: UptimeCheckStatus; responseTime: number; statusCode: number | null; message: string }> {
   const start = Date.now();
-  try {
-    const response = await axios({
-      method: method as any,
-      url: target,
-      timeout: timeout * 1000,
-      headers: headers || undefined,
-      validateStatus: () => true, // Accept any status code
-      maxRedirects: 5,
-    });
+  let { response, responseTime, error } = await doHttpRequest(target, method, timeout, headers, start);
 
-    const responseTime = Date.now() - start;
-    const statusCode = response.status;
+  // Retry once on Cloudflare transient errors (520-524) after a brief delay
+  if (!error && response && CLOUDFLARE_RETRY_CODES.has(response.status)) {
+    await new Promise(r => setTimeout(r, 2000));
+    const retry = await doHttpRequest(target, method, timeout, headers, start);
+    response = retry.response;
+    responseTime = retry.responseTime;
+    error = retry.error;
+  }
 
-    // Check expected status code
-    if (expectedStatus && statusCode !== expectedStatus) {
-      return {
-        status: 'DOWN',
-        responseTime,
-        statusCode,
-        message: `Expected status ${expectedStatus}, got ${statusCode}`,
-      };
-    }
-
-    // Check for keyword in response body
-    if (keyword) {
-      const body = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-      if (!body.includes(keyword)) {
-        return {
-          status: 'DOWN',
-          responseTime,
-          statusCode,
-          message: `Keyword "${keyword}" not found in response`,
-        };
-      }
-    }
-
-    // Consider 4xx/5xx as DOWN if no explicit expected status was set
-    if (!expectedStatus && statusCode >= 400) {
-      return {
-        status: 'DOWN',
-        responseTime,
-        statusCode,
-        message: `HTTP ${statusCode}`,
-      };
-    }
-
-    // Degraded if response time is over 2 seconds
-    const checkStatus: UptimeCheckStatus = responseTime > 2000 ? 'DEGRADED' : 'UP';
-
-    return {
-      status: checkStatus,
-      responseTime,
-      statusCode,
-      message: `HTTP ${statusCode} - ${responseTime}ms`,
-    };
-  } catch (error: any) {
-    const responseTime = Date.now() - start;
+  if (error) {
     const message = error.code === 'ECONNABORTED'
       ? `Timeout after ${timeout}s`
       : error.code || error.message || 'Connection failed';
@@ -99,6 +94,51 @@ async function checkHttp(
       message,
     };
   }
+
+  const statusCode = response.status;
+
+  // Check expected status code
+  if (expectedStatus && statusCode !== expectedStatus) {
+    return {
+      status: 'DOWN',
+      responseTime,
+      statusCode,
+      message: `Expected status ${expectedStatus}, got ${statusCode}`,
+    };
+  }
+
+  // Check for keyword in response body
+  if (keyword) {
+    const body = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    if (!body.includes(keyword)) {
+      return {
+        status: 'DOWN',
+        responseTime,
+        statusCode,
+        message: `Keyword "${keyword}" not found in response`,
+      };
+    }
+  }
+
+  // Consider 4xx/5xx as DOWN if no explicit expected status was set
+  if (!expectedStatus && statusCode >= 400) {
+    return {
+      status: 'DOWN',
+      responseTime,
+      statusCode,
+      message: `HTTP ${statusCode}`,
+    };
+  }
+
+  // Degraded if response time is over 2 seconds
+  const checkStatus: UptimeCheckStatus = responseTime > 2000 ? 'DEGRADED' : 'UP';
+
+  return {
+    status: checkStatus,
+    responseTime,
+    statusCode,
+    message: `HTTP ${statusCode} - ${responseTime}ms`,
+  };
 }
 
 /**

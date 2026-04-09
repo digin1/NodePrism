@@ -2688,8 +2688,15 @@ generate_litespeed_exporter() {
   REQ_RATE [APVH_domain.com]: REQ_PROCESSING: N, REQ_PER_SEC: N, TOT_REQS: N, ...
   EXTAPP [LSAPI] [APVH_domain.com] [lsphp]: POOL_SIZE: N, INUSE_CONN: N, IDLE_CONN: N, WAITQUE_DEPTH: N, ...
 """
-import os, re, argparse
+import os, sys, re, argparse, traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
+
+# Local ThreadingHTTPServer — Python 3.7 added http.server.ThreadingHTTPServer,
+# but we support Python 3.6 (CentOS 7 / CloudLinux 7). This MixIn works on 3.x.
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
 
 RTREPORT_DIR = os.environ.get('LSWS_RTREPORT_DIR', '/tmp/lshttpd')
 
@@ -2899,21 +2906,34 @@ def format_metrics():
     return '\n'.join(L) + '\n'
 
 class MetricsHandler(BaseHTTPRequestHandler):
+    timeout = 15  # per-request read timeout; ThreadingHTTPServer handles concurrency
     def do_GET(self):
-        if self.path == '/metrics':
-            body = format_metrics().encode()
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/plain; version=0.0.4')
-            self.send_header('Content-Length', str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-        else:
-            self.send_response(200)
-            body = b'LiteSpeed Exporter. /metrics for Prometheus.\n'
-            self.send_header('Content-Length', str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-    def log_message(self, fmt, *args): pass
+        try:
+            if self.path == '/metrics':
+                body = format_metrics().encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain; version=0.0.4')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                body = b'LiteSpeed Exporter. /metrics for Prometheus.\n'
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+        except Exception as e:
+            sys.stderr.write(f'[litespeed_exporter] error handling {self.path}: {e}\n')
+            sys.stderr.write(traceback.format_exc())
+            sys.stderr.flush()
+            try:
+                self.send_error(500, 'internal error')
+            except Exception:
+                pass
+    def log_message(self, fmt, *args): pass  # silence access logs
+    def log_error(self, fmt, *args):
+        sys.stderr.write(f'[litespeed_exporter] {fmt % args}\n')
+        sys.stderr.flush()
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
@@ -2927,8 +2947,10 @@ if __name__ == '__main__':
         parts = args.listen.rsplit(':', 1)
         host = parts[0]
         port = int(parts[1])
-    print(f'LiteSpeed Exporter listening on {host or "0.0.0.0"}:{port}')
-    HTTPServer((host, port), MetricsHandler).serve_forever()
+    print(f'LiteSpeed Exporter listening on {host or "0.0.0.0"}:{port}', flush=True)
+    srv = ThreadingHTTPServer((host, port), MetricsHandler)
+    srv.timeout = 15
+    srv.serve_forever()
 PYEOF
 }
 
@@ -2936,8 +2958,15 @@ generate_exim_exporter() {
   cat > "$INSTALL_DIR/$AGENT_TYPE" << 'PYEOF'
 #!/usr/bin/env python3
 """NodePrism Exim Exporter — mail queue, frozen msgs, per-domain stats for Prometheus."""
-import os, sys, re, time, subprocess, argparse, collections
+import os, sys, re, time, subprocess, argparse, collections, traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
+
+# Local ThreadingHTTPServer — Python 3.7 added http.server.ThreadingHTTPServer,
+# but we support Python 3.6 (CentOS 7 / CloudLinux 7). This MixIn works on 3.x.
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
 
 EXIM_BIN = os.environ.get('EXIM_BIN', 'exim')
 EXIM_MAINLOG = os.environ.get('EXIM_MAINLOG', '/var/log/exim_mainlog')
@@ -3084,21 +3113,34 @@ def format_metrics():
     return '\n'.join(lines) + '\n'
 
 class MetricsHandler(BaseHTTPRequestHandler):
+    timeout = 15  # per-request read timeout; ThreadingHTTPServer handles concurrency
     def do_GET(self):
-        if self.path == '/metrics':
-            body = format_metrics().encode()
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/plain; version=0.0.4')
-            self.send_header('Content-Length', str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-        else:
-            self.send_response(200)
-            body = b'Exim Exporter. /metrics for Prometheus.\n'
-            self.send_header('Content-Length', str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-    def log_message(self, fmt, *args): pass
+        try:
+            if self.path == '/metrics':
+                body = format_metrics().encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain; version=0.0.4')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                body = b'Exim Exporter. /metrics for Prometheus.\n'
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+        except Exception as e:
+            sys.stderr.write(f'[exim_exporter] error handling {self.path}: {e}\n')
+            sys.stderr.write(traceback.format_exc())
+            sys.stderr.flush()
+            try:
+                self.send_error(500, 'internal error')
+            except Exception:
+                pass
+    def log_message(self, fmt, *args): pass  # silence access logs
+    def log_error(self, fmt, *args):
+        sys.stderr.write(f'[exim_exporter] {fmt % args}\n')
+        sys.stderr.flush()
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
@@ -3117,8 +3159,10 @@ if __name__ == '__main__':
         parts = args.listen.rsplit(':', 1)
         host = parts[0]
         port = int(parts[1])
-    print(f'Exim Exporter listening on {host or "0.0.0.0"}:{port}')
-    HTTPServer((host, port), MetricsHandler).serve_forever()
+    print(f'Exim Exporter listening on {host or "0.0.0.0"}:{port}', flush=True)
+    srv = ThreadingHTTPServer((host, port), MetricsHandler)
+    srv.timeout = 15
+    srv.serve_forever()
 PYEOF
 }
 
@@ -3126,8 +3170,15 @@ generate_cpanel_exporter() {
   cat > "$INSTALL_DIR/$AGENT_TYPE" << 'PYEOF'
 #!/usr/bin/env python3
 """NodePrism cPanel Exporter — accounts, domains, bandwidth, suspended for Prometheus."""
-import os, sys, re, time, argparse, glob
+import os, sys, re, time, argparse, glob, traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
+
+# Local ThreadingHTTPServer — Python 3.7 added http.server.ThreadingHTTPServer,
+# but we support Python 3.6 (CentOS 7 / CloudLinux 7). This MixIn works on 3.x.
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
 
 COLLECT_BANDWIDTH = os.environ.get('CPANEL_COLLECT_BANDWIDTH', 'true') == 'true'
 COLLECT_DOMAINS = os.environ.get('CPANEL_COLLECT_DOMAINS', 'true') == 'true'
@@ -3297,21 +3348,34 @@ def format_metrics():
     return '\n'.join(lines) + '\n'
 
 class MetricsHandler(BaseHTTPRequestHandler):
+    timeout = 15  # per-request read timeout; ThreadingHTTPServer handles concurrency
     def do_GET(self):
-        if self.path == '/metrics':
-            body = format_metrics().encode()
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/plain; version=0.0.4')
-            self.send_header('Content-Length', str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-        else:
-            self.send_response(200)
-            body = b'cPanel Exporter. /metrics for Prometheus.\n'
-            self.send_header('Content-Length', str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-    def log_message(self, fmt, *args): pass
+        try:
+            if self.path == '/metrics':
+                body = format_metrics().encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain; version=0.0.4')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                body = b'cPanel Exporter. /metrics for Prometheus.\n'
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+        except Exception as e:
+            sys.stderr.write(f'[cpanel_exporter] error handling {self.path}: {e}\n')
+            sys.stderr.write(traceback.format_exc())
+            sys.stderr.flush()
+            try:
+                self.send_error(500, 'internal error')
+            except Exception:
+                pass
+    def log_message(self, fmt, *args): pass  # silence access logs
+    def log_error(self, fmt, *args):
+        sys.stderr.write(f'[cpanel_exporter] {fmt % args}\n')
+        sys.stderr.flush()
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
@@ -3322,8 +3386,10 @@ if __name__ == '__main__':
         parts = args.listen.rsplit(':', 1)
         host = parts[0]
         port = int(parts[1])
-    print(f'cPanel Exporter listening on {host or "0.0.0.0"}:{port}')
-    HTTPServer((host, port), MetricsHandler).serve_forever()
+    print(f'cPanel Exporter listening on {host or "0.0.0.0"}:{port}', flush=True)
+    srv = ThreadingHTTPServer((host, port), MetricsHandler)
+    srv.timeout = 15
+    srv.serve_forever()
 PYEOF
 }
 
@@ -3594,6 +3660,22 @@ create_systemd_service() {
   local svc_user="${SERVICE_USER}"
   local svc_group="${SERVICE_USER}"
   local sandbox_lines=""
+  # Script-based Python exporters use stdlib http.server which can wedge under
+  # unusual client/socket conditions. Use Restart=always + RuntimeMaxSec as a
+  # belt-and-suspenders: always restart on exit, and hard-recycle every 6h so
+  # any slow memory leak or hang self-corrects with at most one missed scrape.
+  local restart_lines="Restart=on-failure
+RestartSec=5"
+
+  # Detect systemd version: RuntimeMaxSec= requires systemd 229+
+  # (CentOS 7 ships systemd 219 and would fail to load the unit file).
+  # Strip any non-numeric suffix (e.g. Fedora "257-1.fc40" → "257").
+  local systemd_version=0
+  if command -v systemctl &>/dev/null; then
+    systemd_version=$(systemctl --version 2>/dev/null | awk '/^systemd/ {print $2; exit}')
+    systemd_version="${systemd_version%%[!0-9]*}"
+    systemd_version=${systemd_version:-0}
+  fi
 
   case $AGENT_TYPE in
     litespeed_exporter|exim_exporter|cpanel_exporter)
@@ -3602,6 +3684,16 @@ create_systemd_service() {
       sandbox_lines="ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes"
+      restart_lines="Restart=always
+RestartSec=5
+TimeoutStopSec=10"
+      # RuntimeMaxSec requires systemd >= 229; skip on older systems (CentOS 7).
+      # Restart=always alone still ensures a crashed/exited process comes back —
+      # the 6h periodic recycle is belt-and-suspenders only.
+      if [[ "$systemd_version" -ge 229 ]] 2>/dev/null; then
+        restart_lines="${restart_lines}
+RuntimeMaxSec=21600"
+      fi
       ;;
     libvirt_exporter)
       # Use only directives supported by systemd 219+ (CentOS 7 compat)
@@ -3627,8 +3719,7 @@ After=network-online.target
 User=${svc_user}
 Group=${svc_group}
 Type=simple
-Restart=on-failure
-RestartSec=5
+${restart_lines}
 
 ${sandbox_lines}
 

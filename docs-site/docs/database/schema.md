@@ -73,6 +73,7 @@ AlertTemplate ──── NotificationChannel
 | maintenanceWindows | MaintenanceWindow[] | ✓ | - |
 | uptimeMonitors | UptimeMonitor[] | ✓ | - |
 | incidents | Incident[] | ✓ | - |
+| infraChanges | InfraChange[] | ✓ | - |
 
 ---
 
@@ -159,10 +160,13 @@ AlertTemplate ──── NotificationChannel
 | endsAt | DateTime | - | - |
 | acknowledgedAt | DateTime | - | - |
 | acknowledgedBy | String | - | - |
+| isFlapping | Boolean | ✓ | Default: false |
+| groupId | String | - | - |
 | createdAt | DateTime | ✓ | Default: now( |
 | rule | AlertRule | - | Relation |
 | template | AlertTemplate | - | Relation |
 | server | Server | - | Relation |
+| group | AlertGroup | - | Relation |
 
 **Indexes:**
 - `@@index([status])`
@@ -171,6 +175,7 @@ AlertTemplate ──── NotificationChannel
 - `@@index([serverId, status])`
 - `@@index([startsAt])`
 - `@@index([createdAt])`
+- `@@index([groupId])`
 
 ---
 
@@ -202,6 +207,7 @@ AlertTemplate ──── NotificationChannel
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
 | logs | NotificationLog[] | ✓ | - |
+| escalationSteps | EscalationStep[] | ✓ | - |
 
 ---
 
@@ -237,6 +243,7 @@ AlertTemplate ──── NotificationChannel
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
 | auditLogs | AuditLog[] | ✓ | - |
+| apiTokens | ApiToken[] | ✓ | - |
 
 ---
 
@@ -298,17 +305,23 @@ AlertTemplate ──── NotificationChannel
 | Field | Type | Required | Constraints |
 |-------|------|----------|-------------|
 | id | String | ✓ | Primary Key, Default: uuid( |
-| serverId | String | ✓ | - |
+| serverId | String | - | - |
+| uptimeMonitorId | String | - | - |
+| scope | String | ✓ | Default: "SERVER" |
 | reason | String | ✓ | - |
 | startTime | DateTime | ✓ | - |
 | endTime | DateTime | ✓ | - |
+| recurring | Boolean | ✓ | Default: false |
+| rrule | String | - | - |
 | createdBy | String | - | - |
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
-| server | Server | ✓ | Relation |
+| server | Server | - | Relation |
+| uptimeMonitor | UptimeMonitor | - | Relation |
 
 **Indexes:**
 - `@@index([serverId])`
+- `@@index([uptimeMonitorId])`
 - `@@index([startTime, endTime])`
 
 ---
@@ -375,6 +388,8 @@ AlertTemplate ──── NotificationChannel
 | updatedAt | DateTime | ✓ | - |
 | server | Server | - | Relation |
 | checks | UptimeCheck[] | ✓ | - |
+| slaPolicies | SlaPolicy[] | ✓ | - |
+| maintenanceWindows | MaintenanceWindow[] | ✓ | - |
 
 ---
 
@@ -388,6 +403,10 @@ AlertTemplate ──── NotificationChannel
 | responseTime | Int | - | - |
 | statusCode | Int | - | - |
 | message | String | - | - |
+| certExpiry | DateTime | - | - |
+| certIssuer | String | - | - |
+| domainExpiry | DateTime | - | - |
+| probeLabel | String | - | - |
 | checkedAt | DateTime | ✓ | Default: now( |
 | monitor | UptimeMonitor | ✓ | Relation |
 
@@ -412,10 +431,13 @@ AlertTemplate ──── NotificationChannel
 | startedAt | DateTime | ✓ | Default: now( |
 | resolvedAt | DateTime | - | - |
 | createdBy | String | - | - |
+| aiAnalysis | String | - | - |
+| aiAnalyzedAt | DateTime | - | - |
 | createdAt | DateTime | ✓ | Default: now( |
 | updatedAt | DateTime | ✓ | - |
 | server | Server | - | Relation |
 | updates | IncidentUpdate[] | ✓ | - |
+| postMortem | PostMortem | - | - |
 
 **Indexes:**
 - `@@index([status])`
@@ -478,6 +500,581 @@ AlertTemplate ──── NotificationChannel
 
 **Indexes:**
 - `@@index([serverId, metricName])`
+
+---
+
+### EscalationPolicy
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| steps | EscalationStep[] | ✓ | - |
+
+---
+
+### EscalationStep
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| policyId | String | ✓ | - |
+| stepOrder | Int | ✓ | - |
+| delayMinutes | Int | ✓ | - |
+| channelId | String | ✓ | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| policy | EscalationPolicy | ✓ | Relation |
+| channel | NotificationChannel | ✓ | Relation |
+
+**Indexes:**
+- `@@index([policyId, stepOrder])`
+- `@@index([channelId])`
+
+---
+
+### ApiToken
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| tokenHash | String | ✓ | Unique |
+| userId | String | ✓ | - |
+| permissions | Json | ✓ | Default: "[]" |
+| expiresAt | DateTime | - | - |
+| lastUsedAt | DateTime | - | - |
+| revoked | Boolean | ✓ | Default: false |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| user | User | ✓ | Relation |
+
+**Indexes:**
+- `@@index([userId])`
+- `@@index([revoked])`
+
+---
+
+### PostMortem
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| incidentId | String | ✓ | Unique |
+| summary | String | ✓ | - |
+| rootCause | String | ✓ | - |
+| impact | String | ✓ | - |
+| timeline | String | ✓ | - |
+| actionItems | Json | ✓ | Default: "[]" |
+| createdBy | String | - | - |
+| publishedAt | DateTime | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| incident | Incident | ✓ | Relation |
+
+---
+
+### AlertRoutingRule
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| enabled | Boolean | ✓ | Default: true |
+| priority | Int | ✓ | Default: 0 |
+| conditions | Json | ✓ | - |
+
+---
+
+### SlaPolicy
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| uptimeMonitorId | String | ✓ | - |
+| targetPercent | Float | ✓ | - |
+| windowDays | Int | ✓ | - |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| uptimeMonitor | UptimeMonitor | ✓ | Relation |
+
+**Indexes:**
+- `@@index([uptimeMonitorId])`
+- `@@index([enabled])`
+
+---
+
+### AlertInhibitionRule
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| sourceMatch | Json | ✓ | - |
+| targetMatch | Json | ✓ | - |
+| sourceSeverity | String | ✓ | - |
+| targetSeverity | String | ✓ | - |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+
+---
+
+### AlertGroup
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| fingerprint | String | ✓ | Unique |
+| status | String | ✓ | Default: "active" |
+| alertCount | Int | ✓ | Default: 1 |
+| firstSeenAt | DateTime | ✓ | - |
+| lastSeenAt | DateTime | ✓ | - |
+| resolvedAt | DateTime | - | - |
+| groupLabels | Json | ✓ | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| alerts | Alert[] | ✓ | - |
+
+**Indexes:**
+- `@@index([status])`
+
+---
+
+### StatusPage
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| slug | String | ✓ | Unique |
+| title | String | ✓ | Default: "Service Status" |
+| description | String | - | - |
+| logoUrl | String | - | - |
+| customCss | String | - | - |
+| isPublic | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| components | StatusPageComponent[] | ✓ | - |
+| subscribers | StatusPageSubscriber[] | ✓ | - |
+
+---
+
+### StatusPageComponent
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| statusPageId | String | ✓ | - |
+| name | String | ✓ | - |
+| description | String | - | - |
+| uptimeMonitorId | String | - | - |
+| sortOrder | Int | ✓ | Default: 0 |
+| createdAt | DateTime | ✓ | Default: now( |
+| statusPage | StatusPage | ✓ | Relation |
+
+**Indexes:**
+- `@@index([statusPageId])`
+
+---
+
+### StatusPageSubscriber
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| statusPageId | String | ✓ | - |
+| type | String | ✓ | - |
+| endpoint | String | ✓ | - |
+| confirmed | Boolean | ✓ | Default: false |
+| confirmToken | String | - | Unique |
+| createdAt | DateTime | ✓ | Default: now( |
+| statusPage | StatusPage | ✓ | Relation |
+
+**Indexes:**
+- `@@index([statusPageId])`
+
+---
+
+### Annotation
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| title | String | ✓ | - |
+| message | String | - | - |
+| tags | String[] | ✓ | Default: [] |
+| startTime | DateTime | ✓ | - |
+| endTime | DateTime | - | - |
+| color | String | ✓ | Default: "#3B82F6" |
+| createdBy | String | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+
+**Indexes:**
+- `@@index([startTime])`
+
+---
+
+### CompositeMonitor
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| description | String | - | - |
+| expression | String | ✓ | - |
+| monitorIds | String[] | ✓ | - |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+
+---
+
+### MultiStepMonitor
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| interval | Int | ✓ | Default: 300 |
+| timeout | Int | ✓ | Default: 30 |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| steps | MultiStepMonitorStep[] | ✓ | - |
+| results | MultiStepMonitorResult[] | ✓ | - |
+
+---
+
+### MultiStepMonitorStep
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| monitorId | String | ✓ | - |
+| stepOrder | Int | ✓ | - |
+| name | String | ✓ | - |
+| method | String | ✓ | Default: "GET" |
+| url | String | ✓ | - |
+| headers | Json | - | - |
+| body | String | - | - |
+| expectedStatus | Int | - | - |
+| extractVars | Json | - | - |
+| assertions | Json | - | - |
+| monitor | MultiStepMonitor | ✓ | Relation |
+
+**Indexes:**
+- `@@index([monitorId, stepOrder])`
+
+---
+
+### MultiStepMonitorResult
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| monitorId | String | ✓ | - |
+| status | String | ✓ | - |
+| duration | Int | ✓ | - |
+| stepResults | Json | ✓ | - |
+| checkedAt | DateTime | ✓ | Default: now( |
+| monitor | MultiStepMonitor | ✓ | Relation |
+
+**Indexes:**
+- `@@index([monitorId, checkedAt])`
+
+---
+
+### ScheduledReport
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| type | String | ✓ | - |
+| schedule | String | ✓ | - |
+| recipients | Json | ✓ | - |
+
+---
+
+### SnmpDevice
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| host | String | ✓ | - |
+| port | Int | ✓ | Default: 161 |
+| version | String | ✓ | Default: "2c" |
+| community | String | - | - |
+| authConfig | Json | - | - |
+| oids | Json | ✓ | - |
+
+---
+
+### SnmpPollResult
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| deviceId | String | ✓ | - |
+| values | Json | ✓ | - |
+| polledAt | DateTime | ✓ | Default: now( |
+| device | SnmpDevice | ✓ | Relation |
+
+**Indexes:**
+- `@@index([deviceId, polledAt])`
+
+---
+
+### RetentionPolicy
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| metricType | String | ✓ | Unique |
+| retentionDays | Int | ✓ | - |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+
+---
+
+### ServiceDependency
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| sourceId | String | ✓ | - |
+| sourceType | String | ✓ | - |
+| targetId | String | ✓ | - |
+| targetType | String | ✓ | - |
+| label | String | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+
+---
+
+### InfraChange
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| serverId | String | - | - |
+| changeType | String | ✓ | - |
+| source | String | ✓ | - |
+| title | String | ✓ | - |
+| details | Json | - | - |
+| detectedAt | DateTime | ✓ | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| server | Server | - | Relation |
+
+**Indexes:**
+- `@@index([serverId, detectedAt])`
+- `@@index([detectedAt])`
+
+---
+
+### OnCallSchedule
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| timezone | String | ✓ | Default: "UTC" |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| rotations | OnCallRotation[] | ✓ | - |
+
+---
+
+### OnCallRotation
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| scheduleId | String | ✓ | - |
+| userId | String | ✓ | - |
+| startTime | DateTime | ✓ | - |
+| endTime | DateTime | ✓ | - |
+| schedule | OnCallSchedule | ✓ | Relation |
+
+**Indexes:**
+- `@@index([scheduleId, startTime])`
+
+---
+
+### Slo
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| description | String | - | - |
+| targetPercent | Float | ✓ | - |
+| windowDays | Int | ✓ | - |
+| uptimeMonitorId | String | - | - |
+| metricQuery | String | - | - |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+
+---
+
+### OtlpSpan
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| traceId | String | ✓ | - |
+| spanId | String | ✓ | - |
+| parentSpanId | String | - | - |
+| operationName | String | ✓ | - |
+| serviceName | String | ✓ | - |
+| startTime | DateTime | ✓ | - |
+| duration | BigInt | ✓ | - |
+| status | String | ✓ | Default: "OK" |
+| attributes | Json | - | - |
+| events | Json | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+
+**Indexes:**
+- `@@index([traceId])`
+- `@@index([serviceName, startTime])`
+- `@@index([startTime])`
+
+---
+
+### Runbook
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| description | String | - | - |
+| script | String | ✓ | - |
+| language | String | ✓ | Default: "bash" |
+| timeout | Int | ✓ | Default: 300 |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| executions | RunbookExecution[] | ✓ | - |
+| alertTemplates | AlertTemplate[] | ✓ | - |
+
+---
+
+### RunbookExecution
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| runbookId | String | ✓ | - |
+| alertId | String | - | - |
+| serverId | String | - | - |
+| status | String | ✓ | - |
+| output | String | - | - |
+| exitCode | Int | - | - |
+| startedAt | DateTime | ✓ | - |
+| finishedAt | DateTime | - | - |
+| triggeredBy | String | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| runbook | Runbook | ✓ | Relation |
+
+**Indexes:**
+- `@@index([runbookId, startedAt])`
+
+---
+
+### RumSession
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| sessionId | String | ✓ | Unique |
+| userAgent | String | - | - |
+| country | String | - | - |
+| startedAt | DateTime | ✓ | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| pageViews | RumPageView[] | ✓ | - |
+
+**Indexes:**
+- `@@index([startedAt])`
+
+---
+
+### RumPageView
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| sessionId | String | ✓ | - |
+| url | String | ✓ | - |
+| loadTime | Int | - | - |
+| domContentLoaded | Int | - | - |
+| firstPaint | Int | - | - |
+| lcp | Int | - | - |
+| fid | Int | - | - |
+| cls | Float | - | - |
+| errorCount | Int | ✓ | Default: 0 |
+| viewedAt | DateTime | ✓ | - |
+| session | RumSession | ✓ | Relation |
+
+**Indexes:**
+- `@@index([sessionId])`
+- `@@index([viewedAt])`
+
+---
+
+### KubernetesCluster
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| apiEndpoint | String | ✓ | - |
+| authConfig | Json | ✓ | - |
+| enabled | Boolean | ✓ | Default: true |
+| lastSyncAt | DateTime | - | - |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+
+---
+
+### SyntheticCheck
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| name | String | ✓ | - |
+| script | String | ✓ | - |
+| interval | Int | ✓ | Default: 300 |
+| timeout | Int | ✓ | Default: 60 |
+| enabled | Boolean | ✓ | Default: true |
+| createdAt | DateTime | ✓ | Default: now( |
+| updatedAt | DateTime | ✓ | - |
+| results | SyntheticCheckResult[] | ✓ | - |
+
+---
+
+### SyntheticCheckResult
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| id | String | ✓ | Primary Key, Default: uuid( |
+| checkId | String | ✓ | - |
+| status | String | ✓ | - |
+| duration | Int | ✓ | - |
+| screenshot | String | - | - |
+| errorMessage | String | - | - |
+| stepResults | Json | - | - |
+| checkedAt | DateTime | ✓ | Default: now( |
+| check | SyntheticCheck | ✓ | Relation |
+
+**Indexes:**
+- `@@index([checkId, checkedAt])`
 
 ---
 
@@ -617,6 +1214,8 @@ AlertTemplate ──── NotificationChannel
 | `TCP` | - |
 | `PING` | - |
 | `DNS` | - |
+| `SSL_CERT` | - |
+| `DOMAIN` | - |
 
 ### UptimeCheckStatus
 

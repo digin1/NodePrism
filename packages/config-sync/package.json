@@ -14,7 +14,7 @@
   "dependencies": {
     "@nodeprism/shared": "workspace:*",
     "@prisma/client": "^5.8.1",
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "dotenv": "^16.4.1",
     "pg": "^8.11.3",
     "winston": "^3.11.0"

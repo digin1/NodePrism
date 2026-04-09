@@ -13,7 +13,7 @@
   "dependencies": {
     "@nodeprism/shared": "workspace:*",
     "@prisma/client": "^5.8.1",
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "dotenv": "^16.4.1",
     "ioredis": "^5.3.2",
     "ml-kmeans": "^6.0.0",
